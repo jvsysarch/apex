@@ -1,8 +1,15 @@
 # Native runtime provenance
 
-The Apex Physics browser runtime is a derivative build based on
-[JoltPhysics.js](https://github.com/jrouwe/JoltPhysics.js), which compiles
-[Jolt Physics](https://github.com/jrouwe/JoltPhysics) to WebAssembly.
+Apex Physics is an independent vehicle-dynamics runtime that uses
+[Jolt Physics](https://github.com/jrouwe/JoltPhysics) for rigid-body
+simulation and collision. Apex neither vendors nor modifies Jolt's C++ source:
+the build fetches the exact upstream commit below. The `native/` directory
+contains a small Apex integration layer derived from
+[JoltPhysics.js](https://github.com/jrouwe/JoltPhysics.js) so the browser
+runtime can expose `ApexTireForceBridge`.
+
+This integration does not rename, replace or fork Jolt Physics. Jolt and
+JoltPhysics.js retain their own copyright, licenses and upstream identity.
 
 ## Audited upstream baseline
 
@@ -33,12 +40,18 @@ first public Apex Physics preparation.
   Apex Drive.
 - `apex-physics.d.ts.in` provides the runtime module entry declaration.
 - `Dockerfile.build` fixes the native toolchain image.
+- per-target `package.json` files describe the renamed local build artifacts.
 
 ### Unmodified upstream material
 
 Files that remain unmodified retain their upstream copyright and MIT license.
-The original license is preserved in [`LICENSE`](LICENSE), and the original
-README remains in [`README.md`](README.md).
+The JoltPhysics.js MIT license is preserved in [`LICENSE`](LICENSE). Jolt's MIT
+license is preserved in [`JOLT_LICENSE`](JOLT_LICENSE). Distribution
+requirements are summarized in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+Only the external-WASM, single-threaded integration needed by Apex is retained.
+Upstream examples, local servers, CI/publish scripts, asm.js, embedded-WASM,
+debug and multithread packaging scaffolding are deliberately excluded.
 
 ## Updating upstream
 

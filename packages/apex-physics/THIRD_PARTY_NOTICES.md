@@ -1,8 +1,8 @@
 # Third-party notices
 
-Apex Physics is original vehicle-dynamics software built on third-party
-open-source foundations. The components below are not authored or endorsed by
-the Apex project.
+Apex Physics is original vehicle-dynamics software that uses independent
+third-party open-source components. The components below are not authored by,
+affiliated with or endorsed by the Apex project.
 
 ## Jolt Physics
 
@@ -14,8 +14,10 @@ the Apex project.
 - License: MIT
 
 Jolt provides rigid-body dynamics, collision detection, contact generation,
-vehicle constraints and integration. The Apex native build fetches Jolt from
-upstream; the Jolt C++ source tree is not vendored in this package.
+vehicle constraints and integration. Apex does not vendor or modify Jolt's C++
+source: the native build fetches this exact upstream commit. Generated runtime
+artifacts contain Jolt code, so its full MIT notice is distributed as
+[`native/JOLT_LICENSE`](native/JOLT_LICENSE).
 
 ## JoltPhysics.js
 
@@ -27,13 +29,15 @@ upstream; the Jolt C++ source tree is not vendored in this package.
 - License: MIT
 - Preserved license: [`native/LICENSE`](native/LICENSE)
 
-The binding source is vendored and modified. Apex changes include:
+The binding source is vendored and modified only as an Apex integration layer.
+It is not a fork of Jolt Physics. Apex changes include:
 
 - `JoltJS.h`: adds the compiled `ApexTireForceBridge` implementation;
 - `JoltJS.idl`: exposes the bridge through the generated JavaScript API;
 - `CMakeLists.txt`: names the Apex runtime artifacts and their external WASM;
 - `build.sh`: adapts generated artifact and declaration names;
-- `package.json`: local native-build metadata and artifact names;
+- native and per-target `package.json` files: local build metadata and artifact
+  names;
 - Apex-specific build files, type entry points and container tooling.
 
 Unmodified upstream files retain their original copyright and SPDX notices.

@@ -84,10 +84,6 @@
 using namespace JPH;
 using namespace std;
 
-#ifdef JPH_DEBUG_RENDERER
-	#include "JoltJS-DebugRenderer.h"
-#endif
-
 // Ensure that we use 32-bit object layers
 static_assert(sizeof(ObjectLayer) == 4);
 

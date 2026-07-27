@@ -1,8 +1,8 @@
 # APEX Physics
 
 Runtime headless de dinámica vehicular y fuerzas de neumáticos del ecosistema
-Apex, construido sobre
-[Jolt Physics](https://github.com/jrouwe/JoltPhysics).
+Apex. Usa [Jolt Physics](https://github.com/jrouwe/JoltPhysics) como
+dependencia de cuerpos rígidos y colisión.
 
 > Estado: `0.1.0`, API pública experimental. Apex Drive consume directamente
 > este paquete del workspace. Se mantiene protegido contra una publicación
@@ -12,10 +12,11 @@ Apex, construido sobre
 
 ## Qué es Apex Physics
 
-Apex Physics no reemplaza ni renombra Jolt Physics. Jolt conserva la autoridad
-sobre cuerpos rígidos, detección de colisiones, generación de contactos,
-constraints vehiculares e integración temporal. Apex agrega la capa específica
-de dinámica vehicular:
+Apex Physics no reemplaza, renombra ni es un fork de Jolt Physics. Jolt es una
+dependencia upstream independiente y conserva la autoridad sobre cuerpos
+rígidos, detección de colisiones, generación de contactos, constraints
+vehiculares e integración temporal. Apex agrega la capa específica de dinámica
+vehicular:
 
 - `ApexPhysicsWorld`, `ApexVehicle` y snapshots numéricos;
 - contratos genéricos para definiciones de vehículos externas;
@@ -26,10 +27,12 @@ de dinámica vehicular:
 - filtrado determinista de input;
 - un puerto independiente del host para colisión estática.
 
-El runtime de navegador se construye con bindings modificados de
-JoltPhysics.js. La modificación expone `ApexTireForceBridge`, lo que permite
-ejecutar los modelos de neumático de producción dentro de WebAssembly sin un
-callback JavaScript por rueda.
+El runtime de navegador obtiene el código C++ de Jolt fijado y sin modificar
+directamente desde su repositorio upstream. Apex conserva una capa de
+integración pequeña derivada de JoltPhysics.js solo para exponer
+`ApexTireForceBridge`, lo que permite ejecutar los modelos de neumático de
+producción dentro de WebAssembly sin un callback JavaScript por rueda. Jolt y
+JoltPhysics.js conservan sus propias identidades, copyrights y avisos MIT.
 
 Ver [Arquitectura](docs/ARCHITECTURE.md),
 [procedencia nativa](native/UPSTREAM.md),
@@ -92,6 +95,8 @@ lógica de carrera/sesión y Apex Void pertenecen a otros componentes.
 ## Licencia
 
 El código original de Apex Physics se publica bajo
-[licencia MIT](LICENSE). Jolt Physics y los bindings JoltPhysics.js
-preservados/modificados conservan sus avisos MIT originales. Ver
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+[licencia MIT](LICENSE). Jolt Physics y la integración
+preservada/modificada de JoltPhysics.js conservan sus avisos MIT originales.
+Ver [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md),
+[el aviso de Jolt](native/JOLT_LICENSE) y
+[el aviso de JoltPhysics.js](native/LICENSE).

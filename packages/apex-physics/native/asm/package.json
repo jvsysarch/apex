@@ -1,5 +1,0 @@
-{
-  "type": "module",
-  "main": "../dist/apex-physics.asm.js",
-  "types": "../dist/apex-physics.d.ts"
-}

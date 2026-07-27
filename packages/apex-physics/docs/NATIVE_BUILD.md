@@ -10,9 +10,10 @@ native/dist/apex-physics.d.ts
 native/dist/types.d.ts
 ```
 
-The build uses the modified JoltPhysics.js bindings in `native/` and fetches
-the pinned Jolt Physics v5.6.0 commit recorded in
-[`native/UPSTREAM.md`](../native/UPSTREAM.md).
+The build fetches the pinned, unmodified Jolt Physics v5.6.0 commit recorded
+in [`native/UPSTREAM.md`](../native/UPSTREAM.md). The `native/` directory
+contains an Apex integration layer derived from JoltPhysics.js; it exposes the
+bridge required by Apex and does not modify or vendor Jolt's C++ source.
 
 ## Toolchain
 
@@ -45,3 +46,6 @@ attach those artifacts for consumers that do not have the native toolchain.
 
 The root package remains `private: true` until the separate npm distribution
 work is completed.
+
+Any generated-runtime distribution must include `native/JOLT_LICENSE`,
+`native/LICENSE` and `THIRD_PARTY_NOTICES.md` alongside its JS/WASM artifacts.

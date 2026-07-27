@@ -1,5 +1,0 @@
-{
-  "type": "module",
-  "main": "../dist/apex-physics.debug.multithread.wasm-compat.js",
-  "types": "../dist/apex-physics.debug.multithread.wasm-compat.d.ts"
-}

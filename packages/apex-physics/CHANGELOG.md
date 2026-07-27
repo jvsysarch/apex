@@ -26,6 +26,10 @@ and the public package will follow semantic versioning once its API is stable.
   `@jvsysarch/apex-car`.
 - Fixed stepping and static collision authority now belong to
   `ApexPhysicsWorld`; vehicle input and snapshots belong to `ApexVehicle`.
+- Clarified Jolt and JoltPhysics.js attribution and added distributable MIT
+  notices for the generated Jolt runtime.
+- Removed unused upstream example, server, CI/publish, debug, asm.js,
+  embedded-WASM and multithread scaffolding from the native integration.
 
 ### Validated
 

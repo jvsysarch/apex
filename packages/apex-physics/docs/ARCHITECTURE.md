@@ -25,7 +25,7 @@ ApexVehicleSimulation (internal)
   └─ tire-force model selection
              │
              ▼
-ApexTireForceBridge (modified JoltPhysics.js binding)
+ApexTireForceBridge (Apex integration derived from JoltPhysics.js)
   ├─ Apex Brush
   ├─ simplified Apex TMeasy-inspired model
   └─ numerical subcontact evaluation

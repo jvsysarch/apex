@@ -6,5 +6,5 @@ set -eu
 cmake -E remove_directory dist
 cmake -E make_directory dist
 cmake -B Build/Distribution/ST -DCMAKE_BUILD_TYPE=Distribution
-cmake --build Build/Distribution/ST --target jolt-wasm -j "$(nproc)"
+cmake --build Build/Distribution/ST --target apex-wasm -j "$(nproc)"
 cmake -E copy apex-physics.d.ts.in dist/apex-physics.d.ts

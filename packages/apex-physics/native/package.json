@@ -2,51 +2,10 @@
 	"name": "@jvsysarch/apex-physics-native-build",
 	"version": "0.1.0",
 	"private": true,
-	"description": "Internal build harness for the Apex-modified JoltPhysics.js WebAssembly runtime",
+	"description": "Internal build harness for the Apex Physics external-WASM runtime",
 	"type": "module",
-	"main": "dist/apex-physics.js",
-	"types": "dist/apex-physics.d.ts",
-	"exports": {
-		".": {
-			"types": "./dist/apex-physics.d.ts",
-			"default": "./dist/apex-physics.js"
-		},
-		"./wasm": {
-			"types": "./dist/apex-physics.d.ts",
-			"default": "./dist/apex-physics.js"
-		},
-		"./wasm-compat": {
-			"types": "./dist/apex-physics.wasm-compat.d.ts",
-			"default": "./dist/apex-physics.wasm-compat.js"
-		},
-		"./debug-wasm-compat": {
-			"types": "./dist/apex-physics.debug.wasm-compat.d.ts",
-			"default": "./dist/apex-physics.debug.wasm-compat.js"
-		},
-		"./asm": {
-			"types": "./dist/apex-physics.d.ts",
-			"default": "./dist/apex-physics.asm.js"
-		},
-		"./wasm-multithread": {
-			"types": "./dist/apex-physics.multithread.wasm.d.ts",
-			"default": "./dist/apex-physics.multithread.js"
-		},
-		"./wasm-compat-multithread": {
-			"types": "./dist/apex-physics.multithread.wasm-compat.d.ts",
-			"default": "./dist/apex-physics.multithread.wasm-compat.js"
-		},
-		"./debug-wasm-compat-multithread": {
-			"types": "./dist/apex-physics.debug.multithread.wasm-compat.d.ts",
-			"default": "./dist/apex-physics.debug.multithread.wasm-compat.js"
-		},
-		"./apex-physics.wasm": "./dist/apex-physics.wasm",
-		"./apex-physics.multithread.wasm": "./dist/apex-physics.multithread.wasm",
-		"./package.json": "./package.json"
-	},
 	"scripts": {
-		"build": "sh build.sh",
-		"build:runtime": "sh build-apex.sh",
-		"examples": "node serveexamples/serveexamples.cjs"
+		"build:runtime": "sh build-apex.sh"
 	},
 	"homepage": "https://github.com/jvsysarch/apex/tree/main/packages/apex-physics/native",
 	"repository": {
@@ -56,46 +15,7 @@
 	},
 	"author": "Jonathan Villaverde and JoltPhysics.js contributors",
 	"license": "MIT",
-	"files": [
-		"README.md",
-		"LICENSE",
-		"./dist/apex-physics.asm.js",
-		"./dist/apex-physics.d.ts",
-		"./dist/apex-physics.wasm-compat.js",
-		"./dist/apex-physics.wasm-compat.d.ts",
-		"./dist/apex-physics.debug.wasm-compat.js",
-		"./dist/apex-physics.debug.wasm-compat.d.ts",
-		"./dist/apex-physics.js",
-		"./dist/apex-physics.wasm",
-		"./dist/apex-physics.multithread.wasm-compat.js",
-		"./dist/apex-physics.multithread.wasm-compat.d.ts",
-		"./dist/apex-physics.debug.multithread.wasm-compat.js",
-		"./dist/apex-physics.debug.multithread.wasm-compat.d.ts",
-		"./dist/apex-physics.multithread.js",
-		"./dist/apex-physics.multithread.wasm.d.ts",
-		"./dist/apex-physics.multithread.wasm",
-		"./dist/types.d.ts",
-		"asm",
-		"wasm",
-		"wasm-compat",
-		"debug-wasm-compat",
-		"wasm-multithread",
-		"wasm-compat-multithread",
-		"debug-wasm-compat-multithread"
-	],
-	"keywords": [
-		"physics",
-		"physics-engine",
-		"physics-simulation",
-		"simulation",
-		"game-engine",
-		"vr",
-		"game-development",
-		"webassembly",
-		"wasm"
-	],
 	"devDependencies": {
-		"express": "^4.19.2",
 		"webidl-dts-gen": "^1.11.0"
 	}
 }
