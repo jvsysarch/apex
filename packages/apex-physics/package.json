@@ -1,0 +1,54 @@
+{
+  "name": "@jvsysarch/apex-physics",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Headless vehicle dynamics and tire-force runtime built on Jolt Physics.",
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "license": "MIT",
+  "author": {
+    "name": "Jonathan Villaverde",
+    "email": "jv.sys.arch@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jvsysarch/apex.git",
+    "directory": "packages/apex-physics"
+  },
+  "homepage": "https://github.com/jvsysarch/apex/tree/main/packages/apex-physics",
+  "bugs": {
+    "url": "https://github.com/jvsysarch/apex/issues"
+  },
+  "keywords": [
+    "vehicle-dynamics",
+    "tire-model",
+    "jolt-physics",
+    "webassembly",
+    "simulation"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./native/apex-physics.js": "./native/dist/apex-physics.js",
+    "./native/apex-physics.wasm": "./native/dist/apex-physics.wasm"
+  },
+  "files": [
+    "src",
+    "native/dist",
+    "native/LICENSE",
+    "native/UPSTREAM.md",
+    "docs",
+    "README.md",
+    "README.es.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types tests/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.8.0"
+  }
+}

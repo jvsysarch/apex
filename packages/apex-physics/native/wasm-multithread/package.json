@@ -1,0 +1,5 @@
+{
+  "type": "module",
+  "main": "../dist/apex-physics.multithread.js",
+  "types": "../dist/apex-physics.multithread.wasm.d.ts"
+}
