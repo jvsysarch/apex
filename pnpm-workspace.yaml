@@ -1,5 +1,6 @@
 packages:
   - "apex-drive"
+  - "apps/apex-demo"
   - "apps/apex-mesh"
   - "apps/apex-run"
   - "packages/*"
