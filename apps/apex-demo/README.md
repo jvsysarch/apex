@@ -1,21 +1,15 @@
-# Apex Physics Demo
+# Apex Demo
 
-Public, static and intentionally focused demonstration of the Apex Physics
-tire-force API. It is separate from `apex-drive`, which remains the internal
-integration and test bench for vehicle, track, rendering, editor and services.
+Public application for the staged Apex rollout.
 
-## Local development
+## Phase 1
 
-```text
-corepack pnpm dev:demo
-```
-
-## Public deployment
-
-The GitHub Pages workflow publishes this application at:
+This application is intentionally a Hello World. Its only job is to establish
+the GitHub Pages build and deployment pipeline at:
 
 ```text
 https://jvsysarch.github.io/apex/
 ```
 
-It deploys only the built files from `apps/apex-demo/dist`.
+Future phases will add the simulator, then optional authentication and
+persistence as separate, deliberate steps.

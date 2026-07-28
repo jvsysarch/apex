@@ -9,9 +9,6 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4174 --strictPort"
   },
-  "dependencies": {
-    "@jvsysarch/apex-physics": "workspace:*"
-  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "typescript": "^5.8.0",

@@ -9,10 +9,6 @@ importers:
   .: {}
 
   apps/apex-demo:
-    dependencies:
-      '@jvsysarch/apex-physics':
-        specifier: workspace:*
-        version: link:../../packages/apex-physics
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
