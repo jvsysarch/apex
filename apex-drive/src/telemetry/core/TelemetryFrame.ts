@@ -31,6 +31,9 @@ export interface VehicleTelemetry {
 export interface DrivetrainTelemetry {
   readonly rpm: number;
   readonly gear: number;
+  readonly clutchFriction: number;
+  readonly clutchEngagement: number;
+  readonly transmissionSwitchingGear: boolean;
   readonly throttle: number;
   readonly brake: number;
   readonly requestedEngineTorqueNm: number;

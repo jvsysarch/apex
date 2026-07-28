@@ -1916,6 +1916,7 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
     const angularVelocity = this.carBody.GetAngularVelocity();
     const engine = this.controller.GetEngine();
     const transmission = this.controller.GetTransmission();
+    const clutchFriction = transmission.GetClutchFriction();
     const wheels: ApexWheelState[] = [];
 
     for (let index = 0; index < this.wheelCount; index += 1) {
@@ -1965,6 +1966,9 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
       evaluatedTireContactCount: this.evaluatedTireContactCount,
       rpm: engine.GetCurrentRPM(),
       gear: transmission.GetCurrentGear(),
+      clutchFriction,
+      clutchEngagement: clamp(clutchFriction, 0, 1),
+      transmissionSwitchingGear: transmission.IsSwitchingGear(),
       throttle: Math.abs(this.controller.GetForwardInput()),
       brake: this.controller.GetBrakeInput(),
       requestedEngineTorqueNm: this.requestedEngineTorqueNm,
@@ -1994,6 +1998,7 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
     const linearVelocity = this.carBody.GetLinearVelocity();
     const engine = this.controller.GetEngine();
     const transmission = this.controller.GetTransmission();
+    const clutchFriction = transmission.GetClutchFriction();
     const wheelPositions: ApexVector3Tuple[] = [];
     const wheelRotations: ApexQuaternionTuple[] = [];
     const wheelContactErrorsM: number[] = [];
@@ -2127,6 +2132,9 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
       speedKmh: Math.hypot(linearVelocity.GetX(), linearVelocity.GetY(), linearVelocity.GetZ()) * 3.6,
       rpm: engine.GetCurrentRPM(),
       gear: transmission.GetCurrentGear(),
+      clutchFriction,
+      clutchEngagement: clamp(clutchFriction, 0, 1),
+      transmissionSwitchingGear: transmission.IsSwitchingGear(),
       throttle: Math.abs(this.controller.GetForwardInput()),
       brake: this.controller.GetBrakeInput(),
       steering: this.currentSteeringInput,

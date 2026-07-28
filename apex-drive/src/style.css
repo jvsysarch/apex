@@ -23,6 +23,10 @@ html[data-apex-drive-profile="public-demo"] #visual-controls {
   display: none !important;
 }
 
+html[data-apex-drive-profile="public-demo"] .parking-car-selector {
+  display: none !important;
+}
+
 html[data-apex-drive-profile="public-demo"] {
   font-size: 17px;
   text-rendering: optimizeLegibility;
@@ -40,8 +44,9 @@ html[data-apex-drive-profile="public-demo"] .environment-quick-menu {
   font-size: 10px;
 }
 
-html[data-apex-drive-profile="public-demo"] .environment-quick-menu select {
-  width: 138px;
+html[data-apex-drive-profile="public-demo"] .environment-quick-menu button {
+  width: 34px;
+  height: 30px;
 }
 
 html[data-apex-drive-profile="public-demo"] .apex-about__trigger strong {
@@ -123,7 +128,7 @@ html[data-apex-drive-profile="public-demo"] .lap-timing-card footer span {
 .vehicle-workshop {
   position: fixed;
   z-index: 22;
-  top: 64px;
+  top: 12px;
   left: 14px;
   display: flex;
   align-items: flex-start;
@@ -225,8 +230,11 @@ html[data-apex-drive-profile="public-demo"] .lap-timing-card footer span {
 .environment-quick-menu {
   position: fixed;
   z-index: 22;
-  top: 64px;
+  top: 12px;
   right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 7px 8px;
   border: 1px solid rgba(122, 205, 220, .42);
   border-radius: 8px;
@@ -242,40 +250,625 @@ html[data-apex-drive-profile="public-demo"] .lap-timing-card footer span {
   display: none;
 }
 
-.environment-quick-menu label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.environment-quick-menu label > span {
+.environment-quick-menu__label {
   color: #72bac7;
   letter-spacing: .1em;
   text-transform: uppercase;
 }
 
-.environment-quick-menu select {
-  width: 126px;
-  height: 26px;
-  padding: 0 22px 0 7px;
-  border: 1px solid rgba(199, 244, 255, .4);
+.environment-quick-menu__toggle {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 3px;
+  padding: 2px;
+  border: 1px solid #52889263;
   border-radius: 5px;
-  color: #e5fbff;
-  background: #07131b;
-  font: inherit;
+  background: #041017a3;
+}
+
+.environment-quick-menu__toggle button {
+  display: grid;
+  width: 31px;
+  height: 27px;
+  padding: 5px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #6e9da6;
+  background: transparent;
   cursor: pointer;
+}
+
+.environment-quick-menu__toggle button svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.45;
+}
+
+.environment-quick-menu__toggle button:first-child svg path {
+  fill: currentColor;
+  stroke: none;
+}
+
+.environment-quick-menu__toggle button:hover,
+.environment-quick-menu__toggle button:focus-visible {
+  color: #dffbff;
+  background: #12313ba8;
+  outline: none;
+}
+
+.environment-quick-menu__toggle button[aria-pressed="true"] {
+  border-color: #82e4f1a3;
+  color: #e9feff;
+  background: linear-gradient(145deg, #17414bcc, #0a252dbd);
+  box-shadow: inset 0 1px #e7fdff16, 0 0 10px #54cede1a;
+}
+
+.apex-technical-telemetry {
+  position: fixed;
+  z-index: 24;
+  top: 62px;
+  left: 14px;
+  display: grid;
+  justify-items: start;
+  color: #e4fbff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  pointer-events: auto;
+}
+
+.apex-technical-telemetry[hidden],
+.apex-technical-telemetry__panel[hidden] {
+  display: none;
+}
+
+.apex-technical-telemetry__toggle {
+  position: relative;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  padding: 7px;
+  place-items: center;
+  border: 1px solid #7acddc7a;
+  border-radius: 8px;
+  color: #bdeef5;
+  background: #051118e8;
+  box-shadow: 0 7px 22px #0007;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.apex-technical-telemetry__toggle::after {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #4df0a4;
+  box-shadow: 0 0 8px #4df0a4;
+  content: "";
+}
+
+.apex-technical-telemetry__toggle svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.35;
+}
+
+.apex-technical-telemetry__toggle span {
+  position: absolute;
+  bottom: -12px;
+  color: #61c9d6;
+  font-size: 6px;
+  font-weight: 900;
+  letter-spacing: .16em;
+}
+
+.apex-technical-telemetry__toggle:hover,
+.apex-technical-telemetry__toggle:focus-visible,
+.apex-technical-telemetry[data-open="true"] .apex-technical-telemetry__toggle {
+  border-color: #a6f4ffdf;
+  color: #fff;
+  background: #0a2933ee;
+  outline: none;
+}
+
+.apex-technical-telemetry__panel {
+  width: min(410px, calc(100vw - 28px));
+  max-height: calc(100vh - 172px);
+  margin-top: 20px;
+  overflow: auto;
+  border: 1px solid #70ccda61;
+  border-radius: 10px;
+  background:
+    linear-gradient(145deg, #07141be8, #030a0edb);
+  box-shadow: 0 18px 55px #000a, inset 0 1px #e2fbff0d;
+  animation: apex-technical-panel-in 240ms ease both;
+  backdrop-filter: blur(13px);
+  scrollbar-width: thin;
+  scrollbar-color: #39717b #071117;
+}
+
+.apex-technical-telemetry__header {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #6ac3d12b;
+  background: #081820f0;
+  backdrop-filter: blur(10px);
+}
+
+.apex-technical-telemetry__header > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.apex-technical-telemetry__header small {
+  color: #5fcbd8;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .17em;
+}
+
+.apex-technical-telemetry__header strong {
+  color: #eaffff;
+  font-size: 12px;
+  letter-spacing: .08em;
+}
+
+.apex-technical-telemetry__badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 3px;
+}
+
+.apex-technical-telemetry__badges span {
+  padding: 3px 5px;
+  border: 1px solid #50d99b4d;
+  border-radius: 3px;
+  color: #81eeb7;
+  background: #09231999;
+  font-size: 6px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.apex-technical-telemetry__overview {
+  display: grid;
+  grid-template-columns: minmax(128px, .78fr) minmax(0, 1.22fr);
+  gap: 8px;
+  padding: 9px;
+}
+
+.apex-vehicle-schematic,
+.apex-slip-scope {
+  margin: 0;
+  border: 1px solid #4d95a13d;
+  border-radius: 7px;
+  background:
+    linear-gradient(#0b202777 1px, transparent 1px),
+    linear-gradient(90deg, #0b202777 1px, transparent 1px),
+    #061117b8;
+  background-size: 18px 18px;
+}
+
+.apex-vehicle-schematic figcaption,
+.apex-slip-scope figcaption {
+  padding: 7px 8px 0;
+  color: #6195a0;
+  font-size: 6px;
+  font-weight: 800;
+  letter-spacing: .13em;
+}
+
+.apex-vehicle-schematic svg {
+  display: block;
+  width: 100%;
+  height: 192px;
+}
+
+.apex-vehicle-schematic__body {
+  fill: #12323a6e;
+  stroke: #75d8e5d6;
+  stroke-width: 1.2;
+}
+
+.apex-vehicle-schematic__center {
+  fill: none;
+  stroke: #52909a5e;
+  stroke-dasharray: 3 4;
+  stroke-width: .8;
+}
+
+.apex-vehicle-schematic__suspension {
+  stroke: #6fc6d2;
+  stroke-dasharray: 2 2;
+  stroke-linecap: round;
+  transition:
+    x2 70ms linear,
+    stroke-width 70ms linear,
+    opacity 70ms linear;
+}
+
+.apex-vehicle-schematic g rect {
+  fill: #101d22;
+  stroke: #b7edf3;
+  stroke-width: 1.2;
+  transition:
+    x 70ms linear,
+    y 70ms linear,
+    width 70ms linear,
+    height 70ms linear,
+    fill 80ms linear,
+    stroke 80ms linear;
+}
+
+.apex-vehicle-schematic g line {
+  stroke: #ffcc69;
+  stroke-linecap: round;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 3px #ffbf48);
+}
+
+.apex-vehicle-schematic g circle {
+  stroke: #051014;
+  stroke-width: 1;
+}
+
+.apex-vehicle-schematic g circle.is-grounded {
+  fill: #4bf0a2;
+  filter: drop-shadow(0 0 4px #4bf0a2);
+}
+
+.apex-vehicle-schematic g circle.is-airborne {
+  fill: #ff5878;
+  filter: drop-shadow(0 0 4px #ff5878);
+}
+
+.apex-vehicle-schematic g[data-state="locked"] rect {
+  fill: #4a0710;
+  stroke: #ff526b;
+  filter: drop-shadow(0 0 4px #ff3858);
+}
+
+.apex-vehicle-schematic g[data-state="locked"] line {
+  stroke: #ff536b;
+  filter: drop-shadow(0 0 4px #ff3858);
+}
+
+.apex-vehicle-schematic g circle.is-locked {
+  fill: #ff3858;
+  filter: drop-shadow(0 0 6px #ff3858);
+}
+
+.apex-slip-scope {
+  display: grid;
+  grid-template-rows: auto minmax(120px, 1fr) auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.apex-slip-scope figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.apex-slip-scope figcaption output {
+  color: #b6eaf0;
+  font-weight: 900;
+}
+
+.apex-slip-scope canvas {
+  display: block;
+  width: 100%;
+  height: 142px;
+  margin-top: 5px;
+  background:
+    linear-gradient(90deg, transparent, #0e31394d 50%, transparent);
+}
+
+.apex-slip-scope__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 9px;
+  padding: 7px 8px 8px;
+}
+
+.apex-slip-scope__legend span {
+  color: var(--wheel-color);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .05em;
+  white-space: nowrap;
+}
+
+.apex-slip-scope__legend span::before {
+  display: inline-block;
+  width: 8px;
+  height: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+  background: currentColor;
+  box-shadow: 0 0 4px currentColor;
+  content: "";
+}
+
+.apex-slip-scope__legend output {
+  color: #dffcff;
+  font-weight: 700;
+}
+
+.apex-technical-telemetry__metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  padding: 0 9px 9px;
+}
+
+.apex-technical-telemetry__metrics article {
+  display: grid;
+  align-content: center;
+  min-height: 54px;
+  padding: 6px;
+  border: 1px solid #4b909b3b;
+  border-radius: 5px;
+  background: #081920a3;
+}
+
+.apex-technical-telemetry__metrics small {
+  color: #5d8991;
+  font-size: 6px;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+
+.apex-technical-telemetry__metrics output {
+  overflow: hidden;
+  margin-top: 4px;
+  color: #e9fdff;
+  font-size: 12px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apex-technical-telemetry__metrics article:first-child output {
+  color: #fff;
+  font-size: 18px;
+}
+
+.apex-technical-telemetry__metrics article span {
+  color: #507b83;
+  font-size: 6px;
+}
+
+.apex-clutch-telemetry {
+  display: grid;
+  grid-template-columns: 8px minmax(110px, auto) minmax(80px, 1fr) 34px;
+  align-items: center;
+  gap: 9px;
+  margin: 0 9px 9px;
+  padding: 8px 9px;
+  border: 1px solid #3d946f61;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #071c16ba, #07171db8);
+}
+
+.apex-clutch-telemetry__lamp {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #55eca2;
+  box-shadow: 0 0 8px #55eca2;
+}
+
+.apex-clutch-telemetry > div:nth-child(2) {
+  display: grid;
+  gap: 2px;
+}
+
+.apex-clutch-telemetry small {
+  color: #5d8d7a;
+  font-size: 6px;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+
+.apex-clutch-telemetry [data-telemetry-clutch-status] {
+  color: #9af5c5;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.apex-clutch-telemetry__track {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #122a288f;
+}
+
+.apex-clutch-telemetry__track i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: #58eaaa;
+  box-shadow: 0 0 8px #58eaaa;
+  transition: width 80ms linear;
+}
+
+.apex-clutch-telemetry > [data-telemetry-clutch-value] {
+  color: #a8cfc2;
+  font-size: 9px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.apex-clutch-telemetry[data-state="switching"],
+.apex-clutch-telemetry[data-state="coupling"] {
+  border-color: #d89c4e70;
+  background: linear-gradient(90deg, #24190cb8, #07171db8);
+}
+
+.apex-clutch-telemetry[data-state="switching"] .apex-clutch-telemetry__lamp,
+.apex-clutch-telemetry[data-state="coupling"] .apex-clutch-telemetry__lamp,
+.apex-clutch-telemetry[data-state="switching"] .apex-clutch-telemetry__track i,
+.apex-clutch-telemetry[data-state="coupling"] .apex-clutch-telemetry__track i {
+  background: #ffc56d;
+  box-shadow: 0 0 8px #ffc56d;
+}
+
+.apex-clutch-telemetry[data-state="switching"] [data-telemetry-clutch-status],
+.apex-clutch-telemetry[data-state="coupling"] [data-telemetry-clutch-status] {
+  color: #ffd28d;
+}
+
+.apex-clutch-telemetry[data-state="free"] {
+  border-color: #7b59665c;
+  background: #120c11a6;
+}
+
+.apex-clutch-telemetry[data-state="free"] .apex-clutch-telemetry__lamp {
+  background: #b1768b;
+  box-shadow: 0 0 6px #9d6377;
+}
+
+.apex-clutch-telemetry[data-state="free"] [data-telemetry-clutch-status] {
+  color: #c797a8;
+}
+
+.apex-technical-telemetry__wheels {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  padding: 0 9px 9px;
+}
+
+.apex-wheel-telemetry {
+  display: grid;
+  gap: 2px;
+  padding: 7px;
+  border: 1px solid #428c9863;
+  border-radius: 5px;
+  background: #07171db8;
+}
+
+.apex-wheel-telemetry[data-contact="airborne"] {
+  border-color: #c3445b80;
+  background: #260c13a6;
+}
+
+.apex-wheel-telemetry[data-state="locked"] {
+  border-color: #ff506f9c;
+  background: linear-gradient(145deg, #390913c4, #16070ca8);
+  box-shadow: inset 0 0 12px #ff31521a;
+}
+
+.apex-wheel-telemetry header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.apex-wheel-telemetry header strong {
+  color: #8ff4c1;
+  font-size: 11px;
+}
+
+.apex-wheel-telemetry[data-contact="airborne"] header strong {
+  color: #ff728b;
+}
+
+.apex-wheel-telemetry[data-state="locked"] header strong,
+.apex-wheel-telemetry[data-state="locked"] [data-wheel-slip] {
+  color: #ff6c83;
+}
+
+.apex-wheel-telemetry header span {
+  overflow: hidden;
+  max-width: 46px;
+  color: #55808a;
+  font-size: 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apex-wheel-telemetry output {
+  overflow: hidden;
+  color: #dffaff;
+  font-size: 9px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apex-wheel-telemetry small {
+  margin-bottom: 3px;
+  color: #4f747c;
+  font-size: 5px;
+  letter-spacing: .06em;
+}
+
+@keyframes apex-technical-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scale(.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 680px) {
+  .apex-technical-telemetry {
+    top: 60px;
+    left: 10px;
+  }
+
+  .apex-technical-telemetry__panel {
+    max-height: calc(100vh - 166px);
+  }
+
+  .apex-technical-telemetry__overview {
+    grid-template-columns: minmax(0, 1fr) 120px;
+  }
+
+  .apex-technical-telemetry__metrics,
+  .apex-technical-telemetry__wheels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .apex-about {
   position: fixed;
-  z-index: 23;
-  top: 106px;
-  right: 14px;
-  display: grid;
-  justify-items: end;
+  z-index: 26;
+  bottom: 12px;
+  left: 50%;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
   color: #e5fbff;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   pointer-events: auto;
+  transform: translateX(-50%);
 }
 
 .apex-about__trigger {
@@ -331,10 +924,56 @@ html[data-apex-drive-profile="public-demo"] .lap-timing-card footer span {
   letter-spacing: .15em;
 }
 
+.apex-about__author-trigger {
+  position: fixed;
+  z-index: 100;
+  top: max(7px, env(safe-area-inset-top));
+  left: 50%;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 5px 9px;
+  border: 1px solid rgba(122, 205, 220, .18);
+  border-radius: 5px;
+  color: rgba(220, 248, 252, .76);
+  background: rgba(4, 14, 20, .56);
+  box-shadow: 0 5px 16px rgba(0, 0, 0, .28);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: nowrap;
+  cursor: pointer;
+  transform: translateX(-50%);
+  backdrop-filter: blur(6px);
+}
+
+.apex-about__author-trigger span {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.apex-about__author-trigger small {
+  color: rgba(105, 195, 208, .7);
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .13em;
+}
+
+.apex-about__author-trigger:hover,
+.apex-about__author-trigger:focus-visible {
+  border-color: rgba(130, 229, 244, .68);
+  color: #fff;
+  background: rgba(6, 27, 36, .92);
+  outline: none;
+}
+
+html[data-apex-drive-profile="public-demo"] #lap-timer {
+  top: 48px;
+}
+
 .apex-about__panel {
   width: min(390px, calc(100vw - 28px));
-  max-height: calc(100vh - 166px);
-  margin-top: 8px;
+  max-height: calc(100vh - 92px);
+  margin-bottom: 8px;
   overflow: auto;
   border: 1px solid rgba(122, 205, 220, .52);
   border-radius: 10px;
@@ -356,6 +995,48 @@ html[data-apex-drive-profile="public-demo"] .lap-timing-card footer span {
   gap: 16px;
   padding: 16px 16px 12px;
   border-bottom: 1px solid rgba(122, 205, 220, .18);
+}
+
+.apex-about__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.apex-about__languages {
+  display: flex;
+  padding: 2px;
+  border: 1px solid rgba(122, 205, 220, .25);
+  border-radius: 6px;
+  background: rgba(4, 13, 19, .72);
+}
+
+.apex-about__languages button {
+  min-width: 27px;
+  height: 23px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 4px;
+  color: #729ca5;
+  background: transparent;
+  font: 800 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  cursor: pointer;
+}
+
+.apex-about__languages button:hover,
+.apex-about__languages button:focus-visible {
+  color: #dffaff;
+  outline: none;
+}
+
+.apex-about__languages button[aria-pressed="true"] {
+  color: #f3feff;
+  background: rgba(39, 139, 155, .42);
+}
+
+.apex-about__copy[hidden],
+.apex-about__panel footer > span[hidden] {
+  display: none;
 }
 
 .apex-about__panel header small {
@@ -477,13 +1158,13 @@ html[data-apex-drive-profile="public-demo"] .lap-timing-card footer span {
     right: 8px;
   }
 
-  .environment-quick-menu label > span {
+  .environment-quick-menu__label {
     display: none;
   }
 
   .apex-about {
-    top: 52px;
-    right: 8px;
+    bottom: 8px;
+    left: 50%;
   }
 
   .apex-about__trigger {
@@ -492,7 +1173,7 @@ html[data-apex-drive-profile="public-demo"] .lap-timing-card footer span {
 
   .apex-about__panel {
     width: calc(100vw - 16px);
-    max-height: calc(100vh - 106px);
+    max-height: calc(100vh - 82px);
   }
 }
 
@@ -1862,6 +2543,149 @@ kbd {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   transform: translateX(-50%);
   backdrop-filter: blur(14px);
+}
+
+.parking-navigation-indicator {
+  position: fixed;
+  z-index: 42;
+  bottom: 28px;
+  left: 50%;
+  display: grid;
+  grid-template-columns: auto minmax(170px, auto);
+  align-items: center;
+  gap: 4px 14px;
+  min-width: min(520px, calc(100vw - 28px));
+  padding: 10px 12px 9px;
+  border: 1px solid #79d9e747;
+  border-radius: 10px;
+  color: #e5fbff;
+  background: linear-gradient(115deg, #061017b8, #0718218c);
+  box-shadow: 0 12px 42px #0008, inset 0 1px #e4fbff0d;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  pointer-events: auto;
+  transform: translateX(-50%);
+  backdrop-filter: blur(9px);
+}
+
+.parking-navigation-indicator[hidden] {
+  display: none;
+}
+
+.parking-navigation-indicator header {
+  grid-row: 1 / 3;
+  display: grid;
+  align-content: center;
+  min-width: 74px;
+  padding-right: 13px;
+  border-right: 1px solid #6dd6e330;
+}
+
+.parking-navigation-indicator header small {
+  color: #6bcbd8;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .18em;
+}
+
+.parking-navigation-indicator header strong {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.parking-navigation-indicator header output:first-child {
+  color: #effeff;
+  font-size: 25px;
+  line-height: 1;
+  text-shadow: 0 0 14px #6fe2f05c;
+}
+
+.parking-navigation-indicator header span,
+.parking-navigation-indicator header output:last-child {
+  color: #628c94;
+  font-size: 10px;
+}
+
+#parking-indicator-name {
+  grid-column: 2;
+  overflow: hidden;
+  color: #dffaff;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .035em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.parking-navigation-indicator__actions {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: 32px minmax(150px, 1fr) 32px;
+  gap: 5px;
+}
+
+.parking-navigation-indicator__actions button {
+  min-height: 27px;
+  padding: 0 8px;
+  border: 1px solid #71d5e04a;
+  border-radius: 5px;
+  color: #dffbff;
+  background: #0b2028a8;
+  font: 800 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .08em;
+  cursor: pointer;
+}
+
+.parking-navigation-indicator__actions button:first-child,
+.parking-navigation-indicator__actions button:last-child {
+  padding: 0;
+  font-size: 15px;
+}
+
+.parking-navigation-indicator__actions button:hover,
+.parking-navigation-indicator__actions button:focus-visible {
+  border-color: #a4f4ffb0;
+  color: #fff;
+  background: #17414dc7;
+  outline: none;
+}
+
+.parking-navigation-indicator p {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  gap: 13px;
+  margin: 4px 0 0;
+  color: #668f97;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+
+.parking-navigation-indicator p span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.parking-navigation-indicator kbd {
+  min-width: 18px;
+  border-color: #5799a46e;
+  color: #bce9ef;
+  background: #061117ad;
+}
+
+@media (max-width: 620px) {
+  .parking-navigation-indicator {
+    bottom: 14px;
+    grid-template-columns: 64px minmax(0, 1fr);
+    min-width: calc(100vw - 20px);
+  }
+
+  .parking-navigation-indicator p {
+    display: none;
+  }
 }
 
 .parking-car-selector[hidden] { display: none; }

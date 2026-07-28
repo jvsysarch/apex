@@ -1,55 +1,19 @@
-export interface ApexParkingSurface {
-  readonly centerX: number;
-  readonly centerZ: number;
-  readonly widthM: number;
-  readonly lengthM: number;
-  readonly yawDegrees: number;
-}
-
-export const APEX_PARKING_LAYOUT_VERSION = 'paddock-staggered-grid-v4';
+export const APEX_PARKING_LAYOUT_VERSION = 'track-garage-line-v6';
 
 const APEX_PARKING_TRACK_ANCHOR = Object.freeze({
   x: 0,
   z: -70,
 });
 
-export const APEX_PARKING_LOT: ApexParkingSurface = Object.freeze({
-  centerX: APEX_PARKING_TRACK_ANCHOR.x + 38,
-  centerZ: APEX_PARKING_TRACK_ANCHOR.z + 30,
-  widthM: 64,
-  lengthM: 24,
-  yawDegrees: 0,
-});
-
-export const APEX_PIT_LANE: readonly ApexParkingSurface[] = Object.freeze([
-  Object.freeze({
-    centerX: APEX_PARKING_TRACK_ANCHOR.x + 2,
-    centerZ: APEX_PARKING_TRACK_ANCHOR.z + 25.5,
-    widthM: 12,
-    lengthM: 9,
-    yawDegrees: 0,
-  }),
-  Object.freeze({
-    centerX: APEX_PARKING_TRACK_ANCHOR.x,
-    centerZ: APEX_PARKING_TRACK_ANCHOR.z + 12.5,
-    widthM: 8,
-    lengthM: 21,
-    yawDegrees: 0,
-  }),
-]);
-
 export const APEX_PARKING_PREVIEW = Object.freeze({
-  firstX: APEX_PARKING_TRACK_ANCHOR.x + 12,
-  rowSpacingM: 7.2,
-  laneSpacingM: 6.5,
-  staggerM: 3.6,
-  laneCount: 2,
-  z: APEX_PARKING_TRACK_ANCHOR.z + 34,
-  groundY: 0.035,
-  bayWidthM: 5.4,
+  firstZ: APEX_PARKING_TRACK_ANCHOR.z + 18,
+  rowSpacingM: 8.5,
+  laneSpacingM: 4.25,
+  staggerM: 0,
+  laneCount: 3,
+  groundY: 0.1,
+  bayWidthM: 3.9,
   bayLengthM: 7,
-  aisleCenterZ: APEX_PARKING_TRACK_ANCHOR.z + 25.5,
-  exitX: APEX_PARKING_TRACK_ANCHOR.x + 6,
 });
 
 export const resolveApexParkingBayPosition = (bayIndex: number) => {
@@ -57,11 +21,12 @@ export const resolveApexParkingBayPosition = (bayIndex: number) => {
   const lane = index % APEX_PARKING_PREVIEW.laneCount;
   const row = Math.floor(index / APEX_PARKING_PREVIEW.laneCount);
   return Object.freeze({
-    x: APEX_PARKING_PREVIEW.firstX
-      + row * APEX_PARKING_PREVIEW.rowSpacingM
-      + lane * APEX_PARKING_PREVIEW.staggerM,
-    z: APEX_PARKING_PREVIEW.z
-      + (lane === 0 ? 0.5 : -0.5) * APEX_PARKING_PREVIEW.laneSpacingM,
+    x: APEX_PARKING_TRACK_ANCHOR.x
+      + (
+        lane - (APEX_PARKING_PREVIEW.laneCount - 1) * 0.5
+      ) * APEX_PARKING_PREVIEW.laneSpacingM,
+    z: APEX_PARKING_PREVIEW.firstZ
+      + row * APEX_PARKING_PREVIEW.rowSpacingM,
     lane,
     row,
   });

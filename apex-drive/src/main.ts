@@ -168,6 +168,9 @@ import { LapTimingHud } from './ui/LapTimingHud';
 import { ApexAutonomousPanel } from './ui/ApexAutonomousPanel';
 import { RacingHudSvg } from './ui/RacingHudSvg';
 import {
+  ApexTechnicalTelemetryHud,
+} from './ui/ApexTechnicalTelemetryHud';
+import {
   APEX_CAR_CATALOG,
   carFromVehicleSpecification,
   findApexCar,
@@ -203,6 +206,17 @@ const requestedTrackEditorSegmentId = (
   searchParams.get('editSegment')?.trim() || undefined
 );
 const canvas = document.querySelector<HTMLCanvasElement>('#render-canvas')!;
+const startupPreloader = document.querySelector<HTMLElement>(
+  '#apex-drive-preloader',
+);
+let startupPresentationComplete = false;
+const revealApexDrive = () => {
+  if (startupPresentationComplete) return;
+  startupPresentationComplete = true;
+  document.documentElement.classList.remove('apex-drive-loading');
+  document.documentElement.classList.add('apex-drive-loaded');
+  window.setTimeout(() => startupPreloader?.remove(), 520);
+};
 canvas.dataset.trackNumber = formatApexDriveTrackNumber(
   ACTIVE_TRACK.track.number,
 );
@@ -275,9 +289,11 @@ const vehicleWorkshopCarSelect = document.querySelector<HTMLSelectElement>(
 const environmentQuickMenu = document.querySelector<HTMLElement>(
   '#environment-quick-menu',
 )!;
-const environmentQuickSelect = document.querySelector<HTMLSelectElement>(
-  '#environment-quick-select',
-)!;
+const environmentQuickButtons = Array.from(
+  document.querySelectorAll<HTMLButtonElement>(
+    '[data-environment-profile]',
+  ),
+);
 if (APEX_DRIVE_PUBLIC_DEMO) {
   new ApexAboutPanel(document.body, {
     version: '0.0',
@@ -285,6 +301,9 @@ if (APEX_DRIVE_PUBLIC_DEMO) {
     linkedinUrl: 'https://ar.linkedin.com/in/jonathanvillaverde',
   });
 }
+const technicalTelemetryHud = APEX_DRIVE_PUBLIC_DEMO
+  ? new ApexTechnicalTelemetryHud(document.body)
+  : undefined;
 const vehiclePhysicsDebugInput = document.querySelector<HTMLInputElement>(
   '#vehicle-physics-debug',
 )!;
@@ -362,6 +381,27 @@ const parkingCarDown = document.querySelector<HTMLButtonElement>('#parking-car-d
 const parkingCarConfirm = document.querySelector<HTMLButtonElement>('#parking-car-confirm')!;
 const parkingCarName = document.querySelector<HTMLOutputElement>('#parking-car-name')!;
 const parkingCarColorInput = document.querySelector<HTMLInputElement>('#parking-car-color')!;
+const parkingNavigationIndicator = document.querySelector<HTMLElement>(
+  '#parking-navigation-indicator',
+)!;
+const parkingIndicatorIndex = document.querySelector<HTMLOutputElement>(
+  '#parking-indicator-index',
+)!;
+const parkingIndicatorTotal = document.querySelector<HTMLOutputElement>(
+  '#parking-indicator-total',
+)!;
+const parkingIndicatorName = document.querySelector<HTMLOutputElement>(
+  '#parking-indicator-name',
+)!;
+const parkingIndicatorPrevious = document.querySelector<HTMLButtonElement>(
+  '#parking-indicator-previous',
+)!;
+const parkingIndicatorNext = document.querySelector<HTMLButtonElement>(
+  '#parking-indicator-next',
+)!;
+const parkingIndicatorConfirm = document.querySelector<HTMLButtonElement>(
+  '#parking-indicator-confirm',
+)!;
 const cameraModeSelect = document.querySelector<HTMLSelectElement>('#camera-mode-select')!;
 const cameraModeOutput = document.querySelector<HTMLOutputElement>('#camera-mode')!;
 const cameraHelp = document.querySelector<HTMLElement>('#camera-help')!;
@@ -375,6 +415,7 @@ const copyRacingLineButton = document.querySelector<HTMLButtonElement>(
   '#copy-racing-line',
 )!;
 const racingLineStatus = document.querySelector<HTMLElement>('#racing-line-status')!;
+const sportHudContainer = document.querySelector<HTMLElement>('#sport-hud')!;
 const sportHudRoot = document.querySelector<HTMLElement>('#sport-hud-svg')!;
 const sportHud = new RacingHudSvg(sportHudRoot);
 const lapTimerRoot = document.querySelector<HTMLElement>('#lap-timer')!;
@@ -582,17 +623,51 @@ const configuredCars = loadedVehicleSpecifications.map(
   carFromVehicleSpecification,
 );
 replaceApexCarCatalog(configuredCars);
-const defaultCar = APEX_CAR_CATALOG[0];
-if (!defaultCar) {
+const canonicalFallbackCar = (
+  findApexCar('apex-demo-car-001')
+  ?? APEX_CAR_CATALOG[0]
+);
+if (!canonicalFallbackCar) {
   throw new Error(
     'APEX Drive requiere un manifiesto de vehículo provisto por la aplicación.',
   );
 }
-const requestedCar = findApexCar(searchParams.get('car'));
+const publicGarageCarIds = Object.freeze([
+  'ford-mustang-shelby-gt500',
+  'rambo',
+  '130',
+]);
+const parkingCarCatalog: readonly ApexCarDefinition[] = APEX_DRIVE_PUBLIC_DEMO
+  ? publicGarageCarIds.map(findApexCar).filter(
+    (definition): definition is ApexCarDefinition => definition !== undefined,
+  )
+  : APEX_CAR_CATALOG;
+const defaultCar = (
+  APEX_DRIVE_PUBLIC_DEMO
+    ? findApexCar('ford-mustang-shelby-gt500')
+    : canonicalFallbackCar
+) ?? canonicalFallbackCar;
+const requestedCarCandidate = findApexCar(searchParams.get('car'));
+const requestedCar = (
+  !APEX_DRIVE_PUBLIC_DEMO
+  || (
+    requestedCarCandidate !== undefined
+    && parkingCarCatalog.includes(requestedCarCandidate)
+  )
+) ? requestedCarCandidate : undefined;
 const requestedMotorcycle = APEX_DRIVE_PUBLIC_DEMO
   ? undefined
   : findApexMotorcycle(searchParams.get('motorcycle'));
-const savedCar = findApexCar(localStorage.getItem(selectedCarStorageKey));
+const savedCarCandidate = findApexCar(
+  localStorage.getItem(selectedCarStorageKey),
+);
+const savedCar = (
+  !APEX_DRIVE_PUBLIC_DEMO
+  || (
+    savedCarCandidate !== undefined
+    && parkingCarCatalog.includes(savedCarCandidate)
+  )
+) ? savedCarCandidate : undefined;
 const activeVehicleKind: ApexVehicleKind = isAuditRuntime
   ? 'car'
   : requestedVehicleKind === 'motorcycle' || requestedMotorcycle
@@ -818,16 +893,16 @@ const isParkingSelection = (
   !isAuditRuntime
   && activeVehicleKind === 'car'
   && (requestedVehicleKind === null || APEX_DRIVE_PUBLIC_DEMO)
-  && experienceMode === null
+  && (experienceMode === null || experienceMode === 'parking')
   && !trackEditorMode
 );
 const isParkingDrive = (
   !isAuditRuntime
   && activeVehicleKind === 'car'
-  && experienceMode === 'parking'
+  && experienceMode === 'parking-drive'
   && ACTIVE_TRACK.track.id !== CIRCUITO_CHALLHUACO_ID
 );
-const runtimeCarCatalog = APEX_CAR_CATALOG;
+const runtimeCarCatalog = parkingCarCatalog;
 const carOptions = runtimeCarCatalog.map(definition => {
   const option = document.createElement('option');
   option.value = `car:${definition.id}`;
@@ -885,36 +960,18 @@ if (APEX_DRIVE_PUBLIC_DEMO && activeVehicleKind === 'car') {
   vehicleWorkshopCarSelect.value = activeCar.id;
   vehicleWorkshopCarSelect.addEventListener('change', () => {
     const selectedCar = findApexCar(vehicleWorkshopCarSelect.value);
-    if (!selectedCar || selectedCar.id === activeCar.id) return;
-    localStorage.setItem(selectedCarStorageKey, selectedCar.id);
-    const nextUrl = new URL(window.location.href);
-    nextUrl.searchParams.set('car', selectedCar.id);
-    window.location.href = nextUrl.toString();
+    if (!selectedCar) return;
+    selectCarInParkingHook(selectedCar.id);
   });
   vehicleWorkshopColorSlot.append(vehicleColorInput);
   vehicleWorkshopRoot.hidden = isParkingSelection;
-  const setVehicleWorkshopOpen = (open: boolean) => {
-    vehicleWorkshopPanel.hidden = !open;
-    vehicleWorkshopToggle.setAttribute('aria-expanded', String(open));
-    vehicleWorkshopToggle.setAttribute(
-      'aria-label',
-      open ? 'Cerrar taller' : 'Abrir taller',
-    );
-  };
+  vehicleWorkshopPanel.hidden = true;
+  vehicleWorkshopToggle.setAttribute('aria-expanded', 'false');
+  vehicleWorkshopToggle.setAttribute('aria-label', 'Ir al parking');
+  vehicleWorkshopToggle.title = 'Parking';
   vehicleWorkshopToggle.addEventListener('click', () => {
-    setVehicleWorkshopOpen(vehicleWorkshopPanel.hidden);
-  });
-  document.addEventListener('pointerdown', event => {
-    if (
-      !vehicleWorkshopPanel.hidden
-      && event.target instanceof Node
-      && !vehicleWorkshopRoot.contains(event.target)
-    ) {
-      setVehicleWorkshopOpen(false);
-    }
-  });
-  document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') setVehicleWorkshopOpen(false);
+    vehicleWorkshopPanel.hidden = true;
+    selectCarInParkingHook(runtimeCar.id);
   });
 }
 canvas.dataset.vehicleKind = activeVehicleKind;
@@ -1044,7 +1101,7 @@ if (uiMode === 'off') {
 if (isParkingSelection) {
   telemetryContainer.hidden = true;
   visualControlsRoot.hidden = true;
-  sportHudRoot.hidden = true;
+  sportHudContainer.hidden = true;
   lapTimerRoot.hidden = true;
 }
 if (APEX_DRIVE_PUBLIC_DEMO) {
@@ -1581,6 +1638,10 @@ canvas.dataset.environmentStatus = 'loading';
 
 let apexVoidAssets: readonly ApexVoidAssetRecord[] = [];
 let loadedApexVoidAsset: THREE.Object3D | undefined;
+const apexVoidLocalAccessEnabled = (
+  !APEX_DRIVE_PUBLIC_DEMO
+  && ['127.0.0.1', 'localhost', '[::1]'].includes(window.location.hostname)
+);
 
 const disposeLoadedApexVoidAsset = () => {
   if (!loadedApexVoidAsset) return;
@@ -1603,6 +1664,12 @@ const disposeLoadedApexVoidAsset = () => {
 };
 
 const refreshApexVoidAssetCatalog = async () => {
+  if (!apexVoidLocalAccessEnabled) {
+    assetLibraryRefresh.disabled = true;
+    assetLibraryLoad.disabled = true;
+    assetLibraryStatus.textContent = 'APEX Void · disponible sólo en local';
+    return;
+  }
   assetLibraryRefresh.disabled = true;
   assetLibraryLoad.disabled = true;
   assetLibraryStatus.textContent = 'APEX Void · consultando biblioteca…';
@@ -1696,7 +1763,9 @@ assetLibraryLoad.addEventListener('click', () => {
       assetLibraryLoad.disabled = apexVoidAssets.length === 0;
     });
 });
-void refreshApexVoidAssetCatalog();
+if (apexVoidLocalAccessEnabled) {
+  void refreshApexVoidAssetCatalog();
+}
 
 const environmentPmrem = new THREE.PMREMGenerator(renderer);
 const hdrEnvironmentLoader = new HDRLoader();
@@ -2787,9 +2856,8 @@ const roadMaterial = new THREE.MeshPhysicalMaterial({
   polygonOffsetUnits: -1,
 });
 const parkingLotVisual = createApexParkingLotVisual({
-  roadMaterial,
-  roadTextureSizeM,
-  bayCount: APEX_CAR_CATALOG.length,
+  bayCount: parkingCarCatalog.length,
+  bayLabels: parkingCarCatalog.map(definition => definition.name),
 });
 scene.add(parkingLotVisual.group);
 canvas.dataset.parkingLayout = parkingLotVisual.group.userData.layoutVersion;
@@ -3668,25 +3736,30 @@ if (!isAuditRuntime) {
     publicDemoEnvironmentProfile,
   );
   if (APEX_DRIVE_PUBLIC_DEMO) {
-    environmentQuickSelect.replaceChildren(
-      ...DEFAULT_ENVIRONMENT_PROFILES.map(
-        profile => new Option(profile.name, profile.id),
-      ),
-    );
-    environmentQuickSelect.value = (
+    const activeEnvironmentId = (
       publicDemoEnvironmentProfile ?? DEFAULT_ENVIRONMENT_PROFILES[0].id
     );
     environmentQuickMenu.hidden = false;
-    environmentQuickSelect.addEventListener('change', () => {
-      const profile = DEFAULT_ENVIRONMENT_PROFILES.find(
-        candidate => candidate.id === environmentQuickSelect.value,
-      );
-      if (!profile) return;
-      applyEnvironmentSettings(profile.settings);
-      localStorage.setItem(publicDemoEnvironmentStorageKey, profile.id);
-      const url = new URL(window.location.href);
-      url.searchParams.set('environment', profile.id);
-      window.history.replaceState(null, '', url);
+    const setActiveEnvironmentButton = (profileId: string) => {
+      environmentQuickButtons.forEach(button => {
+        const active = button.dataset.environmentProfile === profileId;
+        button.setAttribute('aria-pressed', String(active));
+      });
+    };
+    setActiveEnvironmentButton(activeEnvironmentId);
+    environmentQuickButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const profile = DEFAULT_ENVIRONMENT_PROFILES.find(
+          candidate => candidate.id === button.dataset.environmentProfile,
+        );
+        if (!profile) return;
+        applyEnvironmentSettings(profile.settings);
+        localStorage.setItem(publicDemoEnvironmentStorageKey, profile.id);
+        setActiveEnvironmentButton(profile.id);
+        const url = new URL(window.location.href);
+        url.searchParams.set('environment', profile.id);
+        window.history.replaceState(null, '', url);
+      });
     });
   }
 }
@@ -3703,21 +3776,22 @@ scene.add(vehicleRoot);
 canvas.dataset.vehicleVisualRig = 'manifest';
 const parkingPreviewRoot = new THREE.Group();
 scene.add(parkingPreviewRoot);
-parkingCarSelector.hidden = !isParkingSelection;
+parkingCarSelector.hidden = true;
+parkingNavigationIndicator.hidden = !isParkingSelection;
 vehicleRoot.visible = !isParkingSelection;
 
 let parkingSelectionActive = isParkingSelection;
 const activeParkingCarIndex = Math.max(
   0,
-  APEX_CAR_CATALOG.findIndex(definition => definition.id === activeCar.id),
+  parkingCarCatalog.findIndex(definition => definition.id === activeCar.id),
 );
 let parkingSelectedIndex = (
   APEX_DRIVE_PUBLIC_DEMO
   && activeParkingCarIndex === 0
-  && APEX_CAR_CATALOG.length > 1
-) ? 1 : activeParkingCarIndex;
-let parkingSelectedCar = APEX_CAR_CATALOG[parkingSelectedIndex];
-const parkingPresentationYawRadians = Math.PI;
+  && parkingCarCatalog.length > 1
+) ? 0 : activeParkingCarIndex;
+let parkingSelectedCar = parkingCarCatalog[parkingSelectedIndex];
+const parkingPresentationYawRadians = THREE.MathUtils.degToRad(135);
 const parkingOrbitKeys = new Set<'KeyA' | 'KeyD'>();
 const parkingDistanceKeys = new Set<'KeyW' | 'KeyS'>();
 const parkingDefaultOrbitRadians = THREE.MathUtils.degToRad(45);
@@ -3729,6 +3803,7 @@ const parkingMaximumDistanceM = 10;
 let parkingDistanceTargetM = parkingDefaultDistanceM;
 let parkingDistanceM = parkingDefaultDistanceM;
 let parkingGamepadOrbit = 0;
+let parkingMousePreviousX: number | undefined;
 const parkingDriveTransitionDurationS = 1.55;
 let parkingDriveTransitionActive = false;
 let parkingDriveTransitionElapsedS = 0;
@@ -3823,7 +3898,7 @@ const ensureParkingCover = (
 
 const ensureParkingCovers = (): Promise<void> => (
   Promise.all(
-    APEX_CAR_CATALOG.map(ensureParkingCover),
+    parkingCarCatalog.map(ensureParkingCover),
   ).then(() => undefined)
 );
 
@@ -3998,7 +4073,7 @@ const loadParkingPreview = (definition: ApexCarDefinition, index: number) => {
       parkingPreviewModels.delete(definition.id);
       parkingPreviewErrors.add(definition.id);
       if (definition.id === parkingSelectedCar.id) {
-        const canonicalIndex = APEX_CAR_CATALOG.indexOf(defaultCar);
+        const canonicalIndex = parkingCarCatalog.indexOf(defaultCar);
         if (definition.id !== defaultCar.id && canonicalIndex >= 0) {
           parkingSelectedIndex = canonicalIndex;
           parkingConfirmationPending = false;
@@ -4016,73 +4091,55 @@ const loadParkingPreview = (definition: ApexCarDefinition, index: number) => {
 
 type ParkingSelectionDirection = 'left' | 'right' | 'up' | 'down';
 
-const parkingDirectionVector = (
-  direction: ParkingSelectionDirection,
-): THREE.Vector2 => {
-  switch (direction) {
-    case 'left': return new THREE.Vector2(-1, 0);
-    case 'right': return new THREE.Vector2(1, 0);
-    case 'up': return new THREE.Vector2(0, 1);
-    case 'down': return new THREE.Vector2(0, -1);
-  }
+const parkingVisualOrder = (): readonly number[] => {
+  camera.updateMatrixWorld();
+  return parkingCarCatalog.map((_definition, index) => {
+    const bay = resolveApexParkingBayPosition(index);
+    const screen = new THREE.Vector3(
+      bay.x,
+      0.72,
+      bay.z,
+    ).project(camera);
+    return { index, x: screen.x, y: screen.y };
+  }).sort((left, right) => (
+    Math.abs(left.x - right.x) > 0.05
+      ? left.x - right.x
+      : right.y - left.y
+  )).map(entry => entry.index);
 };
 
 const findParkingSelectionIndex = (
   direction: ParkingSelectionDirection,
 ): number | undefined => {
-  if (APEX_CAR_CATALOG.length < 2) return undefined;
-  camera.updateMatrixWorld();
-  const selectedBay = resolveApexParkingBayPosition(parkingSelectedIndex);
-  const selectedScreen = new THREE.Vector3(
-    selectedBay.x,
-    0.72,
-    selectedBay.z,
-  ).project(camera);
-  const desired = parkingDirectionVector(direction);
-  let bestIndex: number | undefined;
-  let bestScore = Number.POSITIVE_INFINITY;
-
-  APEX_CAR_CATALOG.forEach((_definition, index) => {
-    if (index === parkingSelectedIndex) return;
-    const bay = resolveApexParkingBayPosition(index);
-    const candidateScreen = new THREE.Vector3(
-      bay.x,
-      0.72,
-      bay.z,
-    ).project(camera);
-    const offset = new THREE.Vector2(
-      candidateScreen.x - selectedScreen.x,
-      candidateScreen.y - selectedScreen.y,
-    );
-    const distance = offset.length();
-    if (distance < 0.001) return;
-    const primaryDistance = offset.dot(desired);
-    if (primaryDistance <= 0.005) return;
-    const alignment = primaryDistance / distance;
-    if (alignment < 0.18) return;
-    const score = distance * (1 + (1 - alignment) * 3);
-    if (score < bestScore) {
-      bestIndex = index;
-      bestScore = score;
-    }
-  });
-
-  return bestIndex;
+  if (parkingCarCatalog.length < 2) return undefined;
+  const visualOrder = parkingVisualOrder();
+  const currentPosition = visualOrder.indexOf(parkingSelectedIndex);
+  if (currentPosition < 0) return visualOrder[0];
+  const step = direction === 'left' || direction === 'up' ? -1 : 1;
+  return visualOrder[
+    (currentPosition + step + visualOrder.length) % visualOrder.length
+  ];
 };
 
 const updateParkingSelectionAvailability = () => {
-  parkingCarPrevious.disabled = findParkingSelectionIndex('left') === undefined;
-  parkingCarNext.disabled = findParkingSelectionIndex('right') === undefined;
-  parkingCarUp.disabled = findParkingSelectionIndex('up') === undefined;
-  parkingCarDown.disabled = findParkingSelectionIndex('down') === undefined;
-  canvas.dataset.parkingDirectionalNavigation = 'screen-projected-grid';
+  const enabled = parkingCarCatalog.length > 1;
+  parkingCarPrevious.disabled = !enabled;
+  parkingCarNext.disabled = !enabled;
+  parkingCarUp.disabled = !enabled;
+  parkingCarDown.disabled = !enabled;
+  parkingIndicatorPrevious.disabled = !enabled;
+  parkingIndicatorNext.disabled = !enabled;
+  canvas.dataset.parkingDirectionalNavigation = 'screen-ordered-circular-list';
 };
 
 const refreshParkingSelection = () => {
-  parkingSelectedCar = APEX_CAR_CATALOG[parkingSelectedIndex];
+  parkingSelectedCar = parkingCarCatalog[parkingSelectedIndex];
   parkingLotVisual.setSelectedIndex(parkingSelectedIndex);
   synchronizeParkingPhysicsHook(parkingSelectedIndex);
   parkingCarName.value = parkingSelectedCar.name;
+  parkingIndicatorIndex.value = String(parkingSelectedIndex + 1).padStart(2, '0');
+  parkingIndicatorTotal.value = String(parkingCarCatalog.length).padStart(2, '0');
+  parkingIndicatorName.value = parkingSelectedCar.name;
   vehicleKindSelect.value = `car:${parkingSelectedCar.id}`;
   vehicleColorInput.value = storedCarColor(parkingSelectedCar);
   parkingCarColorInput.value = vehicleColorInput.value;
@@ -4098,6 +4155,11 @@ const refreshParkingSelection = () => {
     const selectedIndex = parkingSelectedIndex;
     void ensureParkingCovers().then(() => {
       loadParkingPreview(selectedCar, selectedIndex);
+      parkingCarCatalog.forEach((definition, index) => {
+        if (definition.id !== selectedCar.id) {
+          loadParkingPreview(definition, index);
+        }
+      });
     });
   }
   updateParkingSelectionAvailability();
@@ -4116,31 +4178,6 @@ const moveParkingSelection = (direction: ParkingSelectionDirection) => {
 
 const confirmParkingSelection = () => {
   if (!parkingSelectionActive) return;
-  if (importedTrackCollisionOnly) {
-    localStorage.setItem(selectedCarStorageKey, parkingSelectedCar.id);
-    localStorage.setItem(vehicleKindStorageKey, 'car');
-    const nextUrl = new URL(window.location.href);
-    nextUrl.searchParams.set('vehicle', 'car');
-    nextUrl.searchParams.set('car', parkingSelectedCar.id);
-    nextUrl.searchParams.delete('motorcycle');
-    nextUrl.searchParams.delete('drive');
-    window.location.href = nextUrl.toString();
-    return;
-  }
-  if (
-    activeVehicleKind !== 'car'
-    || parkingSelectedCar.id !== activeCar.id
-  ) {
-    localStorage.setItem(selectedCarStorageKey, parkingSelectedCar.id);
-    localStorage.setItem(vehicleKindStorageKey, 'car');
-    const nextUrl = new URL(window.location.href);
-    nextUrl.searchParams.set('vehicle', 'car');
-    nextUrl.searchParams.set('car', parkingSelectedCar.id);
-    nextUrl.searchParams.delete('motorcycle');
-    nextUrl.searchParams.set('drive', 'parking');
-    window.location.href = nextUrl.toString();
-    return;
-  }
   void engineSynth?.start();
   parkingConfirmationPending = true;
   parkingCarName.value = `${parkingSelectedCar.name} · preparando`;
@@ -4152,6 +4189,15 @@ parkingCarNext.addEventListener('click', () => moveParkingSelection('right'));
 parkingCarUp.addEventListener('click', () => moveParkingSelection('up'));
 parkingCarDown.addEventListener('click', () => moveParkingSelection('down'));
 parkingCarConfirm.addEventListener('click', confirmParkingSelection);
+parkingIndicatorPrevious.addEventListener(
+  'click',
+  () => moveParkingSelection('left'),
+);
+parkingIndicatorNext.addEventListener(
+  'click',
+  () => moveParkingSelection('right'),
+);
+parkingIndicatorConfirm.addEventListener('click', confirmParkingSelection);
 parkingCarColorInput.addEventListener('input', () => {
   const color = parkingCarColorInput.value;
   vehicleColorInput.value = color;
@@ -4161,7 +4207,7 @@ parkingCarColorInput.addEventListener('input', () => {
 });
 if (parkingSelectionActive) refreshParkingSelection();
 selectCarInParkingHook = carId => {
-  const nextIndex = APEX_CAR_CATALOG.findIndex(
+  const nextIndex = parkingCarCatalog.findIndex(
     definition => definition.id === carId,
   );
   if (nextIndex < 0) return false;
@@ -4190,9 +4236,10 @@ selectCarInParkingHook = carId => {
   parkingSelectionActive = true;
   parkingPreviewRoot.visible = true;
   vehicleRoot.visible = false;
-  parkingCarSelector.hidden = false;
+  parkingCarSelector.hidden = true;
+  parkingNavigationIndicator.hidden = false;
   visualControlsRoot.hidden = true;
-  sportHudRoot.hidden = true;
+  sportHudContainer.hidden = true;
   lapTimerRoot.hidden = true;
   telemetryContainer.hidden = true;
   if (importedTrackCollisionOnly) {
@@ -5115,18 +5162,18 @@ if (activeVehicleKind === 'car' && !isParkingSelection) {
           child => child.userData.apexDriveVisualFallback === true,
         );
         canvas.dataset.vehicleModel = hasCanonicalFallback
-          ? `${defaultCar.id}-canonical-fallback`
+          ? `${canonicalFallbackCar.id}-canonical-fallback`
           : 'wireframe-fallback';
       },
     );
   };
-  if (activeCar.id === defaultCar.id) {
+  if (activeCar.id === canonicalFallbackCar.id) {
     loadRequestedVehicle();
   } else {
     activeVehicleLoader.load(
-      defaultCar.assetUri,
+      canonicalFallbackCar.assetUri,
       gltf => {
-        mountActiveVehicleModel(gltf, defaultCar, true);
+        mountActiveVehicleModel(gltf, canonicalFallbackCar, true);
         loadRequestedVehicle();
       },
       undefined,
@@ -5289,6 +5336,19 @@ canvas.addEventListener('click', () => {
     || document.pointerLockElement === canvas
   ) return;
   void canvas.requestPointerLock();
+});
+canvas.addEventListener('pointermove', event => {
+  if (!parkingSelectionActive) {
+    parkingMousePreviousX = undefined;
+    return;
+  }
+  if (parkingMousePreviousX !== undefined) {
+    parkingOrbitTargetRadians -= (event.clientX - parkingMousePreviousX) * 0.008;
+  }
+  parkingMousePreviousX = event.clientX;
+});
+canvas.addEventListener('pointerleave', () => {
+  parkingMousePreviousX = undefined;
 });
 document.addEventListener('mousemove', event => {
   if (
@@ -5462,7 +5522,6 @@ try {
   createApexWorldStaticCollisionGroups({
     floorSizeM: FLOOR_SIZE_M,
     grassFriction: grassSurface.lateralMu,
-    asphaltFriction,
   }).forEach(group => physicsWorld.replaceStaticColliderGroup(group));
   const trackCollisionRegistry = new ApexTrackSegmentCollisionRegistry({
     staticWorld: physicsWorld,
@@ -6055,7 +6114,7 @@ try {
         : 'empty';
       canvas.dataset.trackEditorDraftSavedAt = 'none';
     }
-    sportHudRoot.hidden = true;
+    sportHudContainer.hidden = true;
     lapTimerRoot.hidden = true;
     autonomousPanelRoot.hidden = true;
     canvas.dataset.trackEditor = 'active-free-draw-phase-3';
@@ -6417,6 +6476,12 @@ try {
     autonomousLapActive = false;
     localStorage.setItem(selectedCarStorageKey, definition.id);
     localStorage.setItem(vehicleKindStorageKey, 'car');
+    const runtimeUrl = new URL(window.location.href);
+    runtimeUrl.searchParams.set('vehicle', 'car');
+    runtimeUrl.searchParams.set('car', definition.id);
+    runtimeUrl.searchParams.delete('motorcycle');
+    runtimeUrl.searchParams.set('drive', 'parking-drive');
+    window.history.replaceState(window.history.state, '', runtimeUrl);
     vehicleColorStorageKey = carColorStorageKey(definition);
     vehicleColorInput.value = storedCarColor(definition);
 
@@ -6509,12 +6574,14 @@ try {
     parkingDriveTransitionActive = true;
     parkingSelectionActive = false;
     parkingCarSelector.hidden = true;
+    parkingNavigationIndicator.hidden = true;
     vehicleWorkshopRoot.hidden = !APEX_DRIVE_PUBLIC_DEMO;
     visualControlsRoot.hidden = true;
-    sportHudRoot.hidden = true;
+    sportHudContainer.hidden = true;
     lapTimerRoot.hidden = true;
     telemetryContainer.hidden = true;
     vehicleKindSelect.value = `car:${definition.id}`;
+    vehicleWorkshopCarSelect.value = definition.id;
     canvas.dataset.carId = definition.id;
     canvas.dataset.vehicleModel = `${definition.id}-ready`;
     canvas.dataset.vehicleModelName = definition.name;
@@ -7117,6 +7184,11 @@ try {
 
   const frame = async (now: number) => {
     const framePerformanceStartedAt = performance.now();
+    if (APEX_DRIVE_PUBLIC_DEMO) {
+      sportHudContainer.hidden = (
+        parkingSelectionActive || parkingDriveTransitionActive
+      );
+    }
     let physicsPerformanceMs = 0;
     let tirePerformanceMs = 0;
     let physicsStepsThisFrame = 0;
@@ -7319,6 +7391,20 @@ try {
     }
 
     const pose = adaptApexVehiclePose(physics.getPose());
+    const technicalTelemetryVisible = (
+      activeVehicleKind === 'car'
+      && !parkingSelectionActive
+      && !trackEditorMode
+    );
+    technicalTelemetryHud?.setVisible(technicalTelemetryVisible);
+    if (technicalTelemetryVisible) {
+      technicalTelemetryHud?.update(
+        pose,
+        delta,
+        runtimePhysicsHz,
+        canvas.dataset.tireExecutionBackend ?? 'webgpu',
+      );
+    }
     vehicleRoot.position.copy(pose.position);
     vehicleRoot.quaternion.copy(pose.rotation);
     wheels.forEach((wheel, index) => {
@@ -7890,7 +7976,7 @@ try {
         parkingDriveTransitionActive = false;
         closeCameraReady = true;
         visualControlsRoot.hidden = false;
-        sportHudRoot.hidden = false;
+        sportHudContainer.hidden = false;
         lapTimerRoot.hidden = !lapTimingHudVisible;
         telemetryContainer.hidden = uiMode === 'off';
         canvas.dataset.experienceMode = 'parking-drive';
@@ -8064,6 +8150,21 @@ try {
     }
     const renderPerformanceStartedAt = performance.now();
     await renderer.renderAsync(scene, camera);
+    const startupEnvironmentStatus = (
+      canvas.dataset.environmentStatus ?? 'loading'
+    );
+    const startupEnvironmentReady = (
+      startupEnvironmentStatus !== 'loading'
+      && !startupEnvironmentStatus.endsWith('-loading')
+    );
+    const startupVehicleReady = parkingSelectionActive
+      ? ['ready', 'canonical-fallback', 'covered-error'].includes(
+        canvas.dataset.parkingLazyState ?? '',
+      )
+      : canvas.dataset.vehicleModel !== 'loading';
+    if (startupEnvironmentReady && startupVehicleReady) {
+      revealApexDrive();
+    }
     const frameCompletedAt = performance.now();
     const renderPerformanceMs = frameCompletedAt - renderPerformanceStartedAt;
     const frameWorkMs = frameCompletedAt - framePerformanceStartedAt;
@@ -8100,6 +8201,7 @@ try {
   requestAnimationFrame(frame);
 } catch (error) {
   console.error(error);
+  revealApexDrive();
   runtimeStatus = `No se pudo iniciar ApexPhysics: ${error instanceof Error ? error.message : String(error)}`;
   reportStatus(runtimeStatus);
 }

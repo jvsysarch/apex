@@ -59,6 +59,9 @@ export class ApexTelemetryAdapter {
       drivetrain: Object.freeze({
         rpm: state.rpm,
         gear: state.gear,
+        clutchFriction: state.clutchFriction,
+        clutchEngagement: state.clutchEngagement,
+        transmissionSwitchingGear: state.transmissionSwitchingGear,
         throttle: state.throttle,
         brake: state.brake,
         requestedEngineTorqueNm: state.requestedEngineTorqueNm,

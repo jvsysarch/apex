@@ -28,6 +28,9 @@ export interface VehiclePose {
   readonly speedKmh: number;
   readonly rpm: number;
   readonly gear: number;
+  readonly clutchFriction: number;
+  readonly clutchEngagement: number;
+  readonly transmissionSwitchingGear: boolean;
   readonly throttle: number;
   readonly brake: number;
   readonly steering: number;

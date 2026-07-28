@@ -1,23 +1,159 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" class="apex-drive-loading">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#05080c" />
     <link rel="icon" href="data:," />
     <title>ApexPhysics · Vehicle Wireframe</title>
+    <style>
+      html {
+        background: #05080c;
+      }
+
+      html.apex-drive-loading body > :not(#apex-drive-preloader):not(script) {
+        visibility: hidden !important;
+        opacity: 0 !important;
+      }
+
+      #apex-drive-preloader {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        color: #d8f8ff;
+        background:
+          radial-gradient(circle at 50% 56%, rgb(42 128 145 / 12%), transparent 34%),
+          #05080c;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+        transition: opacity 420ms ease, visibility 420ms ease;
+      }
+
+      #apex-drive-preloader::before {
+        position: absolute;
+        inset: 0;
+        content: "";
+        opacity: 0.22;
+        background-image:
+          linear-gradient(rgb(94 221 239 / 8%) 1px, transparent 1px),
+          linear-gradient(90deg, rgb(94 221 239 / 8%) 1px, transparent 1px);
+        background-size: 54px 54px;
+        mask-image: linear-gradient(to bottom, transparent, #000 40%, transparent);
+        animation: apex-drive-grid 5s linear infinite;
+      }
+
+      .apex-drive-preloader__content {
+        position: relative;
+        display: grid;
+        justify-items: center;
+        gap: 9px;
+        min-width: min(330px, calc(100vw - 48px));
+        animation: apex-drive-loader-in 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+
+      .apex-drive-preloader__eyebrow,
+      .apex-drive-preloader__status {
+        margin: 0;
+        color: #70ddec;
+        font: 700 9px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+      }
+
+      .apex-drive-preloader__content strong {
+        font: 800 26px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        letter-spacing: 0.12em;
+      }
+
+      .apex-drive-preloader__line {
+        width: 100%;
+        height: 1px;
+        margin: 9px 0 4px;
+        overflow: hidden;
+        background: rgb(105 225 241 / 16%);
+      }
+
+      .apex-drive-preloader__line::after {
+        display: block;
+        width: 38%;
+        height: 100%;
+        content: "";
+        background: #78e8f7;
+        box-shadow: 0 0 12px rgb(120 232 247 / 65%);
+        animation: apex-drive-progress 1.35s ease-in-out infinite;
+      }
+
+      html.apex-drive-loaded #apex-drive-preloader {
+        visibility: hidden;
+        pointer-events: none;
+        opacity: 0;
+      }
+
+      html.apex-drive-loaded body > :not(#apex-drive-preloader):not(script) {
+        animation: apex-drive-ui-in 460ms ease both;
+      }
+
+      @keyframes apex-drive-progress {
+        from { transform: translateX(-105%); }
+        to { transform: translateX(270%); }
+      }
+
+      @keyframes apex-drive-grid {
+        from { transform: translateY(0); }
+        to { transform: translateY(54px); }
+      }
+
+      @keyframes apex-drive-ui-in {
+        from {
+          opacity: 0;
+          transform: scale(1.008);
+        }
+        to { opacity: 1; }
+      }
+
+      @keyframes apex-drive-loader-in {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #apex-drive-preloader::before,
+        .apex-drive-preloader__line::after,
+        html.apex-drive-loaded body > :not(#apex-drive-preloader):not(script) {
+          animation: none;
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="apex-drive-preloader" role="status" aria-live="polite">
+      <div class="apex-drive-preloader__content">
+        <p class="apex-drive-preloader__eyebrow">APEX PHYSICS</p>
+        <strong>CARGANDO APEX DRIVE</strong>
+        <div class="apex-drive-preloader__line" aria-hidden="true"></div>
+        <p class="apex-drive-preloader__status">
+          PREPARANDO PISTA, FÍSICA Y VEHÍCULOS
+        </p>
+      </div>
+    </div>
     <canvas id="render-canvas" aria-label="Demo física vehicular ApexPhysics"></canvas>
     <aside id="vehicle-workshop" class="vehicle-workshop" hidden aria-label="Taller del vehículo">
       <button
         id="vehicle-workshop-toggle"
         class="vehicle-workshop__toggle"
         type="button"
-        aria-label="Abrir taller"
+        aria-label="Ir al parking"
         aria-controls="vehicle-workshop-panel"
         aria-expanded="false"
-        title="Taller"
+        title="Parking"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M4 20V9l8-5 8 5v11"></path>
@@ -42,15 +178,59 @@
       hidden
       aria-label="Paisaje"
     >
-      <label for="environment-quick-select">
-        <span>Paisaje</span>
-        <select id="environment-quick-select" aria-label="Seleccionar paisaje">
-          <option value="apex-hit-the-road">MS Win95</option>
-          <option value="apex-golf-club">APEX Golf Club</option>
-        </select>
-      </label>
+      <span class="environment-quick-menu__label">Paisaje</span>
+      <div class="environment-quick-menu__toggle" role="group" aria-label="Seleccionar paisaje">
+        <button
+          type="button"
+          data-environment-profile="apex-hit-the-road"
+          aria-label="MS Win95"
+          title="MS Win95"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 5.5 10.5 4v7H3zM12 3.7 21 2v9h-9zM3 12.5h7.5v7L3 18zM12 12.5h9v9.5l-9-2z"></path>
+          </svg>
+        </button>
+        <button
+          type="button"
+          data-environment-profile="apex-golf-club"
+          aria-label="APEX Golf Club"
+          title="APEX Golf Club"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M7 21 15 3M14.4 4.4l5.4 2.4-4 3.1"></path>
+            <path d="M5.3 20.7c3.6-1.1 7.1-1 10.5.3M18.5 18.5h.01"></path>
+          </svg>
+        </button>
+      </div>
     </aside>
     <div id="telemetry-root"></div>
+    <aside
+      id="parking-navigation-indicator"
+      class="parking-navigation-indicator"
+      hidden
+      aria-label="Navegación del parking"
+    >
+      <header>
+        <small>AUTO</small>
+        <strong>
+          <output id="parking-indicator-index">01</output>
+          <span>/</span>
+          <output id="parking-indicator-total">04</output>
+        </strong>
+      </header>
+      <output id="parking-indicator-name">APEX Demo Car</output>
+      <div class="parking-navigation-indicator__actions">
+        <button id="parking-indicator-previous" type="button" aria-label="Auto anterior">←</button>
+        <button id="parking-indicator-confirm" type="button">ELEGIR Y CONDUCIR</button>
+        <button id="parking-indicator-next" type="button" aria-label="Auto siguiente">→</button>
+      </div>
+      <p>
+        <span><kbd>←</kbd><kbd>→</kbd> AUTO</span>
+        <span>MOUSE <kbd>←</kbd><kbd>→</kbd> MIRAR</span>
+        <span><kbd>W</kbd><kbd>S</kbd> ZOOM</span>
+        <span><kbd>ENTER</kbd> CONDUCIR</span>
+      </p>
+    </aside>
     <section id="parking-car-selector" class="parking-car-selector" hidden aria-label="Selección de auto">
       <small>APEX DRIVE · PARKING</small>
       <div class="parking-car-selector__navigation" aria-label="Elegir auto por posición">

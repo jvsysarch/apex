@@ -1,19 +1,10 @@
-import type {
-  ApexStaticColliderDescriptor,
-  ApexStaticColliderGroup,
-} from '@jvsysarch/apex-physics';
-import {
-  APEX_PARKING_LOT,
-  APEX_PIT_LANE,
-} from '../ApexParkingLot';
+import type { ApexStaticColliderGroup } from '@jvsysarch/apex-physics';
 
 export const APEX_GLOBAL_FLOOR_COLLISION_OWNER_ID = 'world:global-floor';
-export const APEX_PARKING_COLLISION_OWNER_ID = 'world:parking-and-pit-lane';
 
 export interface ApexWorldStaticCollisionOptions {
   readonly floorSizeM: number;
   readonly grassFriction: number;
-  readonly asphaltFriction: number;
 }
 
 export const createApexGlobalFloorCollisionGroup = (
@@ -34,42 +25,6 @@ export const createApexGlobalFloorCollisionGroup = (
   })]),
 });
 
-export const createApexParkingCollisionGroup = (
-  asphaltFriction: number,
-): ApexStaticColliderGroup => {
-  const surfaces = [APEX_PARKING_LOT, ...APEX_PIT_LANE];
-  const colliders: ApexStaticColliderDescriptor[] = surfaces.map(
-    (surface, index) => {
-      const yawRadians = surface.yawDegrees * Math.PI / 180;
-      const halfYaw = yawRadians * 0.5;
-      return Object.freeze({
-        id: index === 0 ? 'parking-lot' : `pit-lane-${index}`,
-        kind: 'box' as const,
-        center: [surface.centerX, -0.04, surface.centerZ] as const,
-        halfExtents: [
-          surface.widthM / 2,
-          0.06,
-          surface.lengthM / 2,
-        ] as const,
-        rotation: [
-          0,
-          Math.sin(halfYaw),
-          0,
-          Math.cos(halfYaw),
-        ] as const,
-        convexRadiusM: 0.02,
-        surface: 'asphalt' as const,
-        friction: asphaltFriction,
-        restitution: 0,
-      });
-    },
-  );
-  return Object.freeze({
-    ownerId: APEX_PARKING_COLLISION_OWNER_ID,
-    colliders: Object.freeze(colliders),
-  });
-};
-
 export const createApexWorldStaticCollisionGroups = (
   options: ApexWorldStaticCollisionOptions,
 ): readonly ApexStaticColliderGroup[] => Object.freeze([
@@ -77,5 +32,4 @@ export const createApexWorldStaticCollisionGroups = (
     options.floorSizeM,
     options.grassFriction,
   ),
-  createApexParkingCollisionGroup(options.asphaltFriction),
 ]);
