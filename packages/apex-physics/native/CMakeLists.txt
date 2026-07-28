@@ -11,6 +11,11 @@ set(JOLT_HEADER_FILE ${CMAKE_CURRENT_SOURCE_DIR}/JoltJS.h)
 set(JOLT_IDL_FILE ${CMAKE_CURRENT_SOURCE_DIR}/JoltJS.idl)
 set(OUTPUT_FOLDER ${CMAKE_CURRENT_SOURCE_DIR}/dist/)
 set(JOLT_TYPING ${OUTPUT_FOLDER}/types.d.ts)
+if (WIN32)
+	set(WEBIDL_DTS_GEN ${CMAKE_CURRENT_SOURCE_DIR}/node_modules/.bin/webidl-dts-gen.cmd)
+else()
+	set(WEBIDL_DTS_GEN ${CMAKE_CURRENT_SOURCE_DIR}/node_modules/.bin/webidl-dts-gen)
+endif()
 
 # Option to turn on memory profiling
 option(ENABLE_MEMORY_PROFILER "Enable emscriptens memory profiler to help find leaks" OFF)
@@ -144,7 +149,7 @@ project("ApexPhysicsNative")
 
 add_custom_command(
 	OUTPUT ${JOLT_TYPING}
-	COMMAND npx webidl-dts-gen -e -d -i jolt.idl -o ${JOLT_TYPING} -n Jolt
+	COMMAND ${WEBIDL_DTS_GEN} -e -d -i jolt.idl -o ${JOLT_TYPING} -n Jolt
 	DEPENDS jolt.idl
 	COMMENT "Generating Apex Physics runtime typing"
 	VERBATIM)
