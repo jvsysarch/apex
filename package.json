@@ -1,0 +1,21 @@
+{
+  "name": "@jvsysarch/apex",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "corepack pnpm --dir apex-drive dev",
+    "dev:drive": "corepack pnpm --dir apex-drive dev",
+    "dev:demo": "corepack pnpm --dir apps/apex-demo dev",
+    "dev:mesh": "corepack pnpm --dir apps/apex-mesh dev",
+    "dev:void": "corepack pnpm --dir packages/apex-void dev",
+    "build": "corepack pnpm --dir apex-drive build",
+    "build:drive": "corepack pnpm --dir apex-drive build",
+    "build:demo": "corepack pnpm --dir apps/apex-demo build",
+    "build:mesh": "corepack pnpm --dir apps/apex-mesh build",
+    "build:physics": "corepack pnpm --dir packages/apex-physics build",
+    "build:run": "corepack pnpm --dir apps/apex-run build",
+    "test": "corepack pnpm --dir apex-drive test",
+    "test:physics": "corepack pnpm --dir packages/apex-physics test"
+  }
+}

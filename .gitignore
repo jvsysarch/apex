@@ -1,0 +1,37 @@
+# JavaScript / TypeScript dependencies and caches
+node_modules/
+.pnpm-store/
+.vite/
+*.tsbuildinfo
+
+# Generated application output
+dist/
+coverage/
+.apex-data/
+
+# Native build directories and generated CMake state
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+
+# Runtime logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# Local environment configuration
+.env
+.env.*
+!.env.example
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Desktop.ini
