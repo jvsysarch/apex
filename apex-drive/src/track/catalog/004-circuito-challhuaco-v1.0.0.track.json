@@ -1,0 +1,60 @@
+{
+  "$schema": "../formats/apex-drive-track.v1.schema.json",
+  "format": "apex-drive-track",
+  "formatVersion": 1,
+  "track": {
+    "number": 4,
+    "id": "circuito-challhuaco",
+    "name": "Circuito Challhuaco",
+    "version": "1.0.0"
+  },
+  "assets": {
+    "visual": {
+      "format": "procedural",
+      "generator": "challhuaco-v1.0.0-imported-forest-with-hidden-collision-ribbon",
+      "uri": null
+    },
+    "collision": {
+      "format": "generated",
+      "uri": null
+    }
+  },
+  "configuration": {
+    "profile": "apex-drive",
+    "profileVersion": 1,
+    "coordinateSystem": {
+      "unit": "meter",
+      "upAxis": "Y",
+      "handedness": "right"
+    },
+    "start": {
+      "position": {
+        "x": -106.91,
+        "y": 76.27,
+        "z": 159.24
+      },
+      "yawRadians": 2.545
+    },
+    "geometry": {
+      "roadWidthM": 8,
+      "shoulderWidthM": 0,
+      "groundHeightM": 0,
+      "roadThicknessM": 0.12,
+      "boundaryMode": "walls",
+      "roadsideMode": "none"
+    },
+    "timing": {
+      "startRadiusM": 7,
+      "checkpointRadiusM": 10,
+      "checkpointIntervalPoints": 8,
+      "ignoredTailPoints": 0,
+      "sectorCount": 5,
+      "storageKey": "apex-run.v3.circuito-challhuaco-stage-timing.v1"
+    },
+    "surfaces": {
+      "road": "gravel",
+      "shoulder": "grass",
+      "ground": "grass"
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "$schema": "../formats/apex-drive-track.v1.schema.json",
+  "format": "apex-drive-track",
+  "formatVersion": 1,
+  "track": {
+    "number": 1,
+    "id": "circuit-bravo",
+    "name": "Circuito Bravo",
+    "version": "1.1.0"
+  },
+  "assets": {
+    "visual": {
+      "format": "procedural",
+      "generator": "circuit-bravo-v1.1-mild-smoothing",
+      "uri": null
+    },
+    "collision": {
+      "format": "generated",
+      "uri": null
+    }
+  },
+  "configuration": {
+    "profile": "apex-drive",
+    "profileVersion": 1,
+    "coordinateSystem": {
+      "unit": "meter",
+      "upAxis": "Y",
+      "handedness": "right"
+    },
+    "start": {
+      "position": {
+        "x": 0,
+        "y": 0.05,
+        "z": 0
+      },
+      "yawRadians": 3.141592653589793
+    },
+    "geometry": {
+      "roadWidthM": 16,
+      "shoulderWidthM": 10,
+      "groundHeightM": 0,
+      "roadThicknessM": 0.06,
+      "boundaryMode": "guardrails",
+      "roadsideMode": "shoulder"
+    },
+    "timing": {
+      "startRadiusM": 8,
+      "checkpointRadiusM": 13,
+      "checkpointIntervalPoints": 12,
+      "ignoredTailPoints": 6,
+      "sectorCount": 10,
+      "storageKey": "apex-run.v3.circuit-bravo-lap-timing.v3-smoothed-10-segments"
+    },
+    "surfaces": {
+      "road": "asphalt",
+      "shoulder": "grass",
+      "ground": "grass"
+    }
+  }
+}

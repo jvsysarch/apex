@@ -1,0 +1,67 @@
+{
+  "format": "apex-drive-car@1",
+  "id": "130",
+  "version": "0.0.1-prealpha.1",
+  "name": "130",
+  "asset": {
+    "domain": "assets",
+    "objectId": "130",
+    "revision": "d9485f5360224e9dbaafd24b2eec0f1a",
+    "modelUrl": "assets/vehicles/130/scene.gltf"
+  },
+  "coordinateSystem": {
+    "units": "meters",
+    "upAxis": "Y",
+    "forwardAxis": "Z"
+  },
+  "visual": {
+    "bodyRootNode": "body",
+    "paintMaterialPattern": "^(body|body2)$",
+    "brakeLightMaterialPattern": "lens"
+  },
+  "dimensions": {
+    "lengthM": 4.42,
+    "widthM": 1.69,
+    "heightM": 1.295
+  },
+  "wheels": {
+    "front-left": {
+      "positionM": [0.735, 0.332, 1.282],
+      "radiusM": 0.331,
+      "widthM": 0.199
+    },
+    "front-right": {
+      "positionM": [-0.735, 0.332, 1.282],
+      "radiusM": 0.331,
+      "widthM": 0.199
+    },
+    "rear-left": {
+      "positionM": [0.731, 0.333, -1.12],
+      "radiusM": 0.333,
+      "widthM": 0.254
+    },
+    "rear-right": {
+      "positionM": [-0.731, 0.333, -1.12],
+      "radiusM": 0.333,
+      "widthM": 0.254
+    }
+  },
+  "collision": {
+    "chassisBox": {
+      "lengthM": 3.98,
+      "widthM": 1.5,
+      "frontWidthM": 1.46,
+      "rearWidthM": 1.5,
+      "heightM": 0.5,
+      "centerM": [0, 0.39, 0.05]
+    }
+  },
+  "dynamics": {
+    "physicsDefinitionId": "apex-road-car",
+    "massKg": 1300,
+    "centerOfMassM": [0, 0.34, 0.05]
+  },
+  "cameras": {
+    "chaseTarget": [0, 0.56, 0]
+  }
+}

@@ -1,0 +1,10 @@
+Clean Asphalt
+Source: https://polyhaven.com/a/clean_asphalt
+Author: Dimitrios Savva
+License: Creative Commons CC0 1.0 Universal
+License URL: https://creativecommons.org/publicdomain/zero/1.0/
+
+Downloaded from Poly Haven at 1K resolution:
+- clean_asphalt_diff_1k.jpg
+- clean_asphalt_nor_dx_1k.jpg
+- clean_asphalt_rough_1k.jpg

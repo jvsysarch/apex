@@ -1,0 +1,11 @@
+Road015A
+Source: https://ambientcg.com/view?id=Road015A
+Creator: ambientCG
+License: Creative Commons CC0 1.0 Universal
+License information: https://docs.ambientcg.com/license/
+License URL: https://creativecommons.org/publicdomain/zero/1.0/
+
+Files used by APEX Drive:
+- Road015A_1K-JPG_Color.jpg
+- Road015A_1K-JPG_NormalDX.jpg
+- Road015A_1K-JPG_Roughness.jpg

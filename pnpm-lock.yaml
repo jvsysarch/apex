@@ -8,18 +8,6 @@ importers:
 
   .: {}
 
-  apps/apex-demo:
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.20.1
-      typescript:
-        specifier: ^5.8.0
-        version: 5.9.3
-      vite:
-        specifier: ^7.0.0
-        version: 7.3.6(@types/node@22.20.1)
-
   apex-drive:
     dependencies:
       '@jvsysarch/apex-assets':
@@ -71,6 +59,18 @@ importers:
       ws:
         specifier: ^8.21.1
         version: 8.21.1
+
+  apps/apex-demo:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.1
+      typescript:
+        specifier: ^5.8.0
+        version: 5.9.3
+      vite:
+        specifier: ^7.0.0
+        version: 7.3.6(@types/node@22.20.1)
 
   apps/apex-mesh:
     dependencies:

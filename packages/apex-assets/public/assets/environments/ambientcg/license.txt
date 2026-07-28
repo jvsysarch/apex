@@ -1,0 +1,15 @@
+ambientCG HDRI environments
+Creator: ambientCG
+License: Creative Commons CC0 1.0 Universal
+License information: https://docs.ambientcg.com/license/
+License URL: https://creativecommons.org/publicdomain/zero/1.0/
+
+Assets included at 1K HDR resolution:
+
+Day Environment HDRI 108
+https://ambientcg.com/a/DayEnvironmentHDRI108
+- DayEnvironmentHDRI108_1K_HDR.exr
+
+Day Sky HDRI 065 A
+https://ambientcg.com/a/DaySkyHDRI065A
+- DaySkyHDRI065A_1K_HDR.exr

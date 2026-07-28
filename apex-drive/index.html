@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#05080c" />
+    <link rel="icon" href="data:," />
+    <title>ApexPhysics · Vehicle Wireframe</title>
+  </head>
+  <body>
+    <canvas id="render-canvas" aria-label="Demo física vehicular ApexPhysics"></canvas>
+    <aside id="vehicle-workshop" class="vehicle-workshop" hidden aria-label="Taller del vehículo">
+      <button
+        id="vehicle-workshop-toggle"
+        class="vehicle-workshop__toggle"
+        type="button"
+        aria-label="Abrir taller"
+        aria-controls="vehicle-workshop-panel"
+        aria-expanded="false"
+        title="Taller"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 20V9l8-5 8 5v11"></path>
+          <path d="M7 20v-8h10v8M7 15h10M9 9h6"></path>
+        </svg>
+      </button>
+      <section id="vehicle-workshop-panel" class="vehicle-workshop__panel" hidden>
+        <small>TALLER</small>
+        <label for="vehicle-workshop-car">
+          <span>Auto</span>
+          <select id="vehicle-workshop-car" aria-label="Auto"></select>
+        </label>
+        <label for="vehicle-color">
+          <span>Pintura</span>
+          <span id="vehicle-workshop-color-slot"></span>
+        </label>
+      </section>
+    </aside>
+    <aside
+      id="environment-quick-menu"
+      class="environment-quick-menu"
+      hidden
+      aria-label="Paisaje"
+    >
+      <label for="environment-quick-select">
+        <span>Paisaje</span>
+        <select id="environment-quick-select" aria-label="Seleccionar paisaje">
+          <option value="apex-hit-the-road">MS Win95</option>
+          <option value="apex-golf-club">APEX Golf Club</option>
+        </select>
+      </label>
+    </aside>
+    <div id="telemetry-root"></div>
+    <section id="parking-car-selector" class="parking-car-selector" hidden aria-label="Selección de auto">
+      <small>APEX DRIVE · PARKING</small>
+      <div class="parking-car-selector__navigation" aria-label="Elegir auto por posición">
+        <button id="parking-car-up" type="button" aria-label="Seleccionar auto de arriba">↑</button>
+        <div class="parking-car-selector__row">
+          <button id="parking-car-previous" type="button" aria-label="Seleccionar auto de la izquierda">←</button>
+          <output id="parking-car-name" aria-live="polite">APEX Demo Car</output>
+          <button id="parking-car-next" type="button" aria-label="Seleccionar auto de la derecha">→</button>
+        </div>
+        <button id="parking-car-down" type="button" aria-label="Seleccionar auto de abajo">↓</button>
+      </div>
+      <label class="parking-car-selector__paint" for="parking-car-color">
+        <span>Pintura</span>
+        <input id="parking-car-color" type="color" value="#c81422" aria-label="Color del auto mostrado">
+      </label>
+      <button id="parking-car-confirm" class="parking-car-selector__confirm" type="button">
+        Elegir y conducir
+      </button>
+      <p>Flechas / D-pad elegir · A D / stick derecho girar · W S acercar/alejar · Enter / botón A confirmar</p>
+    </section>
+    <aside id="visual-controls" aria-label="Controles visuales">
+      <label for="track-select">
+        <span>Pista</span>
+        <select id="track-select" aria-label="Seleccionar pista">
+          <option value="circuit-bravo">001 · Circuito Bravo</option>
+          <option value="autopista-cumbre">002 · Autopista Cumbre</option>
+        </select>
+      </label>
+      <button id="track-editor-toggle" type="button">Editar pista</button>
+      <label for="asset-library-select">
+        <span>Asset APEX</span>
+        <select id="asset-library-select" aria-label="Asset guardado en APEX Void">
+          <option value="">Consultando biblioteca…</option>
+        </select>
+      </label>
+      <div class="asset-library-actions">
+        <button id="asset-library-load" type="button" disabled>Cargar en escena</button>
+        <button id="asset-library-refresh" type="button" title="Actualizar biblioteca">↻</button>
+      </div>
+      <small id="asset-library-status">APEX Void · conectando…</small>
+      <label for="vehicle-kind">
+        <span>Vehículo</span>
+        <select id="vehicle-kind" aria-label="Seleccionar vehículo">
+          <option value="motorcycle">Cargando catálogo…</option>
+        </select>
+      </label>
+      <label for="vehicle-color">
+        <span>Pintura</span>
+        <input id="vehicle-color" type="color" value="#c81422" aria-label="Color de pintura del auto">
+      </label>
+      <label class="vehicle-physics-debug-toggle" for="vehicle-physics-debug">
+        <span>Modelo físico</span>
+        <input id="vehicle-physics-debug" type="checkbox">
+      </label>
+      <small id="vehicle-physics-debug-info" hidden></small>
+      <label for="chassis-box-center-y">
+        <span>Posición vertical caja</span>
+        <output id="chassis-box-center-y-value">0.20 m</output>
+      </label>
+      <input
+        id="chassis-box-center-y"
+        type="range"
+        min="-0.20"
+        max="0.45"
+        step="0.01"
+        value="0.20"
+      >
+      <button id="chassis-box-center-y-apply" type="button">
+        Aplicar posición de caja
+      </button>
+      <small id="chassis-box-center-y-info">
+        Centro respecto de la masa · vista previa
+      </small>
+      <label for="render-profile">
+        <span>Render</span>
+        <select id="render-profile" aria-label="Perfil de rendimiento gráfico">
+          <option value="high">Alta</option>
+          <option value="balanced">Balanceada</option>
+          <option value="debug">Debug</option>
+        </select>
+      </label>
+      <small id="render-profile-info"></small>
+      <label for="tire-deformation-mode">
+        <span>Deformación cubierta</span>
+        <select id="tire-deformation-mode" aria-label="Deformación visual del neumático">
+          <option value="gpu">WebGPU</option>
+          <option value="cpu">CPU · referencia</option>
+          <option value="off">Desactivada · prueba</option>
+        </select>
+      </label>
+      <small id="tire-deformation-info"></small>
+      <details id="render-performance-meter">
+        <summary>Medidor de recursos</summary>
+        <div class="render-performance-meter__fps">
+          <strong><output id="render-performance-fps">--</output> FPS</strong>
+          <span><output id="render-performance-frame">--</output> ms</span>
+        </div>
+        <label>
+          <span>Simulación</span>
+          <meter id="render-performance-physics" min="0" max="16.67" value="0"></meter>
+          <output id="render-performance-physics-value">--</output>
+        </label>
+        <label>
+          <span>Rueda visual</span>
+          <meter id="render-performance-tire" min="0" max="16.67" value="0"></meter>
+          <output id="render-performance-tire-value">--</output>
+        </label>
+        <label>
+          <span>Render CPU</span>
+          <meter id="render-performance-render" min="0" max="16.67" value="0"></meter>
+          <output id="render-performance-render-value">--</output>
+        </label>
+        <label>
+          <span>Escena / UI</span>
+          <meter id="render-performance-other" min="0" max="16.67" value="0"></meter>
+          <output id="render-performance-other-value">--</output>
+        </label>
+        <small>Promedio móvil · las barras miden CPU; render es preparación/envío, no tiempo interno de GPU.</small>
+        <section class="render-performance-diagnostics" aria-label="Diagnóstico de saltos">
+          <div class="render-performance-diagnostics__summary">
+            <span>P95 <output id="render-performance-p95">--</output></span>
+            <span>Máximo <output id="render-performance-maximum">--</output></span>
+            <span>Eventos <output id="render-performance-spikes">0</output></span>
+          </div>
+          <strong
+            id="render-performance-diagnosis"
+            class="render-performance-diagnostics__diagnosis"
+          >Esperando datos…</strong>
+          <ol id="render-performance-events" class="render-performance-diagnostics__events">
+            <li>Esperando un salto…</li>
+          </ol>
+          <div class="render-performance-diagnostics__actions">
+            <button id="render-performance-copy" type="button">Copiar reporte</button>
+            <button id="render-performance-clear" type="button">Limpiar</button>
+            <button id="controlled-benchmark-start" type="button">
+              Grabar benchmark controlado
+            </button>
+            <button id="controlled-benchmark-copy" type="button" disabled>
+              Copiar comparación
+            </button>
+          </div>
+          <small id="controlled-benchmark-status">
+            Compara High y Debug desde el mismo punto, sin conducción.
+          </small>
+          <small id="render-performance-copy-status">
+            Registra picos, pasos físicos, pausas del navegador y demoras de entrada.
+          </small>
+        </section>
+      </details>
+      <label for="camera-mode-select">
+        <span>Cámara</span>
+        <select id="camera-mode-select" aria-label="Seleccionar cámara">
+          <option value="close">NFS cercana</option>
+          <option value="wheel">Rueda delantera</option>
+          <option value="pan">Paneo fijo</option>
+          <option value="chase">Persecución</option>
+          <option value="interior">Interior</option>
+          <option value="rally">Rally clásica</option>
+          <option value="free">Libre / noclip</option>
+          <option value="fps">FPS caminando</option>
+        </select>
+      </label>
+      <output id="camera-mode" aria-live="polite">Cámara · NFS cercana</output>
+      <small id="camera-help">C / botón Y · cambiar vista</small>
+      <button id="autonomous-drive" type="button" aria-pressed="false">
+        Asistencia IA · apagada
+      </button>
+      <small id="autonomous-drive-status" aria-live="polite">IA · esperando activación</small>
+      <small id="controller-status">Joystick · buscando…</small>
+      <label for="engine-volume">
+        <span>Motor</span>
+        <output id="engine-volume-value">80%</output>
+      </label>
+      <input id="engine-volume" type="range" min="0" max="1" step="0.01" value="0.8">
+      <small id="sound-status" aria-live="polite">Sonido · tocar para activar</small>
+      <button id="copy-racing-line" type="button">Copiar plan de trazada</button>
+      <small id="racing-line-status" aria-live="polite">Trazada · aproximación inicial</small>
+    </aside>
+    <section id="sport-hud" aria-label="Velocímetro deportivo">
+      <div id="sport-hud-svg"></div>
+    </section>
+    <section id="lap-timer" aria-label="Cronómetro de vuelta" hidden></section>
+    <details id="autonomous-panel" open hidden>
+      <summary>
+        <span>◉ APEX NEURAL DRIVE</span>
+        <small id="autonomous-panel-state">STANDBY</small>
+      </summary>
+      <section class="autonomous-panel-content">
+        <div class="autonomous-training-controls">
+          <label for="ai-simulation-speed">Velocidad de entrenamiento</label>
+          <select id="ai-simulation-speed" aria-label="Velocidad de simulación autónoma">
+            <option value="1">1× · Tiempo real</option>
+            <option value="2">2× · Rápido</option>
+            <option value="4">4× · Entrenamiento</option>
+            <option value="8">8× · Máximo</option>
+          </select>
+          <small>Se aplica al activar la asistencia IA</small>
+        </div>
+        <div class="autonomous-neural-grid">
+          <div class="autonomous-vision-frame">
+            <canvas
+              id="autonomous-vision"
+              width="420"
+              height="860"
+              aria-label="Visión simplificada del piloto autónomo"
+            ></canvas>
+            <span class="autonomous-vision-label">
+              ILC LAP LEARNING / PREDICTIVE SPEED CONTROL / MEMORY CELLS 10M
+            </span>
+          </div>
+          <div class="autonomous-metric-grid">
+            <label>Modo <output id="ai-mode">racing-line</output></label>
+            <label>Vuelta aprendida <output id="ai-lap">0</output></label>
+            <label>Progreso <output id="ai-progress">0%</output></label>
+            <label>Potencia <output id="ai-power">68%</output></label>
+            <label>Próxima <output id="ai-next-power">84%</output></label>
+            <label>Velocidad <output id="ai-speed">0 km/h</output></label>
+            <label>Objetivo <output id="ai-target-speed">0 km/h</output></label>
+            <label>Límite aprendido <output id="ai-speed-limit">0 km/h</output></label>
+            <label>Fase curva <output id="ai-corner-phase">RECTA</output></label>
+            <label>Anticipación frenada <output id="ai-brake-preview">--</output></label>
+            <label>Ataque trazada <output id="ai-attack-offset">0.00 m</output></label>
+            <label>Segmento rally <output id="ai-zone">0 / 10</output></label>
+            <label>Clase zona <output id="ai-zone-class">APRENDIENDO</output></label>
+            <label>Mínima limpia <output id="ai-zone-minimum">--</output></label>
+            <label>Máxima limpia <output id="ai-zone-maximum">--</output></label>
+            <label>Validada por piloto <output id="ai-driver-speed">--</output></label>
+            <label>Próxima prueba <output id="ai-next-trial">0 km/h</output></label>
+            <label>Potencial <output id="ai-improvement-potential">VALIDADO</output></label>
+            <label>Cobertura <output id="ai-coverage">0%</output></label>
+            <label>Error lateral <output id="ai-cross-track">0.00 m</output></label>
+            <label>Error trazada <output id="ai-racing-line-error">0.00 m</output></label>
+            <label>Error rumbo <output id="ai-heading-error">0.0°</output></label>
+            <label>Mirada adelante <output id="ai-look-ahead">0.0 m</output></label>
+            <label>Límite dirección <output id="ai-steering-limit">0%</output></label>
+            <label>Slip longitudinal <output id="ai-long-slip">0%</output></label>
+            <label>Slip lateral <output id="ai-lateral-slip">0.0°</output></label>
+            <label>Ruedas apoyadas <output id="ai-grounded-wheels">0 / 4</output></label>
+            <label>Pasadas limpias <output id="ai-clean-passes">0</output></label>
+            <label>Incidentes zona <output id="ai-zone-incidents">0</output></label>
+            <label>Incidentes total <output id="ai-total-incidents">0</output></label>
+            <label>Offset trazada <output id="ai-line-offset">0.00 m</output></label>
+            <label>Zonas rápidas <output id="ai-fast-zones">0</output></label>
+            <label>Zonas frenado <output id="ai-braking-zones">0</output></label>
+            <label>Cautela próxima <output id="ai-caution">LIBRE</output></label>
+            <label>Mejor zona <output id="ai-best-zone-speed">0 km/h</output></label>
+            <label>Tiempo vuelta <output id="ai-current-lap">0:00.000</output></label>
+            <label>Mejor vuelta <output id="ai-best-lap">--:--.---</output></label>
+            <label>Ghost <output id="ai-ghost">GRABANDO</output></label>
+          </div>
+        </div>
+        <section class="autonomous-segment-timing" aria-label="Parciales de rally">
+          <header>
+            <strong>RALLY SPLITS · 10 SEGMENTOS</strong>
+            <span>TRAMO</span><span>ACTUAL</span><span>MEJOR</span><span>Δ</span>
+          </header>
+          <div id="ai-segment-row-0"><b>S1</b><output id="ai-segment-current-0">--</output><output id="ai-segment-best-0">--</output><output id="ai-segment-delta-0">--</output></div>
+          <div id="ai-segment-row-1"><b>S2</b><output id="ai-segment-current-1">--</output><output id="ai-segment-best-1">--</output><output id="ai-segment-delta-1">--</output></div>
+          <div id="ai-segment-row-2"><b>S3</b><output id="ai-segment-current-2">--</output><output id="ai-segment-best-2">--</output><output id="ai-segment-delta-2">--</output></div>
+          <div id="ai-segment-row-3"><b>S4</b><output id="ai-segment-current-3">--</output><output id="ai-segment-best-3">--</output><output id="ai-segment-delta-3">--</output></div>
+          <div id="ai-segment-row-4"><b>S5</b><output id="ai-segment-current-4">--</output><output id="ai-segment-best-4">--</output><output id="ai-segment-delta-4">--</output></div>
+          <div id="ai-segment-row-5"><b>S6</b><output id="ai-segment-current-5">--</output><output id="ai-segment-best-5">--</output><output id="ai-segment-delta-5">--</output></div>
+          <div id="ai-segment-row-6"><b>S7</b><output id="ai-segment-current-6">--</output><output id="ai-segment-best-6">--</output><output id="ai-segment-delta-6">--</output></div>
+          <div id="ai-segment-row-7"><b>S8</b><output id="ai-segment-current-7">--</output><output id="ai-segment-best-7">--</output><output id="ai-segment-delta-7">--</output></div>
+          <div id="ai-segment-row-8"><b>S9</b><output id="ai-segment-current-8">--</output><output id="ai-segment-best-8">--</output><output id="ai-segment-delta-8">--</output></div>
+          <div id="ai-segment-row-9"><b>S10</b><output id="ai-segment-current-9">--</output><output id="ai-segment-best-9">--</output><output id="ai-segment-delta-9">--</output></div>
+        </section>
+        <div class="autonomous-command-row">
+          <span>THR <i id="ai-throttle-bar"></i></span>
+          <span>BRK <i id="ai-brake-bar"></i></span>
+          <span>STR <i id="ai-steering-bar"></i></span>
+        </div>
+        <output id="ai-learning-status">
+          Esperando datos de pista
+        </output>
+      </section>
+    </details>
+    <details id="rendering-panel" hidden>
+      <summary>⚙ Entornos / Rendering</summary>
+      <section class="environment-controls">
+        <label>Perfil
+          <select id="environment-profile" aria-label="Perfil de entorno"></select>
+        </label>
+        <label>Nombre
+          <input id="environment-profile-name" type="text" maxlength="48" placeholder="Mi atardecer">
+        </label>
+        <label>HDRI
+          <select id="environment-asset" aria-label="HDRI activo"></select>
+        </label>
+        <label>Exposición <output id="environment-exposure-value">1.00</output>
+          <input id="environment-exposure" type="range" min="0.2" max="2.5" step="0.01" value="1">
+        </label>
+        <label>Luz HDRI <output id="environment-hdri-intensity-value">1.00</output>
+          <input id="environment-hdri-intensity" type="range" min="0" max="3" step="0.05" value="1">
+        </label>
+        <label>Brillo del cielo <output id="environment-sky-intensity-value">1.00</output>
+          <input id="environment-sky-intensity" type="range" min="0" max="2" step="0.05" value="1">
+        </label>
+        <label>Desenfoque cielo <output id="environment-sky-blur-value">0.00</output>
+          <input id="environment-sky-blur" type="range" min="0" max="1" step="0.01" value="0">
+        </label>
+        <label>Rotación HDRI <output id="environment-rotation-value">0°</output>
+          <input id="environment-rotation" type="range" min="-180" max="180" step="1" value="0">
+        </label>
+        <label>Color del sol
+          <input id="environment-sun-color" type="color" value="#fff1d8">
+        </label>
+        <label>Sol direccional <output id="environment-sun-intensity-value">2.35</output>
+          <input id="environment-sun-intensity" type="range" min="0" max="5" step="0.05" value="2.35">
+        </label>
+        <label>Altura del sol <output id="environment-sun-altitude-value">45°</output>
+          <input id="environment-sun-altitude" type="range" min="0" max="90" step="1" value="45">
+        </label>
+        <label>Ángulo del sol <output id="environment-sun-azimuth-value">0°</output>
+          <input id="environment-sun-azimuth" type="range" min="-180" max="180" step="1" value="0">
+        </label>
+        <label class="environment-checkbox">
+          <input id="environment-shadows" type="checkbox" checked>
+          Sombras suaves
+        </label>
+        <div class="environment-actions">
+          <button id="environment-save" type="button">Guardar perfil</button>
+          <button id="environment-reset" type="button">Restablecer</button>
+          <button id="environment-delete" type="button">Eliminar guardado</button>
+          <button id="environment-copy-default" type="button">Copiar setup HDRI</button>
+        </div>
+        <output id="environment-profile-status">Default · Neutral</output>
+      </section>
+    </details>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

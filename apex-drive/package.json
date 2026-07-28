@@ -1,0 +1,37 @@
+{
+  "name": "@jvsysarch/apex-drive",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "node scripts/dev.mjs --host 127.0.0.1 --port 5175 --strictPort",
+    "dev:web": "vite --host 127.0.0.1 --port 5175 --strictPort",
+    "track:server": "node scripts/track-authoring-server.mjs",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 5175 --strictPort",
+    "test": "tsc --noEmit",
+    "audit:tire-selection": "node scripts/audit-tire-selection.mjs",
+    "audit:tire-energy": "node scripts/audit-tire-energy.mjs"
+  },
+  "dependencies": {
+    "@jvsysarch/apex-assets": "workspace:*",
+    "@jvsysarch/apex-audio": "workspace:*",
+    "@jvsysarch/apex-car": "workspace:*",
+    "@jvsysarch/apex-contracts": "workspace:*",
+    "@jvsysarch/apex-physics": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "three": "^0.183.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.183.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.8.0",
+    "vite": "^7.0.0",
+    "ws": "^8.21.1"
+  }
+}

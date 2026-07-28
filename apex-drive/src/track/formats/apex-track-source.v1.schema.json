@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "apex-track-source.v1.schema.json",
+  "title": "APEX Track Source V1",
+  "type": "object",
+  "required": [
+    "format",
+    "formatVersion",
+    "savedAtIso",
+    "track",
+    "assets",
+    "configuration",
+    "editor",
+    "controlPoints",
+    "evaluatedPoints"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "format": { "const": "apex-track-source" },
+    "formatVersion": { "const": 1 },
+    "savedAtIso": { "type": "string" },
+    "track": { "type": "object" },
+    "assets": { "type": "object" },
+    "configuration": { "type": "object" },
+    "editor": {
+      "type": "object",
+      "required": [
+        "closed",
+        "controlSpacingM",
+        "collisionSpacingM",
+        "simplificationToleranceM"
+      ],
+      "properties": {
+        "closed": { "type": "boolean" },
+        "controlSpacingM": { "type": "number", "exclusiveMinimum": 0 },
+        "collisionSpacingM": { "type": "number", "exclusiveMinimum": 0 },
+        "simplificationToleranceM": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2
+        }
+      },
+      "additionalProperties": false
+    },
+    "controlPoints": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "$ref": "#/$defs/point" }
+    },
+    "evaluatedPoints": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "$ref": "#/$defs/point" }
+    }
+  },
+  "$defs": {
+    "point": {
+      "type": "object",
+      "required": ["x", "y", "z", "bankRadians"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" },
+        "bankRadians": { "type": "number" },
+        "surface": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

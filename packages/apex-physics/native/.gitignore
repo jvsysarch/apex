@@ -1,4 +1,6 @@
 Build/
-dist/
+dist/*
+!dist/apex-physics.js
+!dist/apex-physics.wasm
 node_modules
 __pycache__

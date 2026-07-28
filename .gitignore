@@ -9,6 +9,12 @@ dist/
 coverage/
 .apex-data/
 
+# Browser runtime required by the public APEX Drive demo.
+!packages/apex-physics/native/dist/
+packages/apex-physics/native/dist/*
+!packages/apex-physics/native/dist/apex-physics.js
+!packages/apex-physics/native/dist/apex-physics.wasm
+
 # Native build directories and generated CMake state
 build/
 cmake-build-*/

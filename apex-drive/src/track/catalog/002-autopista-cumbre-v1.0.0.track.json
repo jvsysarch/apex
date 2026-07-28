@@ -1,0 +1,60 @@
+{
+  "$schema": "../formats/apex-drive-track.v1.schema.json",
+  "format": "apex-drive-track",
+  "formatVersion": 1,
+  "track": {
+    "number": 2,
+    "id": "autopista-cumbre",
+    "name": "Autopista Cumbre",
+    "version": "1.0.0"
+  },
+  "assets": {
+    "visual": {
+      "format": "procedural",
+      "generator": "autopista-cumbre-v1.0.0-highway-loop",
+      "uri": null
+    },
+    "collision": {
+      "format": "generated",
+      "uri": null
+    }
+  },
+  "configuration": {
+    "profile": "apex-drive",
+    "profileVersion": 1,
+    "coordinateSystem": {
+      "unit": "meter",
+      "upAxis": "Y",
+      "handedness": "right"
+    },
+    "start": {
+      "position": {
+        "x": 0,
+        "y": 0.05,
+        "z": 0
+      },
+      "yawRadians": 3.141592653589793
+    },
+    "geometry": {
+      "roadWidthM": 24,
+      "shoulderWidthM": 12,
+      "groundHeightM": 0,
+      "roadThicknessM": 0.08,
+      "boundaryMode": "guardrails",
+      "roadsideMode": "shoulder"
+    },
+    "timing": {
+      "startRadiusM": 10,
+      "checkpointRadiusM": 18,
+      "checkpointIntervalPoints": 20,
+      "ignoredTailPoints": 8,
+      "sectorCount": 10,
+      "storageKey": "apex-run.v3.autopista-cumbre-lap-timing.v1-highway-loop"
+    },
+    "surfaces": {
+      "road": "asphalt",
+      "shoulder": "grass",
+      "ground": "grass"
+    }
+  }
+}

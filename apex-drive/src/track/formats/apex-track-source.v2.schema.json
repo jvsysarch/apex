@@ -1,0 +1,212 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "apex-track-source.v2.schema.json",
+  "title": "APEX Track Source V2",
+  "type": "object",
+  "required": [
+    "format",
+    "formatVersion",
+    "savedAtIso",
+    "track",
+    "assets",
+    "configuration",
+    "primaryRouteId",
+    "segments",
+    "junctions",
+    "routes"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "format": { "const": "apex-track-source" },
+    "formatVersion": { "const": 2 },
+    "savedAtIso": { "type": "string" },
+    "track": { "type": "object" },
+    "assets": { "type": "object" },
+    "configuration": { "type": "object" },
+    "primaryRouteId": { "$ref": "#/$defs/localId" },
+    "segments": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10000,
+      "items": { "$ref": "#/$defs/segment" }
+    },
+    "junctions": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": { "$ref": "#/$defs/junction" }
+    },
+    "routes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10000,
+      "items": { "$ref": "#/$defs/route" }
+    }
+  },
+  "$defs": {
+    "localId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,79}$"
+    },
+    "point": {
+      "type": "object",
+      "required": ["x", "y", "z", "bankRadians"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" },
+        "bankRadians": { "type": "number" },
+        "surface": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "editor": {
+      "type": "object",
+      "required": [
+        "closed",
+        "controlSpacingM",
+        "collisionSpacingM",
+        "simplificationToleranceM"
+      ],
+      "properties": {
+        "closed": { "type": "boolean" },
+        "controlSpacingM": { "type": "number", "exclusiveMinimum": 0 },
+        "collisionSpacingM": { "type": "number", "exclusiveMinimum": 0 },
+        "simplificationToleranceM": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2
+        }
+      },
+      "additionalProperties": false
+    },
+    "geometry": {
+      "type": "object",
+      "required": [
+        "roadWidthM",
+        "laneCount",
+        "surface",
+        "boundaryMode",
+        "roadsideMode",
+        "visualMode"
+      ],
+      "properties": {
+        "roadWidthM": {
+          "type": "number",
+          "minimum": 2,
+          "maximum": 60
+        },
+        "laneCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        "surface": { "type": "string", "minLength": 1 },
+        "boundaryMode": {
+          "enum": ["guardrails", "walls"]
+        },
+        "roadsideMode": {
+          "enum": ["none", "shoulder", "adaptive-terrain"]
+        },
+        "visualMode": {
+          "enum": [
+            "inherit",
+            "procedural",
+            "collision-only",
+            "asset-reference"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "segment": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "editor",
+        "geometry",
+        "controlPoints",
+        "evaluatedPoints"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/localId" },
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["road", "connector", "branch"] },
+        "enabled": { "type": "boolean" },
+        "editor": { "$ref": "#/$defs/editor" },
+        "geometry": { "$ref": "#/$defs/geometry" },
+        "controlPoints": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 100000,
+          "items": { "$ref": "#/$defs/point" }
+        },
+        "evaluatedPoints": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 100000,
+          "items": { "$ref": "#/$defs/point" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "routeReference": {
+      "type": "object",
+      "required": ["segmentId", "direction"],
+      "properties": {
+        "segmentId": { "$ref": "#/$defs/localId" },
+        "direction": { "enum": ["forward", "reverse"] }
+      },
+      "additionalProperties": false
+    },
+    "route": {
+      "type": "object",
+      "required": ["id", "name", "closed", "segments"],
+      "properties": {
+        "id": { "$ref": "#/$defs/localId" },
+        "name": { "type": "string", "minLength": 1 },
+        "closed": { "type": "boolean" },
+        "segments": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/routeReference" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "junctionConnection": {
+      "type": "object",
+      "required": ["segmentId", "endpoint"],
+      "properties": {
+        "segmentId": { "$ref": "#/$defs/localId" },
+        "endpoint": { "enum": ["start", "end"] }
+      },
+      "additionalProperties": false
+    },
+    "junction": {
+      "type": "object",
+      "required": ["id", "kind", "connections"],
+      "properties": {
+        "id": { "$ref": "#/$defs/localId" },
+        "kind": {
+          "enum": [
+            "hard",
+            "smooth",
+            "merge",
+            "crossing",
+            "underpass",
+            "overpass"
+          ]
+        },
+        "connections": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/junctionConnection" }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

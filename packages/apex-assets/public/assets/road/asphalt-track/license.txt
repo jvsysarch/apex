@@ -1,0 +1,10 @@
+Asphalt Track
+Source: https://polyhaven.com/a/asphalt_track
+Author: Dimitrios Savva
+License: Creative Commons CC0 1.0 Universal
+License URL: https://creativecommons.org/publicdomain/zero/1.0/
+
+Downloaded from Poly Haven at 1K resolution:
+- asphalt_track_diff_1k.jpg
+- asphalt_track_nor_dx_1k.jpg
+- asphalt_track_rough_1k.jpg

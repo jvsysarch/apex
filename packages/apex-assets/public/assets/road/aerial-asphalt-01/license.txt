@@ -1,0 +1,10 @@
+Aerial Asphalt 01
+Source: https://polyhaven.com/a/aerial_asphalt_01
+Author: Rob Tuytel
+License: Creative Commons CC0 1.0 Universal
+License URL: https://creativecommons.org/publicdomain/zero/1.0/
+
+Downloaded from Poly Haven at 1K resolution:
+- aerial_asphalt_01_diff_1k.jpg
+- aerial_asphalt_01_nor_dx_1k.jpg
+- aerial_asphalt_01_rough_1k.jpg

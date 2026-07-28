@@ -1,11 +1,16 @@
-name: Deploy Apex Physics demo
+name: Deploy APEX Drive demo
 
 on:
   push:
     branches: [main]
     paths:
       - 'apps/apex-demo/**'
-      - 'packages/apex-physics/src/**'
+      - 'apex-drive/**'
+      - 'packages/apex-assets/**'
+      - 'packages/apex-audio/**'
+      - 'packages/apex-car/**'
+      - 'packages/apex-contracts/**'
+      - 'packages/apex-physics/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'

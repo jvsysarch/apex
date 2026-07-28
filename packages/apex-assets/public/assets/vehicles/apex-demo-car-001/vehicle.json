@@ -1,0 +1,76 @@
+{
+  "format": "apex-drive-car@1",
+  "id": "apex-demo-car-001",
+  "version": "0.0.1-prealpha.1",
+  "name": "APEX Demo Car 001",
+  "asset": {
+    "domain": "assets",
+    "objectId": "ac2c8e47-f554-47d5-9087-3b4e758dbc98",
+    "revision": "c6905beee4ad3a0f",
+    "modelUrl": "assets/vehicles/apex-demo-car-001/scene.glb"
+  },
+  "coordinateSystem": {
+    "units": "meters",
+    "upAxis": "Y",
+    "forwardAxis": "Z"
+  },
+  "visual": {
+    "bodyRootNode": "Caja_2",
+    "bodyRootNodeId": "a869d4a0-0803-43d4-b435-12684171562e",
+    "paintMaterialPattern": "Body|Paint|Color",
+    "brakeLightMaterialPattern": "Brake|Tail|PlasticRed|LightsIllum"
+  },
+  "dimensions": {
+    "lengthM": 5.024833803939908,
+    "widthM": 2.274743925091381,
+    "heightM": 1.3188918092586195
+  },
+  "wheels": {
+    "front-left": {
+      "positionM": [1, 0.426, 1.604],
+      "radiusM": 0.426,
+      "widthM": 0.285,
+      "visualNode": "wheel_front_left__LEFT_POSITIVE_X",
+      "visualNodeId": "6082770e-140f-4ddd-bd38-92093f8ec90d"
+    },
+    "front-right": {
+      "positionM": [-0.99, 0.426, 1.604],
+      "radiusM": 0.426,
+      "widthM": 0.285,
+      "visualNode": "wheel_front_right__RIGHT_NEGATIVE_X",
+      "visualNodeId": "eeebd594-b157-4c62-9533-47e882a23d14"
+    },
+    "rear-left": {
+      "positionM": [0.963, 0.426, -1.774],
+      "radiusM": 0.426,
+      "widthM": 0.285,
+      "visualNode": "wheel_rear_left__LEFT_POSITIVE_X",
+      "visualNodeId": "7ceaa5dc-45cb-4171-a330-09d6089cb8e7"
+    },
+    "rear-right": {
+      "positionM": [-0.896, 0.426, -1.774],
+      "radiusM": 0.426,
+      "widthM": 0.285,
+      "visualNode": "wheel_rear_right__RIGHT_NEGATIVE_X",
+      "visualNodeId": "1a91ec82-6f89-41dc-a544-7d24489e4ae5"
+    }
+  },
+  "collision": {
+    "chassisBox": {
+      "lengthM": 4.522350423545917,
+      "widthM": 1.9107848970767598,
+      "frontWidthM": 1.6378156260657941,
+      "rearWidthM": 1.8197951400731047,
+      "heightM": 0.5275567237034479,
+      "centerM": [0, 0.42204536972945694, 0]
+    }
+  },
+  "dynamics": {
+    "physicsDefinitionId": "apex-road-car",
+    "massKg": 1550,
+    "centerOfMassM": [0, 0.36, 0]
+  },
+  "cameras": {
+    "chaseTarget": [0, 0.5935013141663787, 0]
+  }
+}

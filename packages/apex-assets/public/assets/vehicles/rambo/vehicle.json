@@ -1,0 +1,67 @@
+{
+  "format": "apex-drive-car@1",
+  "id": "rambo",
+  "version": "0.0.1-prealpha.1",
+  "name": "Rambo",
+  "asset": {
+    "domain": "assets",
+    "objectId": "rambo",
+    "revision": "0940a3d1f5e44217afb698518ab2749d",
+    "modelUrl": "assets/vehicles/rambo/scene.gltf"
+  },
+  "coordinateSystem": {
+    "units": "meters",
+    "upAxis": "Y",
+    "forwardAxis": "Z"
+  },
+  "visual": {
+    "bodyRootNode": "body",
+    "paintMaterialPattern": "body",
+    "brakeLightMaterialPattern": "r_light"
+  },
+  "dimensions": {
+    "lengthM": 4.3282800926856835,
+    "widthM": 1.98,
+    "heightM": 1.084260966629325
+  },
+  "wheels": {
+    "front-left": {
+      "positionM": [0.9110180754810718, 0.3151908800076544, 1.220223701856937],
+      "radiusM": 0.3151908800076544,
+      "widthM": 0.23050925212278303
+    },
+    "front-right": {
+      "positionM": [-0.9110187320577233, 0.3151908800076544, 1.2202230583843994],
+      "radiusM": 0.3151908800076544,
+      "widthM": 0.23050915460326724
+    },
+    "rear-left": {
+      "positionM": [0.9507871836025478, 0.3151908800076544, -1.360337995523046],
+      "radiusM": 0.3151908800076544,
+      "widthM": 0.2700304891453434
+    },
+    "rear-right": {
+      "positionM": [-0.9507846420820121, 0.3151908800076544, -1.360338681943794],
+      "radiusM": 0.3151908800076544,
+      "widthM": 0.27003035391709995
+    }
+  },
+  "collision": {
+    "chassisBox": {
+      "lengthM": 3.9,
+      "widthM": 1.72,
+      "frontWidthM": 1.68,
+      "rearWidthM": 1.76,
+      "heightM": 0.48,
+      "centerM": [0, 0.38, 0]
+    }
+  },
+  "dynamics": {
+    "physicsDefinitionId": "apex-road-car",
+    "massKg": 1450,
+    "centerOfMassM": [0, 0.34, 0]
+  },
+  "cameras": {
+    "chaseTarget": [0, 0.55, 0]
+  }
+}

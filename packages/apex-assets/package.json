@@ -1,0 +1,11 @@
+{
+  "name": "@jvsysarch/apex-assets",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "public",
+    "README.md",
+    "README.es.md"
+  ]
+}

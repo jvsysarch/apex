@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://apex-drive.local/schemas/apex-drive-track.v1.schema.json",
+  "title": "Apex Drive Track v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "formatVersion", "track", "assets", "configuration"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "format": { "const": "apex-drive-track" },
+    "formatVersion": { "const": 1 },
+    "track": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["number", "id", "name", "version"],
+      "properties": {
+        "number": { "type": "integer", "minimum": 1 },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
+        }
+      }
+    },
+    "assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["visual", "collision"],
+      "properties": {
+        "visual": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["format", "uri"],
+          "properties": {
+            "format": { "enum": ["procedural", "glb"] },
+            "generator": { "type": "string", "minLength": 1 },
+            "uri": {
+              "oneOf": [
+                { "type": "string", "minLength": 1 },
+                { "type": "null" }
+              ]
+            }
+          }
+        },
+        "collision": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["format", "uri"],
+          "properties": {
+            "format": { "enum": ["generated", "glb"] },
+            "uri": {
+              "oneOf": [
+                { "type": "string", "minLength": 1 },
+                { "type": "null" }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "profileVersion",
+        "coordinateSystem",
+        "start",
+        "geometry",
+        "timing",
+        "surfaces"
+      ],
+      "properties": {
+        "profile": { "const": "apex-drive" },
+        "profileVersion": { "const": 1 },
+        "coordinateSystem": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["unit", "upAxis", "handedness"],
+          "properties": {
+            "unit": { "const": "meter" },
+            "upAxis": { "const": "Y" },
+            "handedness": { "const": "right" }
+          }
+        },
+        "start": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["position", "yawRadians"],
+          "properties": {
+            "position": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["x", "y", "z"],
+              "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "z": { "type": "number" }
+              }
+            },
+            "yawRadians": { "type": "number" }
+          }
+        },
+        "geometry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "roadWidthM",
+            "shoulderWidthM",
+            "groundHeightM",
+            "roadThicknessM",
+            "boundaryMode",
+            "roadsideMode"
+          ],
+          "properties": {
+            "roadWidthM": { "type": "number", "exclusiveMinimum": 0 },
+            "shoulderWidthM": { "type": "number", "minimum": 0 },
+            "groundHeightM": { "type": "number" },
+            "roadThicknessM": { "type": "number", "exclusiveMinimum": 0 },
+            "boundaryMode": {
+              "type": "string",
+              "enum": ["guardrails", "walls"]
+            },
+            "roadsideMode": {
+              "type": "string",
+              "enum": ["none", "shoulder", "adaptive-terrain"]
+            }
+          }
+        },
+        "timing": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "startRadiusM",
+            "checkpointRadiusM",
+            "checkpointIntervalPoints",
+            "ignoredTailPoints",
+            "sectorCount",
+            "storageKey"
+          ],
+          "properties": {
+            "startRadiusM": { "type": "number", "exclusiveMinimum": 0 },
+            "checkpointRadiusM": { "type": "number", "exclusiveMinimum": 0 },
+            "checkpointIntervalPoints": { "type": "integer", "minimum": 1 },
+            "ignoredTailPoints": { "type": "integer", "minimum": 0 },
+            "sectorCount": { "type": "integer", "minimum": 1 },
+            "storageKey": { "type": "string", "minLength": 1 }
+          }
+        },
+        "surfaces": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["road", "shoulder", "ground"],
+          "properties": {
+            "road": { "type": "string", "minLength": 1 },
+            "shoulder": { "type": "string", "minLength": 1 },
+            "ground": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  }
+}
