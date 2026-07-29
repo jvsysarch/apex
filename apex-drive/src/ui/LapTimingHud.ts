@@ -14,6 +14,23 @@ const formatDelta = (milliseconds?: number) => {
   return `${sign} ${(Math.abs(milliseconds) / 1000).toFixed(3)}`;
 };
 
+const formatRecordDate = (iso?: string) => {
+  if (!iso) return 'SIN REGISTRO';
+  const date = new Date(iso);
+  if (!Number.isFinite(date.getTime())) return 'SIN REGISTRO';
+  const parts = new Intl.DateTimeFormat('es-AR', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) => (
+    parts.find(candidate => candidate.type === type)?.value ?? ''
+  );
+  return `${part('day')} ${part('month').toUpperCase()} · ${part('hour')}:${part('minute')}`;
+};
+
 /** HUD persistente: no reconstruye DOM durante la vuelta. */
 export class LapTimingHud {
   private readonly time: HTMLElement;
@@ -21,6 +38,7 @@ export class LapTimingHud {
   private readonly delta: HTMLElement;
   private readonly status: HTMLElement;
   private readonly best: HTMLElement;
+  private readonly bestDate: HTMLTimeElement;
   private readonly last: HTMLElement;
   private readonly sector: HTMLElement;
   private readonly progress: HTMLElement;
@@ -41,9 +59,12 @@ export class LapTimingHud {
           <output id="lap-timing-delta">± —.———</output>
         </div>
         <div class="lap-progress"><i id="lap-timing-progress"></i></div>
-        <p id="lap-timing-status">Detenete sobre la línea para armar la salida</p>
+        <p id="lap-timing-status" role="status" aria-live="polite">Detenete sobre la línea para armar la salida</p>
         <footer>
-          <span>MEJOR <strong id="lap-timing-best">—:——.———</strong></span>
+          <span>MEJOR
+            <strong id="lap-timing-best">—:——.———</strong>
+            <time id="lap-timing-best-date">SIN REGISTRO</time>
+          </span>
           <span>ÚLTIMA <strong id="lap-timing-last">—:——.———</strong></span>
           <span>SECTOR <strong id="lap-timing-sector">1 / 3</strong></span>
         </footer>
@@ -56,6 +77,7 @@ export class LapTimingHud {
     this.delta = this.required('#lap-timing-delta');
     this.status = this.required('#lap-timing-status');
     this.best = this.required('#lap-timing-best');
+    this.bestDate = this.required<HTMLTimeElement>('#lap-timing-best-date');
     this.last = this.required('#lap-timing-last');
     this.sector = this.required('#lap-timing-sector');
     this.progress = this.required('#lap-timing-progress');
@@ -66,6 +88,7 @@ export class LapTimingHud {
 
   update(state: LapTimingState): void {
     this.root.dataset.phase = state.phase;
+    this.root.dataset.visibility = state.hudVisibility;
     this.time.textContent = formatTime(state.elapsedMs);
     this.lap.textContent = `VUELTA ${state.lapNumber}`;
     this.delta.textContent = formatDelta(state.lapDeltaMs);
@@ -74,6 +97,8 @@ export class LapTimingHud {
       : state.lapDeltaMs <= 0 ? 'gain' : 'loss';
     this.status.textContent = state.message;
     this.best.textContent = formatTime(state.bestLapMs);
+    this.bestDate.textContent = formatRecordDate(state.bestLapRecordedAtIso);
+    this.bestDate.dateTime = state.bestLapRecordedAtIso ?? '';
     this.last.textContent = formatTime(state.lastLapMs);
     this.sector.textContent = `${state.sectorIndex + 1} / ${state.sectorCount}`;
     const progress = state.checkpointCount > 0

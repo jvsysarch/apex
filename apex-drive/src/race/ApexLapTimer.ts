@@ -5,16 +5,27 @@ export interface LapGate {
   readonly label: string;
 }
 
-export type LapTimerPhase = 'arming' | 'countdown' | 'running';
+export type LapTimerPhase = 'arming' | 'countdown' | 'running' | 'abandoned';
+
+export type LapTimingHudVisibility = 'visible' | 'fading' | 'hidden';
+
+export interface LapRecord {
+  readonly lapMs: number;
+  readonly completedAtIso: string;
+}
 
 export interface LapTimingState {
   readonly phase: LapTimerPhase;
+  readonly hudVisibility: LapTimingHudVisibility;
   readonly elapsedMs: number;
   readonly lapNumber: number;
   readonly completedLapCount: number;
   readonly laps: readonly number[];
+  readonly lapRecords: readonly LapRecord[];
   readonly bestLapMs?: number;
+  readonly bestLapRecordedAtIso?: string;
   readonly lastLapMs?: number;
+  readonly lastLapCompletedAtIso?: string;
   readonly lapDeltaMs?: number;
   readonly checkpointIndex: number;
   readonly checkpointCount: number;
@@ -31,22 +42,48 @@ export interface LapTimingState {
 const armingHoldMs = 900;
 const lightIntervalMs = 430;
 const greenDelayMs = 520;
+const stationarySpeedKmh = 1;
+const stationaryAbandonMs = 15_000;
+const stationaryWarningMs = 10_000;
+const abandonedFadeDelayMs = 1_200;
+const abandonedFadeDurationMs = 1_000;
 
 interface StoredTiming {
   readonly bestLapMs?: number;
+  readonly bestLapRecordedAtIso?: string;
   readonly bestSectorCumulativeMs?: readonly number[];
+  readonly recentLaps?: readonly LapRecord[];
 }
 
 const readStoredTiming = (storageKey: string): StoredTiming => {
   try {
     const parsed = JSON.parse(localStorage.getItem(storageKey) ?? '{}') as StoredTiming;
+    const recentLaps = Array.isArray(parsed.recentLaps)
+      ? parsed.recentLaps
+        .filter((record): record is LapRecord => (
+          typeof record === 'object'
+          && record !== null
+          && Number.isFinite(record.lapMs)
+          && record.lapMs > 0
+          && typeof record.completedAtIso === 'string'
+          && Number.isFinite(Date.parse(record.completedAtIso))
+        ))
+        .slice(0, 20)
+      : undefined;
     return {
       bestLapMs: Number.isFinite(parsed.bestLapMs) && parsed.bestLapMs! > 0
         ? parsed.bestLapMs
         : undefined,
+      bestLapRecordedAtIso: (
+        typeof parsed.bestLapRecordedAtIso === 'string'
+        && Number.isFinite(Date.parse(parsed.bestLapRecordedAtIso))
+      )
+        ? parsed.bestLapRecordedAtIso
+        : undefined,
       bestSectorCumulativeMs: Array.isArray(parsed.bestSectorCumulativeMs)
         ? parsed.bestSectorCumulativeMs.filter(value => Number.isFinite(value))
         : undefined,
+      recentLaps,
     };
   } catch {
     return {};
@@ -63,8 +100,10 @@ export class ApexLapTimer {
   private checkpointInside = false;
   private startInside = true;
   private laps: number[] = [];
+  private lapRecords: LapRecord[] = [];
   private completedLapCount = 0;
   private lastLapMs?: number;
+  private lastLapCompletedAtIso?: string;
   private lapDeltaMs?: number;
   private sectorIndex = 0;
   private sectorStartedAtMs = 0;
@@ -80,7 +119,11 @@ export class ApexLapTimer {
   private closed = true;
   private finishInside = false;
   private bestLapMs?: number;
+  private bestLapRecordedAtIso?: string;
   private bestSectorCumulativeMs?: readonly number[];
+  private stationaryStartedAt?: number;
+  private abandonedAt?: number;
+  private abandonedRestartArmed = false;
 
   constructor(
     start: LapGate,
@@ -93,7 +136,9 @@ export class ApexLapTimer {
     this.checkpoints = checkpoints;
     const stored = readStoredTiming(this.storageKey);
     this.bestLapMs = stored.bestLapMs;
+    this.bestLapRecordedAtIso = stored.bestLapRecordedAtIso;
     this.bestSectorCumulativeMs = stored.bestSectorCumulativeMs;
+    this.lapRecords = stored.recentLaps ? [...stored.recentLaps] : [];
     this.sectorEndGateCounts = Object.freeze(
       Array.from({ length: sectorCount - 1 }, (_, index) => (
         Math.max(1, Math.round(this.checkpoints.length * (index + 1) / sectorCount))
@@ -138,6 +183,9 @@ export class ApexLapTimer {
     this.lastSectorMs = undefined;
     this.sectorDeltaMs = undefined;
     this.currentSectorCumulativeMs = [];
+    this.stationaryStartedAt = undefined;
+    this.abandonedAt = undefined;
+    this.abandonedRestartArmed = false;
     this.message = 'Auto en grilla · armando salida';
     this.messageExpiresAt = 0;
   }
@@ -180,9 +228,15 @@ export class ApexLapTimer {
       } else if (now >= this.countdownEndsAt()) {
         this.startRace(now);
       }
-    } else {
+    } else if (this.phase === 'running') {
       this.elapsedMs = now - this.startedAt;
-      if (nextGate && !this.checkpointInside && inCheckpoint) {
+      this.updateStationaryState(speedKmh, now);
+      if (
+        this.phase === 'running'
+        && nextGate
+        && !this.checkpointInside
+        && inCheckpoint
+      ) {
         this.checkpointIndex += 1;
         this.captureSectorIfNeeded();
         this.message = this.checkpointIndex === this.checkpoints.length
@@ -192,12 +246,27 @@ export class ApexLapTimer {
           : `Siguiente control · ${this.checkpoints[this.checkpointIndex].label}`;
       }
       if (
+        this.phase === 'running'
+        &&
         (this.closed ? !this.startInside && inStart : !this.finishInside && inFinish)
         && this.checkpointIndex === this.checkpoints.length
       ) {
         this.finishLap(now);
-      } else if (now >= this.messageExpiresAt && this.messageExpiresAt > 0) {
+      } else if (
+        this.phase === 'running'
+        && now >= this.messageExpiresAt
+        && this.messageExpiresAt > 0
+      ) {
         this.messageExpiresAt = 0;
+      }
+    } else {
+      if (!inStart) this.abandonedRestartArmed = true;
+      if (
+        this.abandonedRestartArmed
+        && inStart
+        && speedKmh <= 1.5
+      ) {
+        this.resetForStart();
       }
     }
 
@@ -231,6 +300,9 @@ export class ApexLapTimer {
     this.lastSectorMs = undefined;
     this.sectorDeltaMs = undefined;
     this.currentSectorCumulativeMs = [];
+    this.stationaryStartedAt = undefined;
+    this.abandonedAt = undefined;
+    this.abandonedRestartArmed = false;
     this.message = this.closed
       ? `Vuelta 1 · ${this.checkpoints[0]?.label ?? 'pista libre'}`
       : `Etapa · ${this.checkpoints[0]?.label ?? 'hacia la llegada'}`;
@@ -251,28 +323,28 @@ export class ApexLapTimer {
 
   private finishLap(now: number): void {
     const lapMs = now - this.startedAt;
+    const completedAtIso = new Date().toISOString();
     const previousBest = this.bestLapMs;
     this.currentSectorCumulativeMs.push(lapMs);
     this.lastSectorMs = lapMs - this.sectorStartedAtMs;
     const finalReference = this.bestSectorCumulativeMs?.[this.sectorIndex];
     this.sectorDeltaMs = finalReference === undefined ? undefined : lapMs - finalReference;
     this.lastLapMs = lapMs;
+    this.lastLapCompletedAtIso = completedAtIso;
     this.lapDeltaMs = previousBest === undefined ? undefined : lapMs - previousBest;
     this.laps = [lapMs, ...this.laps].slice(0, 20);
+    this.lapRecords = [
+      Object.freeze({ lapMs, completedAtIso }),
+      ...this.lapRecords,
+    ].slice(0, 20);
     this.completedLapCount += 1;
     const isBest = previousBest === undefined || lapMs < previousBest;
     if (isBest) {
       this.bestLapMs = lapMs;
+      this.bestLapRecordedAtIso = completedAtIso;
       this.bestSectorCumulativeMs = Object.freeze([...this.currentSectorCumulativeMs]);
-      try {
-        localStorage.setItem(this.storageKey, JSON.stringify({
-          bestLapMs: this.bestLapMs,
-          bestSectorCumulativeMs: this.bestSectorCumulativeMs,
-        }));
-      } catch {
-        // El cronómetro sigue funcionando aunque el navegador bloquee storage.
-      }
     }
+    this.persistTiming();
     this.startedAt = now;
     this.elapsedMs = 0;
     this.checkpointIndex = 0;
@@ -280,6 +352,9 @@ export class ApexLapTimer {
     this.sectorIndex = 0;
     this.sectorStartedAtMs = 0;
     this.currentSectorCumulativeMs = [];
+    this.stationaryStartedAt = undefined;
+    this.abandonedAt = undefined;
+    this.abandonedRestartArmed = false;
     this.message = isBest
       ? `${this.closed ? 'MEJOR VUELTA' : 'MEJOR ETAPA'} · ${this.format(lapMs)}`
       : `${this.closed ? 'Vuelta' : 'Etapa'} registrada · ${this.format(lapMs)}`;
@@ -296,14 +371,28 @@ export class ApexLapTimer {
     const countdownSeconds = this.phase === 'countdown'
       ? Math.max(1, Math.ceil((this.countdownEndsAt() - now) / 1000))
       : undefined;
+    const abandonedElapsedMs = this.phase === 'abandoned'
+      ? now - (this.abandonedAt ?? now)
+      : 0;
+    const hudVisibility: LapTimingHudVisibility = this.phase !== 'abandoned'
+      ? 'visible'
+      : abandonedElapsedMs < abandonedFadeDelayMs
+        ? 'visible'
+        : abandonedElapsedMs < abandonedFadeDelayMs + abandonedFadeDurationMs
+          ? 'fading'
+          : 'hidden';
     return Object.freeze({
       phase: this.phase,
+      hudVisibility,
       elapsedMs: this.elapsedMs,
       lapNumber: this.completedLapCount + 1,
       completedLapCount: this.completedLapCount,
       laps: Object.freeze([...this.laps]),
+      lapRecords: Object.freeze([...this.lapRecords]),
       bestLapMs: this.bestLapMs,
+      bestLapRecordedAtIso: this.bestLapRecordedAtIso,
       lastLapMs: this.lastLapMs,
+      lastLapCompletedAtIso: this.lastLapCompletedAtIso,
       lapDeltaMs: this.lapDeltaMs,
       checkpointIndex: this.checkpointIndex,
       checkpointCount: this.checkpoints.length,
@@ -318,6 +407,52 @@ export class ApexLapTimer {
         : this.phase === 'running' ? 'green' : 'off',
       message: this.message,
     });
+  }
+
+  private updateStationaryState(speedKmh: number, now: number): void {
+    if (speedKmh > stationarySpeedKmh) {
+      if (
+        this.stationaryStartedAt !== undefined
+        && this.message.startsWith('Auto detenido')
+      ) {
+        this.message = `Vuelta en curso · ${
+          this.checkpoints[this.checkpointIndex]?.label ?? 'cerrá la vuelta'
+        }`;
+      }
+      this.stationaryStartedAt = undefined;
+      return;
+    }
+    this.stationaryStartedAt ??= now;
+    const stationaryElapsedMs = now - this.stationaryStartedAt;
+    if (stationaryElapsedMs >= stationaryAbandonMs) {
+      this.phase = 'abandoned';
+      this.abandonedAt = now;
+      this.abandonedRestartArmed = false;
+      this.stationaryStartedAt = undefined;
+      this.message = 'VUELTA ABANDONADA · vehículo detenido 15 segundos';
+      this.messageExpiresAt = 0;
+      return;
+    }
+    if (stationaryElapsedMs >= stationaryWarningMs) {
+      const remainingSeconds = Math.max(
+        1,
+        Math.ceil((stationaryAbandonMs - stationaryElapsedMs) / 1000),
+      );
+      this.message = `Auto detenido · abandono en ${remainingSeconds} s`;
+    }
+  }
+
+  private persistTiming(): void {
+    try {
+      localStorage.setItem(this.storageKey, JSON.stringify({
+        bestLapMs: this.bestLapMs,
+        bestLapRecordedAtIso: this.bestLapRecordedAtIso,
+        bestSectorCumulativeMs: this.bestSectorCumulativeMs,
+        recentLaps: this.lapRecords,
+      }));
+    } catch {
+      // El cronómetro sigue funcionando aunque el navegador bloquee storage.
+    }
   }
 
   private format(milliseconds: number): string {

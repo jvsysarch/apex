@@ -45,7 +45,7 @@ import {
   TireManeuverAudit,
   type TireManeuverId,
 } from './diagnostics/TireManeuverAudit';
-import { ApexLapTimer } from './race/ApexLapTimer';
+import { ApexLapTimer, type LapTimerPhase } from './race/ApexLapTimer';
 import { ApexLapGhost } from './race/ApexLapGhost';
 import { createApexRaceGrid } from './race/ApexRaceGrid';
 import { ApexRacingLineLearner } from './race/ApexRacingLineLearner';
@@ -419,7 +419,7 @@ const sportHudContainer = document.querySelector<HTMLElement>('#sport-hud')!;
 const sportHudRoot = document.querySelector<HTMLElement>('#sport-hud-svg')!;
 const sportHud = new RacingHudSvg(sportHudRoot);
 const lapTimerRoot = document.querySelector<HTMLElement>('#lap-timer')!;
-const lapTimingHudVisible = false;
+const lapTimingHudVisible = true;
 const autonomousPanelRoot = document.querySelector<HTMLElement>(
   '#autonomous-panel',
 )!;
@@ -1831,7 +1831,7 @@ const useEnvironmentAsset = (environmentId: string) => {
 };
 useEnvironmentAsset(APEX_ENVIRONMENT_ASSETS[0].id);
 
-// Preset close/NFS de v2.
+// Preset close de seguimiento de v2.
 const camera = new THREE.PerspectiveCamera(
   68,
   window.innerWidth / window.innerHeight,
@@ -1852,7 +1852,7 @@ const cameraModes: readonly CameraMode[] = [
   'fps',
 ];
 const cameraModeLabels: Readonly<Record<CameraMode, string>> = {
-  close: 'NFS cercana',
+  close: 'XSpeed Close Cam',
   wheel: 'rueda delantera',
   pan: 'paneo fijo',
   chase: 'persecución',
@@ -3434,7 +3434,7 @@ const blendAutonomousAssistance = (
 };
 let autonomousDriveEnabled = false;
 let autonomousLapActive = false;
-let autonomousTimingPhase: 'arming' | 'countdown' | 'running' = 'arming';
+let autonomousTimingPhase: LapTimerPhase = 'arming';
 let autonomousFreeLapPreviousProgress: number | undefined;
 let autonomousFreeLapTravel = 0;
 let simulationNow = performance.now();
@@ -7596,10 +7596,18 @@ try {
       previousAutonomousTimingPhase !== 'running'
       && lapTimingState.phase === 'running'
     );
+    const officialLapAbandoned = (
+      previousAutonomousTimingPhase === 'running'
+      && lapTimingState.phase === 'abandoned'
+    );
     const officialLapCompleted = (
       lapTimingState.completedLapCount > observedCompletedLapCount
     );
     let freeLapCompleted = false;
+    if (officialLapAbandoned && autonomousLapActive) {
+      autonomousDriver.cancelLap();
+      autonomousLapActive = false;
+    }
     if (enteredOfficialLap) {
       resetAutonomousFreeLap(simulationNow);
       lapGhost.beginLap();

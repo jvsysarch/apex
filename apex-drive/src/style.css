@@ -112,6 +112,10 @@ html[data-apex-drive-profile="public-demo"] .lap-timing-card footer strong {
   font-size: 9px;
 }
 
+html[data-apex-drive-profile="public-demo"] #lap-timing-best-date {
+  font-size: 8px;
+}
+
 html[data-apex-drive-profile="public-demo"] .lap-timing-main > span,
 html[data-apex-drive-profile="public-demo"] #lap-timing-status {
   font-size: 11px;
@@ -1957,9 +1961,27 @@ html[data-apex-drive-profile="public-demo"] #lap-timer {
   width: min(410px, calc(100vw - 390px));
   min-width: 310px;
   transform: translateX(-50%);
+  opacity: 1;
+  filter: blur(0);
   color: #e9fbff;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   pointer-events: none;
+  transition:
+    opacity 1s ease,
+    filter 1s ease,
+    transform 1s ease;
+}
+
+#lap-timer[data-visibility="fading"] {
+  transform: translateX(-50%) translateY(-10px);
+  opacity: 0;
+  filter: blur(2px);
+}
+
+#lap-timer[data-visibility="hidden"] {
+  visibility: hidden;
+  transform: translateX(-50%) translateY(-10px);
+  opacity: 0;
 }
 
 .lap-timing-card {
@@ -2082,6 +2104,11 @@ html[data-apex-drive-profile="public-demo"] #lap-timer {
 }
 
 #lap-timer[data-phase="countdown"] #lap-timing-status { color: #ffca69; }
+#lap-timer[data-phase="abandoned"] #lap-timing-status { color: #ff8c82; }
+#lap-timer[data-phase="abandoned"] .lap-timing-main > strong {
+  color: #ffb0a9;
+  text-shadow: 0 0 12px #ff443f55;
+}
 
 .lap-timing-card footer {
   display: grid;
@@ -2101,6 +2128,13 @@ html[data-apex-drive-profile="public-demo"] #lap-timer {
 .lap-timing-card footer span:nth-child(2) { text-align: center; }
 .lap-timing-card footer span:nth-child(3) { text-align: right; }
 .lap-timing-card footer strong { color: #bfdce1; font-size: 8px; letter-spacing: 0; }
+
+#lap-timing-best-date {
+  color: #759aa2;
+  font-size: 6px;
+  font-style: normal;
+  letter-spacing: .035em;
+}
 
 .lap-countdown {
   position: fixed;

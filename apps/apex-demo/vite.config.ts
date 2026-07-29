@@ -9,6 +9,11 @@ const driveRoot = fileURLToPath(new URL('../../apex-drive/', import.meta.url));
 const assetsPublicRoot = new URL('../../packages/apex-assets/public/', import.meta.url);
 
 const publicDemoFiles = Object.freeze([
+  'assets/audio/Car_Acceleration.ogg',
+  'assets/audio/Car_Acceleration_2.ogg',
+  'assets/audio/Car_Engine_Loop.ogg',
+  'assets/audio/Car_Engine_Loop_2.ogg',
+  'assets/audio/Car_Engine_Start_Up.ogg',
   'assets/environments/ambientcg/DayEnvironmentHDRI108_1K_HDR.exr',
   'assets/environments/ambientcg/DaySkyHDRI065A_1K_HDR.exr',
   'assets/environments/ambientcg/license.txt',
@@ -176,6 +181,9 @@ export default defineConfig(({ command }) => mergeConfig(apexDriveConfig, {
   plugins: [publicDemoAssets()],
   define: {
     'import.meta.env.VITE_APEX_DRIVE_PROFILE': JSON.stringify('public-demo'),
+    'import.meta.env.VITE_APEX_DRIVE_ENGINE_SAMPLES_BASE_URL': JSON.stringify(
+      'assets/audio',
+    ),
     'import.meta.env.VITE_APEX_DRIVE_VEHICLE_MANIFESTS': JSON.stringify(
       JSON.stringify([
         'assets/vehicles/apex-demo-car-001/vehicle.json',
