@@ -23,6 +23,9 @@ export const APEX_TRACK_AUTHORING_SERVER_ORIGIN = 'http://127.0.0.1:5180';
 export const APEX_TRACK_SOURCE_FORMAT = 'apex-track-source';
 export const APEX_TRACK_SOURCE_FORMAT_VERSION = 2;
 export const APEX_TRACK_SOURCE_LEGACY_FORMAT_VERSION = 1;
+const APEX_TRACK_AUTHORING_ENABLED = (
+  import.meta.env.VITE_APEX_TRACK_AUTHORING_ENABLED !== 'false'
+);
 const bundledTrackSources = import.meta.glob(
   '../generated/*-track-source.json',
   {
@@ -461,7 +464,11 @@ export const loadGeneratedApexTrackSource = async (
   trackId: string,
   trackVersion: string,
 ): Promise<ApexTrackSource | undefined> => {
-  if (typeof window !== 'undefined' && import.meta.env.DEV) {
+  if (
+    typeof window !== 'undefined'
+    && import.meta.env.DEV
+    && APEX_TRACK_AUTHORING_ENABLED
+  ) {
     const query = new URLSearchParams({ trackId, trackVersion });
     try {
       const response = await fetch(

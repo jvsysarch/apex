@@ -1,5 +1,6 @@
 export interface LapGate {
   readonly x: number;
+  readonly y?: number;
   readonly z: number;
   readonly radiusM: number;
   readonly label: string;
@@ -8,6 +9,8 @@ export interface LapGate {
 export type LapTimerPhase = 'arming' | 'countdown' | 'running' | 'abandoned';
 
 export type LapTimingHudVisibility = 'visible' | 'fading' | 'hidden';
+
+export type LapCheckpointStatus = 'pending' | 'passed' | 'missed';
 
 export interface LapRecord {
   readonly lapMs: number;
@@ -29,6 +32,7 @@ export interface LapTimingState {
   readonly lapDeltaMs?: number;
   readonly checkpointIndex: number;
   readonly checkpointCount: number;
+  readonly checkpointStatuses: readonly LapCheckpointStatus[];
   readonly sectorIndex: number;
   readonly sectorCount: number;
   readonly lastSectorMs?: number;
@@ -36,15 +40,16 @@ export interface LapTimingState {
   readonly countdownLights: number;
   readonly countdownSeconds?: number;
   readonly startLights: 'off' | 'red' | 'green';
+  readonly startZoneInside: boolean;
+  readonly startProximity: number;
+  readonly startReady: boolean;
   readonly message: string;
 }
 
-const armingHoldMs = 900;
-const lightIntervalMs = 430;
-const greenDelayMs = 520;
+const countdownDurationMs = 3_000;
+const greenLightDurationMs = 900;
 const stationarySpeedKmh = 1;
 const stationaryAbandonMs = 15_000;
-const stationaryWarningMs = 10_000;
 const abandonedFadeDelayMs = 1_200;
 const abandonedFadeDurationMs = 1_000;
 
@@ -92,12 +97,15 @@ const readStoredTiming = (storageKey: string): StoredTiming => {
 
 export class ApexLapTimer {
   private phase: LapTimerPhase = 'arming';
-  private armedAt?: number;
   private countdownStartedAt?: number;
+  private startRequested = false;
+  private startProximity = 0;
+  private startReady = false;
   private startedAt = 0;
   private elapsedMs = 0;
   private checkpointIndex = 0;
   private checkpointInside = false;
+  private missedCheckpoints = new Set<number>();
   private startInside = true;
   private laps: number[] = [];
   private lapRecords: LapRecord[] = [];
@@ -110,7 +118,7 @@ export class ApexLapTimer {
   private lastSectorMs?: number;
   private sectorDeltaMs?: number;
   private currentSectorCumulativeMs: number[] = [];
-  private message = 'Detenete sobre la línea para armar la salida';
+  private message = 'Fuera de carrera';
   private messageExpiresAt = 0;
   private sectorEndGateCounts: readonly number[];
   private start: LapGate;
@@ -170,12 +178,14 @@ export class ApexLapTimer {
 
   resetForStart(): void {
     this.phase = 'arming';
-    this.armedAt = undefined;
     this.countdownStartedAt = undefined;
+    this.startRequested = false;
+    this.startReady = false;
     this.startedAt = 0;
     this.elapsedMs = 0;
     this.checkpointIndex = 0;
     this.checkpointInside = false;
+    this.missedCheckpoints.clear();
     this.startInside = true;
     this.finishInside = false;
     this.sectorIndex = 0;
@@ -186,8 +196,14 @@ export class ApexLapTimer {
     this.stationaryStartedAt = undefined;
     this.abandonedAt = undefined;
     this.abandonedRestartArmed = false;
-    this.message = 'Auto en grilla · armando salida';
+    this.message = '';
     this.messageExpiresAt = 0;
+  }
+
+  requestStart(): boolean {
+    if (this.phase !== 'arming' || !this.startReady) return false;
+    this.startRequested = true;
+    return true;
   }
 
   update(
@@ -199,51 +215,74 @@ export class ApexLapTimer {
     const inFinish = this.isInside(position, this.finish);
     const nextGate = this.checkpoints[this.checkpointIndex];
     const inCheckpoint = nextGate ? this.isInside(position, nextGate) : false;
+    const checkpointInsides = this.checkpoints.map(gate => (
+      this.isInside(position, gate)
+    ));
+    const startDistanceM = Math.hypot(
+      position.x - this.start.x,
+      position.z - this.start.z,
+    );
+    const startRevealRadiusM = Math.max(
+      this.start.radiusM * 3,
+      this.start.radiusM + 16,
+    );
+    this.startProximity = Math.max(
+      0,
+      Math.min(
+        1,
+        (startRevealRadiusM - startDistanceM)
+          / (startRevealRadiusM - this.start.radiusM),
+      ),
+    );
+    this.startReady = inStart && speedKmh <= stationarySpeedKmh;
 
     if (this.phase === 'arming') {
-      if (inStart && speedKmh <= 1.5) {
-        this.armedAt ??= now;
-        const heldMs = now - this.armedAt;
-        this.message = heldMs >= armingHoldMs * 0.55
-          ? 'Salida armada · preparate'
-          : 'Mantené el auto detenido sobre la línea';
-        if (heldMs >= armingHoldMs) {
-          this.phase = 'countdown';
-          this.countdownStartedAt = now;
-          this.message = 'Secuencia de largada';
-        }
+      if (this.startReady && this.startRequested) {
+        this.phase = 'countdown';
+        this.countdownStartedAt = now;
+        this.message = '';
       } else {
-        this.armedAt = undefined;
-        this.message = inStart
-          ? 'Detenete para iniciar la cuenta regresiva'
-          : 'Volvé a la línea de salida';
+        this.message = this.startReady ? 'ENTER · INICIAR VUELTA' : '';
       }
+      this.startRequested = false;
     } else if (this.phase === 'countdown') {
       if (!inStart || speedKmh > 3) {
         this.phase = 'arming';
-        this.armedAt = undefined;
         this.countdownStartedAt = undefined;
-        this.message = 'Salida anulada · movimiento anticipado';
-        this.messageExpiresAt = now + 1800;
+        this.message = '';
       } else if (now >= this.countdownEndsAt()) {
         this.startRace(now);
       }
     } else if (this.phase === 'running') {
       this.elapsedMs = now - this.startedAt;
       this.updateStationaryState(speedKmh, now);
+      this.markSkippedCheckpoints(checkpointInsides);
       if (
         this.phase === 'running'
         && nextGate
         && !this.checkpointInside
         && inCheckpoint
       ) {
+        this.missedCheckpoints.delete(this.checkpointIndex);
         this.checkpointIndex += 1;
         this.captureSectorIfNeeded();
-        this.message = this.checkpointIndex === this.checkpoints.length
-          ? this.closed
-            ? 'Sectores validados · cerrá la vuelta'
-            : 'Sectores validados · cruzá la llegada'
-          : `Siguiente control · ${this.checkpoints[this.checkpointIndex].label}`;
+        this.message = 'Vuelta en curso';
+      }
+      if (
+        this.phase === 'running'
+        && this.closed
+        && !this.startInside
+        && inStart
+        && this.checkpointIndex < this.checkpoints.length
+      ) {
+        for (
+          let index = this.checkpointIndex;
+          index < this.checkpoints.length;
+          index += 1
+        ) {
+          this.missedCheckpoints.add(index);
+        }
+        this.message = 'Vuelta en curso';
       }
       if (
         this.phase === 'running'
@@ -284,9 +323,7 @@ export class ApexLapTimer {
   }
 
   private countdownEndsAt(): number {
-    return (this.countdownStartedAt ?? 0)
-      + lightIntervalMs * 5
-      + greenDelayMs;
+    return (this.countdownStartedAt ?? 0) + countdownDurationMs;
   }
 
   private startRace(now: number): void {
@@ -295,6 +332,7 @@ export class ApexLapTimer {
     this.elapsedMs = 0;
     this.checkpointIndex = 0;
     this.checkpointInside = false;
+    this.missedCheckpoints.clear();
     this.sectorIndex = 0;
     this.sectorStartedAtMs = 0;
     this.lastSectorMs = undefined;
@@ -303,9 +341,7 @@ export class ApexLapTimer {
     this.stationaryStartedAt = undefined;
     this.abandonedAt = undefined;
     this.abandonedRestartArmed = false;
-    this.message = this.closed
-      ? `Vuelta 1 · ${this.checkpoints[0]?.label ?? 'pista libre'}`
-      : `Etapa · ${this.checkpoints[0]?.label ?? 'hacia la llegada'}`;
+    this.message = this.closed ? 'Vuelta en curso' : 'Etapa en curso';
     this.messageExpiresAt = 0;
   }
 
@@ -349,6 +385,7 @@ export class ApexLapTimer {
     this.elapsedMs = 0;
     this.checkpointIndex = 0;
     this.checkpointInside = false;
+    this.missedCheckpoints.clear();
     this.sectorIndex = 0;
     this.sectorStartedAtMs = 0;
     this.currentSectorCumulativeMs = [];
@@ -366,7 +403,7 @@ export class ApexLapTimer {
       ? now - (this.countdownStartedAt ?? now)
       : 0;
     const countdownLights = this.phase === 'countdown'
-      ? Math.min(5, Math.floor(countdownElapsed / lightIntervalMs) + 1)
+      ? countdownElapsed < 1_000 ? 1 : countdownElapsed < 2_000 ? 3 : 5
       : 0;
     const countdownSeconds = this.phase === 'countdown'
       ? Math.max(1, Math.ceil((this.countdownEndsAt() - now) / 1000))
@@ -375,7 +412,7 @@ export class ApexLapTimer {
       ? now - (this.abandonedAt ?? now)
       : 0;
     const hudVisibility: LapTimingHudVisibility = this.phase !== 'abandoned'
-      ? 'visible'
+      ? this.phase === 'running' ? 'visible' : 'hidden'
       : abandonedElapsedMs < abandonedFadeDelayMs
         ? 'visible'
         : abandonedElapsedMs < abandonedFadeDelayMs + abandonedFadeDurationMs
@@ -396,6 +433,11 @@ export class ApexLapTimer {
       lapDeltaMs: this.lapDeltaMs,
       checkpointIndex: this.checkpointIndex,
       checkpointCount: this.checkpoints.length,
+      checkpointStatuses: Object.freeze(this.checkpoints.map((_, index) => (
+        index < this.checkpointIndex
+          ? 'passed'
+          : this.missedCheckpoints.has(index) ? 'missed' : 'pending'
+      ))),
       sectorIndex: Math.min(this.sectorIndex, this.sectorEndGateCounts.length),
       sectorCount: this.sectorEndGateCounts.length + 1,
       lastSectorMs: this.lastSectorMs,
@@ -404,21 +446,37 @@ export class ApexLapTimer {
       countdownSeconds,
       startLights: this.phase === 'countdown'
         ? 'red'
-        : this.phase === 'running' ? 'green' : 'off',
+        : (
+          this.phase === 'running'
+          && now - this.startedAt < greenLightDurationMs
+        ) ? 'green' : 'off',
+      startZoneInside: this.startInside,
+      startProximity: this.startProximity,
+      startReady: this.phase === 'arming' && this.startReady,
       message: this.message,
     });
   }
 
+  private markSkippedCheckpoints(
+    checkpointInsides: readonly boolean[],
+  ): void {
+    if (this.checkpointIndex >= this.checkpoints.length) return;
+    const laterCheckpointIndex = checkpointInsides.findIndex(
+      (inside, index) => inside && index > this.checkpointIndex,
+    );
+    if (laterCheckpointIndex < 0) return;
+    for (
+      let index = this.checkpointIndex;
+      index < laterCheckpointIndex;
+      index += 1
+    ) {
+      this.missedCheckpoints.add(index);
+    }
+    this.message = 'Vuelta en curso';
+  }
+
   private updateStationaryState(speedKmh: number, now: number): void {
     if (speedKmh > stationarySpeedKmh) {
-      if (
-        this.stationaryStartedAt !== undefined
-        && this.message.startsWith('Auto detenido')
-      ) {
-        this.message = `Vuelta en curso · ${
-          this.checkpoints[this.checkpointIndex]?.label ?? 'cerrá la vuelta'
-        }`;
-      }
       this.stationaryStartedAt = undefined;
       return;
     }
@@ -429,16 +487,8 @@ export class ApexLapTimer {
       this.abandonedAt = now;
       this.abandonedRestartArmed = false;
       this.stationaryStartedAt = undefined;
-      this.message = 'VUELTA ABANDONADA · vehículo detenido 15 segundos';
+      this.message = 'Sesión finalizada';
       this.messageExpiresAt = 0;
-      return;
-    }
-    if (stationaryElapsedMs >= stationaryWarningMs) {
-      const remainingSeconds = Math.max(
-        1,
-        Math.ceil((stationaryAbandonMs - stationaryElapsedMs) / 1000),
-      );
-      this.message = `Auto detenido · abandono en ${remainingSeconds} s`;
     }
   }
 

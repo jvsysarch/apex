@@ -285,6 +285,8 @@ export interface ApexVehicleState {
   readonly transmissionSwitchingGear: boolean;
   readonly throttle: number;
   readonly brake: number;
+  /** Normalized steering input after filtering and driving assists, from -1 to 1. */
+  readonly steering: number;
   readonly requestedEngineTorqueNm: number;
   readonly deliveredEngineTorqueNm: number;
   readonly deliveredAxleTorqueNm: readonly [number, number];

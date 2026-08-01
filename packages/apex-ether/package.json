@@ -1,0 +1,24 @@
+{
+  "name": "@jvsysarch/apex-ether",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "author": {
+    "name": "Jonathan Villaverde",
+    "url": "https://github.com/jvsysarch"
+  },
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "exports": {
+    ".": "./src/index.tsx",
+    "./styles.css": "./src/ether.css"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.8.0"
+  }
+}

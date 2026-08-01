@@ -170,8 +170,8 @@ export const createApexTrackSegmentDrawTool = (
   panel.className = 'track-segment-draw-panel';
   panel.innerHTML = `
     <header>
-      <strong>DIBUJAR TRAMO</strong>
-      <small>FASE 3</small>
+      <strong>NUEVO TRAMO</strong>
+      <small>DIBUJO LIBRE</small>
     </header>
     <output data-role="draw-state">Sin puntos</output>
     <p>
@@ -186,11 +186,11 @@ export const createApexTrackSegmentDrawTool = (
       </span>
     </label>
     <div>
-      <button type="button" data-action="add-point">Agregar punto</button>
-      <button type="button" data-action="undo-point">Deshacer</button>
+      <button type="button" data-action="add-point">Colocar nodo</button>
+      <button type="button" data-action="undo-point">Quitar último</button>
     </div>
     <div>
-      <button type="button" data-action="finish-segment">Terminar tramo</button>
+      <button type="button" data-action="finish-segment">Crear tramo</button>
       <button type="button" data-action="cancel-segment">Cancelar</button>
     </div>
   `;
@@ -251,7 +251,7 @@ export const createApexTrackSegmentDrawTool = (
     undoButton.disabled = controls.length === 0;
     state.value = controls.length === 0
       ? 'Mové la cámara y colocá el primer punto'
-      : `${controls.length} puntos · cursor ${cursorDistanceM.toFixed(0)} m`;
+      : `${controls.length} nodos · cursor ${cursorDistanceM.toFixed(0)} m`;
   };
 
   const updateCursor = (): void => {

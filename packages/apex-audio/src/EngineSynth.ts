@@ -27,7 +27,7 @@ export class EngineSynth {
   private lastAccelerationSampleAt = Number.NEGATIVE_INFINITY;
   private radioCutUntil = Number.NEGATIVE_INFINITY;
   private muted = false;
-  private volume = 0;
+  private volume = 0.18;
 
   constructor(
     private readonly onStatus: (message: string) => void,
@@ -51,6 +51,7 @@ export class EngineSynth {
       this.harmonic.type = 'triangle';
       this.sub.type = 'sine';
       this.master.gain.value = 0;
+      this.sampleMaster.gain.value = this.muted ? 0.0001 : 1;
       this.filter.type = 'lowpass';
       this.filter.Q.value = 0.8;
       this.primaryGain.gain.value = 0.28;
@@ -74,7 +75,13 @@ export class EngineSynth {
       }
     }
     void this.context.resume().then(() => {
-      this.onStatus('Audio: activo · motor sintetizado.');
+      this.onStatus(
+        this.muted
+          ? 'Audio: en espera.'
+          : this.samplesReady
+            ? 'Audio: muestras de motor cargadas.'
+            : 'Audio: activo · motor sintetizado.',
+      );
     }).catch(() => {
       this.onStatus('Audio bloqueado por el navegador: hacé clic dentro de la escena.');
     });
@@ -86,6 +93,7 @@ export class EngineSynth {
 
   silence(): void {
     this.muted = true;
+    this.onStatus('Audio: en espera.');
     if (!this.context) return;
     const now = this.context.currentTime;
     [this.master, this.sampleMaster, this.skidGain, this.tireScreechGain].forEach(node => {
@@ -97,6 +105,11 @@ export class EngineSynth {
 
   resume(): void {
     this.muted = false;
+    this.onStatus(
+      this.samplesReady
+        ? 'Audio: muestras de motor cargadas.'
+        : 'Audio: activo · motor sintetizado.',
+    );
   }
 
   updateTireSkid(_rearSlip: number, _speedMps: number, _drivetrainStable: boolean): void {
@@ -199,13 +212,21 @@ export class EngineSynth {
       }));
       this.startEngineLoops();
       this.samplesReady = true;
-      this.onStatus('Audio: muestras de motor cargadas.');
+      this.onStatus(
+        this.muted
+          ? 'Audio: en espera.'
+          : 'Audio: muestras de motor cargadas.',
+      );
     } catch (error) {
       console.warn(
         'No se pudieron cargar las muestras del motor; se mantiene el sintetizador.',
         error,
       );
-      this.onStatus('Audio: motor sintetizado · muestras no disponibles.');
+      this.onStatus(
+        this.muted
+          ? 'Audio: en espera.'
+          : 'Audio: motor sintetizado · muestras no disponibles.',
+      );
     }
   }
 
@@ -226,7 +247,7 @@ export class EngineSynth {
       this.sampleLoopGains[index] = gain;
     });
     const startup = this.sampleBuffers.get('Car_Engine_Start_Up.ogg');
-    if (startup) this.playSample(startup, 0.32, 1);
+    if (startup && !this.muted) this.playSample(startup, 0.32, 1);
   }
 
   private playSample(buffer: AudioBuffer, level: number, playbackRate: number): void {

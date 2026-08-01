@@ -2,7 +2,6 @@ import * as THREE from 'three/webgpu';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { EngineSynth } from '@jvsysarch/apex-audio';
 import {
   ApexPhysicsWorld,
   DEFAULT_TIRE_CONTACT_COUNT,
@@ -47,6 +46,7 @@ import {
 } from './diagnostics/TireManeuverAudit';
 import { ApexLapTimer, type LapTimerPhase } from './race/ApexLapTimer';
 import { ApexLapGhost } from './race/ApexLapGhost';
+import { createApexRaceTrackMarkers } from './race/ApexRaceTrackMarkers';
 import { createApexRaceGrid } from './race/ApexRaceGrid';
 import { ApexRacingLineLearner } from './race/ApexRacingLineLearner';
 import {
@@ -83,7 +83,6 @@ import {
   createApexGuardrailPostMaterial,
   selectApexGuardrailPostSegments,
 } from './rendering/ApexTrackGuardrailVisual';
-import { ApexTireDeformationVisual } from './rendering/ApexTireDeformationVisual';
 import {
   createTrackGuidanceChevronSystem,
 } from './rendering/TrackGuidanceChevronSystem';
@@ -196,27 +195,88 @@ import './style.css';
 type UiMode = 'off' | 'read' | 'tuning';
 
 document.documentElement.dataset.apexDriveProfile = APEX_DRIVE_RUNTIME_PROFILE;
-if (APEX_DRIVE_PUBLIC_DEMO) {
-  document.title = 'APEX Drive · Ignition';
+const APEX_DRIVE_BARE_RUNTIME = (
+  import.meta.env.VITE_APEX_DRIVE_BARE_RUNTIME === 'true'
+);
+document.documentElement.dataset.apexDrivePresentation = (
+  APEX_DRIVE_BARE_RUNTIME ? 'bare' : 'full'
+);
+if (!APEX_DRIVE_BARE_RUNTIME) {
+  await import('./ui/ethereal.css');
 }
-
 const searchParams = new URLSearchParams(window.location.search);
+const requestedEtherHud = searchParams.get('ether');
 const trackEditorMode = searchParams.get('edit') === 'track';
 const requestedTrackEditorSegmentId = (
   searchParams.get('editSegment')?.trim() || undefined
 );
+document.documentElement.dataset.apexTrackStudio = String(trackEditorMode);
+if (trackEditorMode) {
+  document.title = `APEX Track Studio · ${ACTIVE_TRACK.track.name}`;
+} else if (APEX_DRIVE_PUBLIC_DEMO) {
+  document.title = 'APEX Drive · Ignition';
+}
 const canvas = document.querySelector<HTMLCanvasElement>('#render-canvas')!;
 const startupPreloader = document.querySelector<HTMLElement>(
   '#apex-drive-preloader',
 );
+const runtimeLoaderTitle = document.querySelector<HTMLElement>(
+  '#apex-runtime-loader-title',
+);
+const runtimeLoaderStatus = document.querySelector<HTMLElement>(
+  '#apex-runtime-loader-status',
+);
+const trackStudioHeader = document.querySelector<HTMLElement>(
+  '#track-studio-header',
+)!;
+const trackStudioDocumentName = document.querySelector<HTMLOutputElement>(
+  '#track-studio-document-name',
+)!;
+const trackStudioDocumentMeta = document.querySelector<HTMLElement>(
+  '#track-studio-document-meta',
+)!;
+const trackStudioSaveStatus = document.querySelector<HTMLElement>(
+  '#track-studio-save-status',
+)!;
+const trackStudioExit = document.querySelector<HTMLButtonElement>(
+  '#track-studio-exit',
+)!;
+const setTrackStudioSaveStatus = (
+  message: string,
+  state: 'idle' | 'saved' | 'error' = 'idle',
+) => {
+  trackStudioSaveStatus.dataset.state = state;
+  trackStudioSaveStatus.querySelector('span')!.textContent = message;
+};
+if (trackEditorMode) {
+  runtimeLoaderTitle!.textContent = 'CARGANDO APEX TRACK STUDIO';
+  runtimeLoaderStatus!.textContent = 'PREPARANDO DOCUMENTO, GEOMETRÍA Y COLISIÓN';
+  trackStudioHeader.hidden = false;
+  trackStudioDocumentName.value = [
+    formatApexDriveTrackNumber(ACTIVE_TRACK.track.number),
+    ACTIVE_TRACK.track.name,
+  ].join(' · ');
+  trackStudioDocumentMeta.textContent = [
+    ACTIVE_TRACK.track.id,
+    `v${ACTIVE_TRACK.track.version}`,
+    `${ACTIVE_TRACK_SOURCE?.segments.length ?? 1} tramo${
+      (ACTIVE_TRACK_SOURCE?.segments.length ?? 1) === 1 ? '' : 's'
+    }`,
+  ].join(' · ');
+}
 let startupPresentationComplete = false;
+let startupRevealFallback: number | undefined;
 const revealApexDrive = () => {
   if (startupPresentationComplete) return;
   startupPresentationComplete = true;
+  if (startupRevealFallback !== undefined) {
+    window.clearTimeout(startupRevealFallback);
+  }
   document.documentElement.classList.remove('apex-drive-loading');
   document.documentElement.classList.add('apex-drive-loaded');
-  window.setTimeout(() => startupPreloader?.remove(), 520);
+  window.setTimeout(() => startupPreloader?.remove(), 240);
 };
+startupRevealFallback = window.setTimeout(revealApexDrive, 1_600);
 canvas.dataset.trackNumber = formatApexDriveTrackNumber(
   ACTIVE_TRACK.track.number,
 );
@@ -294,14 +354,16 @@ const environmentQuickButtons = Array.from(
     '[data-environment-profile]',
   ),
 );
-if (APEX_DRIVE_PUBLIC_DEMO) {
+if (APEX_DRIVE_PUBLIC_DEMO && !APEX_DRIVE_BARE_RUNTIME && requestedEtherHud !== 'true') {
   new ApexAboutPanel(document.body, {
-    version: '0.0',
-    repositoryUrl: 'https://github.com/jvsysarch/apex/tree/main/packages/apex-physics',
+    version: '0.2.0',
+    repositoryUrl: 'https://github.com/jvsysarch/apex',
     linkedinUrl: 'https://ar.linkedin.com/in/jonathanvillaverde',
+    documentationUrl: 'https://jvsysarch.github.io/apex-showroom/docs.html',
+    showcaseUrl: 'https://jvsysarch.github.io/apex-showroom/',
   });
 }
-const technicalTelemetryHud = APEX_DRIVE_PUBLIC_DEMO
+const technicalTelemetryHud = APEX_DRIVE_PUBLIC_DEMO && !APEX_DRIVE_BARE_RUNTIME
   ? new ApexTechnicalTelemetryHud(document.body)
   : undefined;
 const vehiclePhysicsDebugInput = document.querySelector<HTMLInputElement>(
@@ -408,6 +470,7 @@ const cameraHelp = document.querySelector<HTMLElement>('#camera-help')!;
 const autonomousDriveButton = document.querySelector<HTMLButtonElement>('#autonomous-drive')!;
 const autonomousDriveStatus = document.querySelector<HTMLElement>('#autonomous-drive-status')!;
 const controllerStatus = document.querySelector<HTMLElement>('#controller-status')!;
+const audioControlRoot = document.querySelector<HTMLDetailsElement>('#audio-control')!;
 const engineVolumeInput = document.querySelector<HTMLInputElement>('#engine-volume')!;
 const engineVolumeOutput = document.querySelector<HTMLOutputElement>('#engine-volume-value')!;
 const soundStatus = document.querySelector<HTMLElement>('#sound-status')!;
@@ -417,9 +480,11 @@ const copyRacingLineButton = document.querySelector<HTMLButtonElement>(
 const racingLineStatus = document.querySelector<HTMLElement>('#racing-line-status')!;
 const sportHudContainer = document.querySelector<HTMLElement>('#sport-hud')!;
 const sportHudRoot = document.querySelector<HTMLElement>('#sport-hud-svg')!;
-const sportHud = new RacingHudSvg(sportHudRoot);
+const sportHud = APEX_DRIVE_BARE_RUNTIME
+  ? undefined
+  : new RacingHudSvg(sportHudRoot);
 const lapTimerRoot = document.querySelector<HTMLElement>('#lap-timer')!;
-const lapTimingHudVisible = true;
+const lapTimingHudVisible = !APEX_DRIVE_BARE_RUNTIME;
 const autonomousPanelRoot = document.querySelector<HTMLElement>(
   '#autonomous-panel',
 )!;
@@ -457,7 +522,9 @@ autonomousSimulationSpeedSelect.addEventListener('change', () => {
   );
 });
 canvas.dataset.autonomousSimulationSpeed = `${autonomousSimulationSpeed}x`;
-const lapTimingHud = new LapTimingHud(lapTimerRoot);
+const lapTimingHud = APEX_DRIVE_BARE_RUNTIME
+  ? undefined
+  : new LapTimingHud(lapTimerRoot);
 lapTimerRoot.hidden = !lapTimingHudVisible;
 const trackTiming = ACTIVE_TRACK.configuration.timing;
 const timingTrackPoints = TEST_TRACK_IS_CLOSED
@@ -472,17 +539,20 @@ const lapTimingCheckpoints = timingTrackPoints
   ))
   .map(({ point }, index) => Object.freeze({
     x: point.x,
+    y: point.y,
     z: point.z,
     radiusM: trackTiming.checkpointRadiusM,
     label: `Control ${index + 1}`,
   }));
+const lapTimingStartGate = Object.freeze({
+  x: TEST_TRACK_POINTS[0].x,
+  y: TEST_TRACK_POINTS[0].y,
+  z: TEST_TRACK_POINTS[0].z,
+  radiusM: trackTiming.startRadiusM,
+  label: 'Salida / meta',
+});
 const lapTimer = new ApexLapTimer(
-  Object.freeze({
-    x: TEST_TRACK_POINTS[0].x,
-    z: TEST_TRACK_POINTS[0].z,
-    radiusM: trackTiming.startRadiusM,
-    label: 'Salida / meta',
-  }),
+  lapTimingStartGate,
   Object.freeze(lapTimingCheckpoints),
   trackTiming.sectorCount,
   trackTiming.storageKey,
@@ -492,6 +562,7 @@ if (!TEST_TRACK_IS_CLOSED) {
   lapTimer.configureTrack(
     Object.freeze({
       x: TEST_TRACK_POINTS[0].x,
+      y: TEST_TRACK_POINTS[0].y,
       z: TEST_TRACK_POINTS[0].z,
       radiusM: trackTiming.startRadiusM,
       label: 'Salida',
@@ -501,6 +572,7 @@ if (!TEST_TRACK_IS_CLOSED) {
     false,
     Object.freeze({
       x: finishPoint.x,
+      y: finishPoint.y,
       z: finishPoint.z,
       radiusM: trackTiming.startRadiusM,
       label: 'Llegada',
@@ -632,19 +704,25 @@ if (!canonicalFallbackCar) {
     'APEX Drive requiere un manifiesto de vehículo provisto por la aplicación.',
   );
 }
+const publicDemoPrimaryCar = (
+  findApexCar('ford-mustang-shelby-gt500')
+  ?? canonicalFallbackCar
+);
 const publicGarageCarIds = Object.freeze([
   'ford-mustang-shelby-gt500',
   'rambo',
   '130',
 ]);
 const parkingCarCatalog: readonly ApexCarDefinition[] = APEX_DRIVE_PUBLIC_DEMO
-  ? publicGarageCarIds.map(findApexCar).filter(
-    (definition): definition is ApexCarDefinition => definition !== undefined,
-  )
+  ? APEX_DRIVE_BARE_RUNTIME
+    ? [publicDemoPrimaryCar]
+    : publicGarageCarIds.map(findApexCar).filter(
+      (definition): definition is ApexCarDefinition => definition !== undefined,
+    )
   : APEX_CAR_CATALOG;
 const defaultCar = (
   APEX_DRIVE_PUBLIC_DEMO
-    ? findApexCar('ford-mustang-shelby-gt500')
+    ? publicDemoPrimaryCar
     : canonicalFallbackCar
 ) ?? canonicalFallbackCar;
 const requestedCarCandidate = findApexCar(searchParams.get('car'));
@@ -770,6 +848,51 @@ const activeMotorcyclePhysicsDefinition: ApexMotorcyclePhysicsDefinition = (
 const activeVehiclePhysicsDefinition = activeVehicleKind === 'motorcycle'
   ? activeMotorcyclePhysicsDefinition
   : activeCarPhysicsDefinition;
+let apexEtherHudRuntime:
+  | import('./ui/ether/ApexEtherHudRuntime').ApexEtherHudRuntime
+  | undefined;
+const apexEtherHudEnabled = (
+  !isAuditRuntime
+  && !trackEditorMode
+  && (
+    requestedEtherHud === 'true'
+    || (
+      requestedEtherHud !== 'false'
+      && APEX_DRIVE_PUBLIC_DEMO
+      && APEX_DRIVE_BARE_RUNTIME
+    )
+  )
+);
+const apexEtherHudSession = apexEtherHudEnabled
+  ? {
+    trackName: ACTIVE_TRACK.track.name,
+    trackIdentity: [
+      `CIRCUITO ${String(ACTIVE_TRACK.track.number).padStart(3, '0')}`,
+      `V${ACTIVE_TRACK.track.version}`,
+    ].join(' · '),
+    vehicleName: activeVehicleKind === 'car'
+      ? activeCar.name
+      : activeMotorcycle.name,
+    maximumRpm: activeVehiclePhysicsDefinition.engine.maximumRpm,
+    maximumSteerAngleDegrees: activeVehicleKind === 'car'
+      ? activeCarPhysicsDefinition.wheels.maximumSteerAngleDegrees
+      : activeMotorcyclePhysicsDefinition.maximumSteerAngleDegrees,
+    closedTrack: TEST_TRACK_IS_CLOSED,
+    trackPoints: TEST_TRACK_POINTS.map(point => ({
+      x: point.x,
+      z: point.z,
+    })),
+  }
+  : undefined;
+let apexEtherHudDisposed = false;
+window.addEventListener(
+  'pagehide',
+  () => {
+    apexEtherHudDisposed = true;
+    apexEtherHudRuntime?.dispose();
+  },
+  { once: true },
+);
 const activeCarDimensions = activeCarPhysicsDefinition.dimensions;
 chassisBoxCenterYInput.value = configuredChassisBoxCenterYM.toFixed(2);
 chassisBoxCenterYOutput.value = `${configuredChassisBoxCenterYM.toFixed(2)} m`;
@@ -880,6 +1003,7 @@ trackEditorToggle.addEventListener('click', () => {
   nextUrl.searchParams.delete('drive');
   window.location.href = nextUrl.toString();
 });
+trackStudioExit.addEventListener('click', () => trackEditorToggle.click());
 let runtimeCar = activeCar;
 const carColorStorageKey = (definition: ApexCarDefinition): string => (
   `apex-v3-car-paint.${definition.id}`
@@ -891,6 +1015,7 @@ const storedCarColor = (definition: ApexCarDefinition): string => (
 const experienceMode = searchParams.get('drive');
 const isParkingSelection = (
   !isAuditRuntime
+  && !APEX_DRIVE_BARE_RUNTIME
   && activeVehicleKind === 'car'
   && (requestedVehicleKind === null || APEX_DRIVE_PUBLIC_DEMO)
   && (experienceMode === null || experienceMode === 'parking')
@@ -990,9 +1115,9 @@ canvas.dataset.experienceMode = isParkingSelection
   : trackEditorMode
     ? 'track-editor'
     : isParkingDrive ? 'parking-drive' : 'circuit-drive';
-const engineSynth = isAuditRuntime
+const engineSynth = isAuditRuntime || APEX_DRIVE_BARE_RUNTIME
   ? undefined
-  : new EngineSynth(message => {
+  : new (await import('@jvsysarch/apex-audio')).EngineSynth(message => {
     soundStatus.textContent = message;
     canvas.dataset.audioStatus = message.includes('muestras')
       ? 'samples-ready'
@@ -1002,12 +1127,17 @@ const engineSynth = isAuditRuntime
       import.meta.env.VITE_APEX_DRIVE_ENGINE_SAMPLES_BASE_URL
     )?.trim() || undefined,
   });
-engineVolumeInput.hidden = isAuditRuntime;
-engineVolumeOutput.parentElement!.hidden = isAuditRuntime;
-soundStatus.hidden = isAuditRuntime;
-const engineVolumeStorageKey = 'apex-v3-engine-volume';
-const storedEngineVolume = Number(localStorage.getItem(engineVolumeStorageKey));
-if (Number.isFinite(storedEngineVolume)) {
+audioControlRoot.hidden = (
+  isAuditRuntime
+  || trackEditorMode
+  || APEX_DRIVE_BARE_RUNTIME
+);
+const engineVolumeStorageKey = 'apex-v3-engine-volume.v2';
+const storedEngineVolumeValue = localStorage.getItem(engineVolumeStorageKey);
+const storedEngineVolume = storedEngineVolumeValue === null
+  ? undefined
+  : Number(storedEngineVolumeValue);
+if (storedEngineVolume !== undefined && Number.isFinite(storedEngineVolume)) {
   engineVolumeInput.value = String(
     THREE.MathUtils.clamp(storedEngineVolume, 0, 1),
   );
@@ -1020,12 +1150,17 @@ const applyEngineVolume = (persist = false) => {
 };
 engineVolumeInput.addEventListener('input', () => applyEngineVolume(true));
 applyEngineVolume();
+if (isParkingSelection || trackEditorMode) {
+  engineSynth?.silence();
+}
 window.addEventListener('pointerdown', () => engineSynth?.start(), {
   capture: true,
   passive: true,
 });
 window.addEventListener('keydown', () => engineSynth?.start());
 const requestedUiMode = APEX_DRIVE_PUBLIC_DEMO
+  || APEX_DRIVE_BARE_RUNTIME
+  || apexEtherHudEnabled
   ? 'off'
   : searchParams.get('ui');
 const uiMode: UiMode = requestedUiMode === 'off' || requestedUiMode === 'tuning'
@@ -1180,6 +1315,10 @@ const activeRenderProfileId: ApexRenderProfileId = (
   : 'high';
 const activeRenderProfile = renderProfiles[activeRenderProfileId];
 const tireDeformationStorageKey = 'apex-drive.tire-deformation-mode.v1';
+const etherTireDeformationStorageKey = 'apex-drive.ether-tire-deformation.v1';
+const activeTireDeformationStorageKey = APEX_DRIVE_BARE_RUNTIME
+  ? etherTireDeformationStorageKey
+  : tireDeformationStorageKey;
 const controlledBenchmarkStorageKey = 'apex-drive.controlled-benchmark.v2';
 const readControlledBenchmarkState = (
 ): ApexControlledBenchmarkState | undefined => {
@@ -1214,12 +1353,16 @@ const controlledBenchmarkIsRunning = (): boolean => (
   controlledBenchmarkState?.status === 'running'
 );
 const storedTireDeformationMode = localStorage.getItem(
-  tireDeformationStorageKey,
+  activeTireDeformationStorageKey,
 );
 const activeTireDeformationMode: ApexTireDeformationMode = (
   storedTireDeformationMode === 'off'
     ? 'off'
-    : storedTireDeformationMode === 'cpu' ? 'cpu' : 'gpu'
+    : storedTireDeformationMode === 'cpu'
+      ? 'cpu'
+      : storedTireDeformationMode === 'gpu'
+        ? 'gpu'
+        : APEX_DRIVE_BARE_RUNTIME ? 'off' : 'gpu'
 );
 const tireVisualDeformationEnabled = activeTireDeformationMode !== 'off';
 renderProfileSelect.value = activeRenderProfile.id;
@@ -1238,7 +1381,7 @@ tireDeformationModeSelect.addEventListener('change', () => {
       ? 'off'
       : tireDeformationModeSelect.value === 'cpu' ? 'cpu' : 'gpu'
   );
-  localStorage.setItem(tireDeformationStorageKey, nextMode);
+  localStorage.setItem(activeTireDeformationStorageKey, nextMode);
   tireDeformationInfo.textContent = 'Aplicando…';
   window.location.reload();
 });
@@ -1338,11 +1481,13 @@ const renderer = new THREE.WebGPURenderer({
   antialias: activeRenderProfile.antialias,
 });
 await renderer.init();
-const drivePerformanceMonitor = new ApexDrivePerformanceMonitor(
-  activeRenderProfile.id,
-  canvas,
-  activeTireDeformationMode,
-);
+const drivePerformanceMonitor = APEX_DRIVE_BARE_RUNTIME
+  ? undefined
+  : new ApexDrivePerformanceMonitor(
+    activeRenderProfile.id,
+    canvas,
+    activeTireDeformationMode,
+  );
 const controlledBenchmarkWarmupMs = 4_000;
 const controlledBenchmarkCaptureMs = 20_000;
 let controlledBenchmarkWarmupStartedAtMs: number | undefined;
@@ -1446,6 +1591,7 @@ controlledBenchmarkCopy.addEventListener('click', () => {
 refreshControlledBenchmarkUi();
 
 const updateControlledBenchmark = (now: number) => {
+  if (!drivePerformanceMonitor) return;
   const state = controlledBenchmarkState;
   if (state?.status !== 'running') return;
   const vehicleReady = canvas.dataset.vehicleModel !== 'loading';
@@ -1628,7 +1774,9 @@ renderer.shadowMap.enabled = activeRenderProfile.shadows;
 renderer.shadowMap.type = THREE.VSMShadowMap;
 
 const scene = new THREE.Scene();
-const lapGhost = new ApexLapGhost(scene);
+const lapGhost = APEX_DRIVE_BARE_RUNTIME
+  ? undefined
+  : new ApexLapGhost(scene);
 scene.background = new THREE.Color(0x05080c);
 scene.backgroundIntensity = 1;
 scene.environmentIntensity = 1;
@@ -2855,13 +3003,17 @@ const roadMaterial = new THREE.MeshPhysicalMaterial({
   polygonOffsetFactor: -1,
   polygonOffsetUnits: -1,
 });
-const parkingLotVisual = createApexParkingLotVisual({
-  bayCount: parkingCarCatalog.length,
-  bayLabels: parkingCarCatalog.map(definition => definition.name),
-});
-scene.add(parkingLotVisual.group);
-canvas.dataset.parkingLayout = parkingLotVisual.group.userData.layoutVersion;
-canvas.dataset.parkingBayCount = String(parkingLotVisual.bayCount);
+const parkingLotVisual = APEX_DRIVE_BARE_RUNTIME
+  ? undefined
+  : createApexParkingLotVisual({
+    bayCount: parkingCarCatalog.length,
+    bayLabels: parkingCarCatalog.map(definition => definition.name),
+  });
+if (parkingLotVisual) {
+  scene.add(parkingLotVisual.group);
+  canvas.dataset.parkingLayout = parkingLotVisual.group.userData.layoutVersion;
+  canvas.dataset.parkingBayCount = String(parkingLotVisual.bayCount);
+}
 const editableTrackPoints = TEST_TRACK_IS_CLOSED
   ? TEST_TRACK_POINTS.slice(0, -1)
   : TEST_TRACK_POINTS;
@@ -3275,13 +3427,13 @@ const createGuidanceChevrons = (
   widthM: TEST_TRACK_LANE_COUNT === 3 ? 3.08 : 2.58,
   strokeWidthM: TEST_TRACK_LANE_COUNT === 3 ? 0.42 : 0.36,
 });
-let trackGuidanceChevrons = createGuidanceChevrons(
-  generatedRacingLinePlan,
-);
-trackGuidanceChevrons.group.visible = (
-  !trackEditorMode
-);
-scene.add(trackGuidanceChevrons.group);
+let trackGuidanceChevrons = APEX_DRIVE_BARE_RUNTIME
+  ? undefined
+  : createGuidanceChevrons(generatedRacingLinePlan);
+if (trackGuidanceChevrons) {
+  trackGuidanceChevrons.group.visible = !trackEditorMode;
+  scene.add(trackGuidanceChevrons.group);
+}
 canvas.dataset.racingPlanAlgorithm = generatedRacingLinePlan.algorithm;
 canvas.dataset.racingPlanMinimumSpeedKmh = (
   generatedRacingLinePlan.minimumTargetSpeedKmh.toFixed(1)
@@ -3293,13 +3445,13 @@ canvas.dataset.racingPlanMaximumOffsetM = (
   generatedRacingLinePlan.maximumAbsoluteOffsetM.toFixed(2)
 );
 canvas.dataset.trackGuidanceAccelerateCount = String(
-  trackGuidanceChevrons.counts.accelerate,
+  trackGuidanceChevrons?.counts.accelerate ?? 0,
 );
 canvas.dataset.trackGuidanceLiftCount = String(
-  trackGuidanceChevrons.counts.lift,
+  trackGuidanceChevrons?.counts.lift ?? 0,
 );
 canvas.dataset.trackGuidanceBrakeCount = String(
-  trackGuidanceChevrons.counts.brake,
+  trackGuidanceChevrons?.counts.brake ?? 0,
 );
 const autonomousCenterLine = Object.freeze(sampledTrackPoints.map(
   (point, index) => Object.freeze({
@@ -3331,7 +3483,9 @@ const autonomousDriver = new ApexAutonomousDriver(
   autonomousCenterLine,
   TEST_TRACK_WIDTH_M,
 );
-const autonomousPanel = new ApexAutonomousPanel();
+const autonomousPanel = APEX_DRIVE_BARE_RUNTIME
+  ? undefined
+  : new ApexAutonomousPanel();
 autonomousPanelRoot.hidden = !autonomousPanelVisible || isAuditRuntime;
 let activeRacingLinePoints = racingLineLearner.points();
 autonomousDriver.setLine(activeRacingLinePoints);
@@ -3464,7 +3618,7 @@ const setAutonomousDriveEnabled = (enabled: boolean) => {
   } else {
     autonomousLapActive = false;
     resetAutonomousFreeLap();
-    lapGhost.beginLap();
+    lapGhost?.beginLap();
     autonomousRaceStartPending = autonomousRaceStartHook();
     if (autonomousRaceStartPending) autonomousTimingPhase = 'arming';
   }
@@ -3642,6 +3796,16 @@ physicalStartLightMaterials.forEach((material, index) => {
 });
 startFinishAnchor.add(timingGantry);
 scene.add(startFinishAnchor);
+const raceTrackMarkers = APEX_DRIVE_BARE_RUNTIME
+  ? undefined
+  : createApexRaceTrackMarkers({
+    scene,
+    start: lapTimingStartGate,
+    checkpoints: lapTimingCheckpoints,
+  });
+if (raceTrackMarkers) {
+  raceTrackMarkers.group.visible = !isParkingSelection && !trackEditorMode;
+}
 canvas.dataset.lapTimingCheckpointCount = String(lapTimingCheckpoints.length);
 canvas.dataset.lapTimingStart = [
   startFinishPoint.x.toFixed(3),
@@ -3670,7 +3834,11 @@ const trackSunOffset = new THREE.Vector3(0, 50, 50);
 const renderingPanelRoot = document.querySelector<HTMLDetailsElement>(
   '#rendering-panel',
 )!;
-renderingPanelRoot.hidden = isAuditRuntime || APEX_DRIVE_PUBLIC_DEMO;
+renderingPanelRoot.hidden = (
+  isAuditRuntime
+  || APEX_DRIVE_PUBLIC_DEMO
+  || trackEditorMode
+);
 renderingPanelRoot.open = false;
 if (!isAuditRuntime) {
   const publicDemoEnvironmentStorageKey = 'apex-demo.environment-profile.v1';
@@ -4134,7 +4302,7 @@ const updateParkingSelectionAvailability = () => {
 
 const refreshParkingSelection = () => {
   parkingSelectedCar = parkingCarCatalog[parkingSelectedIndex];
-  parkingLotVisual.setSelectedIndex(parkingSelectedIndex);
+  parkingLotVisual?.setSelectedIndex(parkingSelectedIndex);
   synchronizeParkingPhysicsHook(parkingSelectedIndex);
   parkingCarName.value = parkingSelectedCar.name;
   parkingIndicatorIndex.value = String(parkingSelectedIndex + 1).padStart(2, '0');
@@ -4234,6 +4402,7 @@ selectCarInParkingHook = carId => {
   parkingDriveTransitionActive = false;
   parkingSelectedIndex = nextIndex;
   parkingSelectionActive = true;
+  engineSynth?.silence();
   parkingPreviewRoot.visible = true;
   vehicleRoot.visible = false;
   parkingCarSelector.hidden = true;
@@ -4262,7 +4431,7 @@ if (pendingParkingCarId !== null) {
   selectCarInParkingHook(pendingCarId);
 }
 
-const MAX_TIRE_MARK_SEGMENTS = 4096;
+const MAX_TIRE_MARK_SEGMENTS = 2048;
 const tireMarkGeometry = new THREE.PlaneGeometry(1, 1);
 tireMarkGeometry.rotateX(-Math.PI / 2);
 const tireMarkMaterial = new THREE.MeshStandardMaterial({
@@ -4289,9 +4458,11 @@ for (let index = 0; index < MAX_TIRE_MARK_SEGMENTS; index += 1) {
   tireMarks.setMatrixAt(index, hiddenTireMarkMatrix);
 }
 tireMarks.instanceMatrix.needsUpdate = true;
+tireMarks.count = 0;
 scene.add(tireMarks);
 
 let tireMarkCursor = 0;
+let tireMarkCount = 0;
 const previousTireMarkContacts = Array.from(
   { length: 4 },
   () => new THREE.Vector3(),
@@ -4370,7 +4541,10 @@ const updateTireMarks = (pose: VehiclePose) => {
       tireMarkScale,
     );
     tireMarks.setMatrixAt(tireMarkCursor, tireMarkMatrix);
+    tireMarks.instanceMatrix.addUpdateRange(tireMarkCursor * 16, 16);
     tireMarkCursor = (tireMarkCursor + 1) % MAX_TIRE_MARK_SEGMENTS;
+    tireMarkCount = Math.min(tireMarkCount + 1, MAX_TIRE_MARK_SEGMENTS);
+    tireMarks.count = tireMarkCount;
     tireMarks.instanceMatrix.needsUpdate = true;
     previousTireMarkContacts[index].copy(contact);
   }
@@ -4736,18 +4910,23 @@ chassisBoxCenterYApply.addEventListener('click', () => {
   );
   window.location.reload();
 });
-const tireDeformationVisual = new ApexTireDeformationVisual(
-  simpleTireMeshes,
-  activeWheelDimensions.wheelRadiusM,
-  tireVisualOuterRadiusM,
-  tireVisualWidthM,
-  activeVehicleKind === 'car'
-    ? activeCarPhysicsDefinition.massKg * 9.80665 / 4
-    : 3_900,
-  tireVisualProfileDeformationScale,
-  tireVisualGlobalDeformationScale,
-  activeTireDeformationMode === 'gpu' ? 'gpu' : 'cpu',
-);
+const tireDeformationModule = tireVisualDeformationEnabled
+  ? await import('./rendering/ApexTireDeformationVisual')
+  : undefined;
+const tireDeformationVisual = tireDeformationModule
+  ? new tireDeformationModule.ApexTireDeformationVisual(
+    simpleTireMeshes,
+    activeWheelDimensions.wheelRadiusM,
+    tireVisualOuterRadiusM,
+    tireVisualWidthM,
+    activeVehicleKind === 'car'
+      ? activeCarPhysicsDefinition.massKg * 9.80665 / 4
+      : 3_900,
+    tireVisualProfileDeformationScale,
+    tireVisualGlobalDeformationScale,
+    activeTireDeformationMode === 'gpu' ? 'gpu' : 'cpu',
+  )
+  : undefined;
 const tireContactWorldQuaternion = new THREE.Quaternion();
 const tireContactInverseQuaternion = new THREE.Quaternion();
 const tireContactNormalsLocal = simpleTireMeshes.map(
@@ -5126,7 +5305,7 @@ const mountActiveVehicleModel = (
       }
     });
     vehicleRoot.add(modelPresentation);
-    lapGhost.setVehicleVisual(modelPresentation);
+    lapGhost?.setVehicleVisual(modelPresentation);
     chassis.visible = false;
     wheels.forEach(wheel => {
       wheel.visible = true;
@@ -5286,6 +5465,26 @@ window.addEventListener('keyup', event => {
   if (event.code === 'KeyW' || event.code === 'KeyS') {
     parkingDistanceKeys.delete(event.code);
   }
+});
+
+window.addEventListener('keydown', event => {
+  if (
+    event.code !== 'Enter'
+    || event.repeat
+    || parkingSelectionActive
+    || trackEditorMode
+    || isEditableKeyboardTarget(event.target)
+  ) {
+    return;
+  }
+  const activeElement = document.activeElement;
+  if (
+    activeElement instanceof Element
+    && activeElement.closest('a, button, [role="button"], [role="dialog"]')
+  ) {
+    return;
+  }
+  if (lapTimer.requestStart()) event.preventDefault();
 });
 
 for (const eventName of ['keydown', 'keyup'] as const) {
@@ -5855,6 +6054,17 @@ try {
     }));
     canvas.dataset.trackEditorDraft = saved ? 'saved' : 'save-error';
     canvas.dataset.trackEditorDraftSavedAt = saved ? savedAtIso : 'none';
+    setTrackStudioSaveStatus(
+      saved
+        ? `Guardado local · ${new Intl.DateTimeFormat('es-AR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        }).format(new Date(savedAtIso))}`
+        : 'No se pudo guardar el borrador local',
+      saved ? 'saved' : 'error',
+    );
     return saved;
   };
   const applyEditedTrackDerivedRuntime = (
@@ -5903,7 +6113,7 @@ try {
     autonomousDriver.setLine(activeRacingLinePoints);
     autonomousDriver.configureMemory(autonomousMemoryStorageKey(runtimeCar));
 
-    if (editedTrackDerivedState.racingPlan) {
+    if (editedTrackDerivedState.racingPlan && trackGuidanceChevrons) {
       scene.remove(trackGuidanceChevrons.group);
       trackGuidanceChevrons.dispose();
       trackGuidanceChevrons = createGuidanceChevrons(
@@ -6108,11 +6318,24 @@ try {
       canvas.dataset.trackEditorDraftSavedAt = (
         compatibleTrackDraft?.savedAtIso ?? 'none'
       );
+      setTrackStudioSaveStatus(
+        compatibleTrackDraft
+          ? `Borrador recuperado · ${new Intl.DateTimeFormat('es-AR', {
+            day: '2-digit',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          }).format(new Date(compatibleTrackDraft.savedAtIso))}`
+          : 'Fuente local lista',
+        'saved',
+      );
     } else {
       canvas.dataset.trackEditorDraft = loadedTrackDraft
         ? 'ignored-incompatible'
         : 'empty';
       canvas.dataset.trackEditorDraftSavedAt = 'none';
+      setTrackStudioSaveStatus('Borrador local listo');
     }
     sportHudContainer.hidden = true;
     lapTimerRoot.hidden = true;
@@ -6450,8 +6673,8 @@ try {
     autonomousDriver.reset();
     autonomousLapActive = false;
     segmentTimer.update(0, simulationNow, false);
-    lapGhost.clear();
-    lapGhost.beginLap();
+    lapGhost?.clear();
+    lapGhost?.beginLap();
     setCameraMode('close');
     canvas.dataset.autonomousRaceStart = 'grid-countdown';
     return true;
@@ -6468,7 +6691,7 @@ try {
 
     runtimeCar = definition;
     physics.configureDynamicsProfile(definition.dynamics);
-    lapGhost.clear();
+    lapGhost?.clear();
     autonomousDriver.configureMemory(
       autonomousMemoryStorageKey(runtimeCar),
     );
@@ -6550,7 +6773,7 @@ try {
     presentation.rotation.y = 0;
     presentation.userData.apexDriveCarPresentation = true;
     vehicleRoot.add(presentation);
-    lapGhost.setVehicleVisual(presentation);
+    lapGhost?.setVehicleVisual(presentation);
     parkingPreviewRoot.visible = false;
     vehicleRoot.visible = true;
     chassis.visible = false;
@@ -6573,6 +6796,8 @@ try {
     parkingDriveTransitionElapsedS = 0;
     parkingDriveTransitionActive = true;
     parkingSelectionActive = false;
+    engineSynth?.resume();
+    void engineSynth?.start();
     parkingCarSelector.hidden = true;
     parkingNavigationIndicator.hidden = true;
     vehicleWorkshopRoot.hidden = !APEX_DRIVE_PUBLIC_DEMO;
@@ -6925,6 +7150,41 @@ try {
   );
   canvas.dataset.tireModel = runtimeConfiguration.tireModel;
   if (uiRuntime) uiRuntime.publish(performance.now(), runtimeConfiguration);
+  if (apexEtherHudSession) {
+    void import('./ui/ether/ApexEtherHudRuntime').then(etherHudModule => {
+      if (apexEtherHudDisposed) return;
+      apexEtherHudRuntime = etherHudModule.createApexEtherHud(
+        document.body,
+        apexEtherHudSession,
+        {
+          environmentName: APEX_ENVIRONMENT_ASSETS.find(
+            asset => asset.id === canvas.dataset.environmentProfile,
+          )?.name ?? 'APEX Environment',
+          tireDeformationEnabled: tireVisualDeformationEnabled,
+          requestTireDeformation: enabled => {
+            const nextMode: ApexTireDeformationMode = enabled ? 'gpu' : 'off';
+            if (nextMode === activeTireDeformationMode) return;
+            localStorage.setItem(activeTireDeformationStorageKey, nextMode);
+            canvas.dataset.tireVisualDeformationMode = 'applying';
+            window.location.reload();
+          },
+          repositoryUrl: 'https://github.com/jvsysarch/apex',
+          linkedinUrl: 'https://ar.linkedin.com/in/jonathanvillaverde',
+          documentationUrl: 'https://jvsysarch.github.io/apex-showroom/docs.html',
+          showcaseUrl: 'https://jvsysarch.github.io/apex-showroom/',
+        },
+      );
+      const etherHudStartedAt = performance.now();
+      if (apexEtherHudRuntime.needsPhysicsSnapshot(etherHudStartedAt)) {
+        apexEtherHudRuntime.publishPhysics(
+          etherHudStartedAt,
+          runtimeConfiguration,
+        );
+      }
+    }).catch(error => {
+      console.error('No se pudo iniciar APEX Ether HUD', error);
+    });
+  }
   const configurationStatus = `${runtimeConfiguration.vehicleKind} · `
     + `${runtimeConfiguration.tireModel} · `
     + `${runtimeConfiguration.physicsHz} Hz · `
@@ -6938,9 +7198,11 @@ try {
 
   const fixedStep = 1 / runtimePhysicsHz;
   const telemetryStep = 1 / 20;
+  const etherTelemetryStep = 1 / 30;
   let physicsStep = 0;
   let accumulator = 0;
   let telemetryAccumulator = 0;
+  let etherTelemetryAccumulator = 0;
   let previousTime = performance.now();
   const autonomousSegmentSnapshots = new Map<
     number,
@@ -7361,14 +7623,40 @@ try {
       physicsStepsThisFrame += 1;
       accumulator -= fixedStep;
       telemetryAccumulator += fixedStep;
+      if (apexEtherHudRuntime) etherTelemetryAccumulator += fixedStep;
       let physicsSnapshot = driveAudit ? physics.getState() : undefined;
       if (driveAudit) {
         driveAudit.record(physicsStep, physicsSnapshot!);
       }
-      if (uiRuntime && telemetryAccumulator >= telemetryStep) {
-        physicsSnapshot ??= physics.getState();
-        uiRuntime.publish(performance.now(), physicsSnapshot);
-        telemetryAccumulator -= telemetryStep;
+      const uiTelemetryDue = telemetryAccumulator >= telemetryStep;
+      const etherTelemetryDue = (
+        etherTelemetryAccumulator >= etherTelemetryStep
+      );
+      if (uiTelemetryDue || etherTelemetryDue) {
+        const telemetrySampledAt = performance.now();
+        const etherHudNeedsPhysics = (
+          etherTelemetryDue
+          && (
+            apexEtherHudRuntime?.needsPhysicsSnapshot(telemetrySampledAt)
+            ?? false
+          )
+        );
+        if ((uiTelemetryDue && uiRuntime) || etherHudNeedsPhysics) {
+          physicsSnapshot ??= physics.getState();
+          if (uiTelemetryDue) {
+            uiRuntime?.publish(telemetrySampledAt, physicsSnapshot);
+          }
+          if (etherHudNeedsPhysics) {
+            apexEtherHudRuntime?.publishPhysics(
+              telemetrySampledAt,
+              physicsSnapshot,
+            );
+          }
+        }
+        if (uiTelemetryDue) telemetryAccumulator -= telemetryStep;
+        if (etherTelemetryDue) {
+          etherTelemetryAccumulator -= etherTelemetryStep;
+        }
       }
       if (driveAudit?.complete) {
         const auditResult = Object.freeze({
@@ -7419,13 +7707,17 @@ try {
       wheel.position.copy(pose.wheelPositions[index]);
       wheel.quaternion.copy(pose.wheelRotations[index]);
     });
-    trackGuidanceChevrons.update(
+    trackGuidanceChevrons?.update(
       pose.position,
       pose.speedKmh,
       delta,
       !parkingSelectionActive && !parkingDriveTransitionActive,
     );
-    if (activeVehicleKind === 'car' && tireVisualDeformationEnabled) {
+    if (
+      activeVehicleKind === 'car'
+      && tireVisualDeformationEnabled
+      && tireDeformationVisual
+    ) {
       tireContactNormalsLocal.forEach((normalLocal, index) => {
         tireContactWorldQuaternion.copy(pose.rotation).multiply(
           pose.wheelRotations[index],
@@ -7571,7 +7863,7 @@ try {
     canvas.dataset.vehiclePosition = `${pose.position.x.toFixed(3)},${pose.position.y.toFixed(3)},${pose.position.z.toFixed(3)}`;
     canvas.dataset.vehicleHeading = Math.atan2(forward.x, forward.z).toFixed(4);
     canvas.dataset.vehicleSpeedKmh = pose.speedKmh.toFixed(3);
-    sportHud.update(
+    sportHud?.update(
       pose.rpm,
       pose.speedKmh,
       pose.gear < 0 ? 'R' : pose.gear === 0 ? 'N' : String(pose.gear),
@@ -7583,6 +7875,9 @@ try {
       pose.speedKmh,
       simulationNow,
     );
+    if (apexEtherHudRuntime?.needsRaceSnapshot()) {
+      apexEtherHudRuntime.publishRace(performance.now(), lapTimingState);
+    }
     const previousAutonomousTimingPhase = autonomousTimingPhase;
     autonomousTimingPhase = lapTimingState.phase;
     if (
@@ -7608,7 +7903,7 @@ try {
       autonomousDriver.cancelLap();
       autonomousLapActive = false;
     }
-    if (enteredOfficialLap) {
+    if (enteredOfficialLap && lapGhost) {
       resetAutonomousFreeLap(simulationNow);
       lapGhost.beginLap();
       if (autonomousDriveEnabled) {
@@ -7637,7 +7932,7 @@ try {
       resetAutonomousSegmentSnapshots();
       autonomousLapActive = true;
     }
-    if (lapTimingState.phase === 'running') {
+    if (lapTimingState.phase === 'running' && lapGhost) {
       manualGhostLapActive = false;
       autonomousLearningLapSource = 'race';
       autonomousLearningLapElapsedMs = lapTimingState.elapsedMs;
@@ -7652,7 +7947,8 @@ try {
       }
       lapGhost.update(lapTimingState.elapsedMs);
     } else if (
-      autonomousDriveEnabled
+      lapGhost
+      && autonomousDriveEnabled
       && lapTimingState.phase === 'arming'
       && !parkingSelectionActive
     ) {
@@ -7700,7 +7996,8 @@ try {
       autonomousFreeLapPreviousProgress = aiProgress;
       lapGhost.update(autonomousLearningLapElapsedMs);
     } else if (
-      lapTimingState.phase === 'arming'
+      lapGhost
+      && lapTimingState.phase === 'arming'
       && !parkingSelectionActive
     ) {
       if (!manualGhostLapActive) {
@@ -7743,10 +8040,11 @@ try {
       lapGhost.update(simulationNow - manualGhostLapStartedAt);
     } else {
       manualGhostLapActive = false;
-      lapGhost.object.visible = false;
+      if (lapGhost) lapGhost.object.visible = false;
     }
     if (
-      !isAuditRuntime
+      !APEX_DRIVE_BARE_RUNTIME
+      && !isAuditRuntime
       && officialLapCompleted
     ) {
       observedCompletedLapCount = lapTimingState.completedLapCount;
@@ -7762,7 +8060,12 @@ try {
         }
       }
     }
-    if (!isAuditRuntime && freeLapCompleted && racingLineLapActive) {
+    if (
+      !APEX_DRIVE_BARE_RUNTIME
+      && !isAuditRuntime
+      && freeLapCompleted
+      && racingLineLapActive
+    ) {
       const learned = racingLineLearner.completeLap();
       racingLineLapActive = false;
       if (learned) {
@@ -7772,7 +8075,8 @@ try {
       }
     }
     const shouldRecordRacingLine = (
-      !isAuditRuntime
+      !APEX_DRIVE_BARE_RUNTIME
+      && !isAuditRuntime
       && (
         lapTimingState.phase === 'running'
         || (
@@ -7782,16 +8086,21 @@ try {
         )
       )
     );
-    const maximumPoseLateralSlip = Math.max(
-      0,
-      ...pose.wheelLateralSlipRadians.map(value => Math.abs(value)),
-    );
-    const maximumPoseLongitudinalSlip = Math.max(
-      0,
-      ...pose.wheelLongitudinalSlips.map(value => Math.abs(value)),
-    );
+    const maximumPoseLateralSlip = APEX_DRIVE_BARE_RUNTIME
+      ? 0
+      : Math.max(
+        0,
+        ...pose.wheelLateralSlipRadians.map(value => Math.abs(value)),
+      );
+    const maximumPoseLongitudinalSlip = APEX_DRIVE_BARE_RUNTIME
+      ? 0
+      : Math.max(
+        0,
+        ...pose.wheelLongitudinalSlips.map(value => Math.abs(value)),
+      );
     const cleanRacingLineSample = (
-      pose.wheelSurfaces.every(
+      !APEX_DRIVE_BARE_RUNTIME
+      && pose.wheelSurfaces.every(
         surface => surface !== 'grass' && surface !== 'gravel',
       )
       && pose.wheelGrounded.filter(Boolean).length >= 3
@@ -7842,7 +8151,7 @@ try {
       || Boolean(trackEditor)
     );
     if (!autonomousPanelRoot.hidden) {
-      autonomousPanel.update({
+      autonomousPanel?.update({
         enabled: autonomousDriveEnabled,
         manualCorrection: manualCorrectionActive,
         manualOverrideChannels: overrideChannels,
@@ -7856,10 +8165,16 @@ try {
           autonomousDriver.lastTelemetry.completedLearningLaps + 1,
         lapElapsedMs: autonomousLearningLapElapsedMs,
         lapSource: autonomousLearningLapSource,
-        ghostReady: lapGhost.hasPreviousLap,
+        ghostReady: lapGhost?.hasPreviousLap ?? false,
       });
     }
-    lapTimingHud.update(lapTimingState);
+    lapTimingHud?.update(lapTimingState);
+    if (raceTrackMarkers) {
+      raceTrackMarkers.group.visible = (
+        !parkingSelectionActive && !trackEditorMode
+      );
+      raceTrackMarkers.update(lapTimingState);
+    }
     physicalStartLightMaterials.forEach((material, index) => {
       const red = lapTimingState.startLights === 'red'
         && index < lapTimingState.countdownLights;
@@ -8158,31 +8473,21 @@ try {
     }
     const renderPerformanceStartedAt = performance.now();
     await renderer.renderAsync(scene, camera);
-    const startupEnvironmentStatus = (
-      canvas.dataset.environmentStatus ?? 'loading'
-    );
-    const startupEnvironmentReady = (
-      startupEnvironmentStatus !== 'loading'
-      && !startupEnvironmentStatus.endsWith('-loading')
-    );
-    const startupVehicleReady = parkingSelectionActive
-      ? ['ready', 'canonical-fallback', 'covered-error'].includes(
-        canvas.dataset.parkingLazyState ?? '',
-      )
-      : canvas.dataset.vehicleModel !== 'loading';
-    if (startupEnvironmentReady && startupVehicleReady) {
+    if (canvas.dataset.vehicleModel !== 'loading') {
       revealApexDrive();
     }
     const frameCompletedAt = performance.now();
     const renderPerformanceMs = frameCompletedAt - renderPerformanceStartedAt;
     const frameWorkMs = frameCompletedAt - framePerformanceStartedAt;
-    updateFramePerformanceMeter(frameCompletedAt, {
-      intervalMs: frameIntervalMs,
-      frameMs: frameWorkMs,
-      physicsMs: physicsPerformanceMs,
-      tireMs: tirePerformanceMs,
-      renderMs: renderPerformanceMs,
-    });
+    if (!APEX_DRIVE_BARE_RUNTIME) {
+      updateFramePerformanceMeter(frameCompletedAt, {
+        intervalMs: frameIntervalMs,
+        frameMs: frameWorkMs,
+        physicsMs: physicsPerformanceMs,
+        tireMs: tirePerformanceMs,
+        renderMs: renderPerformanceMs,
+      });
+    }
     const rendererInfo = (renderer as unknown as {
       info?: {
         render?: {
@@ -8191,19 +8496,21 @@ try {
         };
       };
     }).info;
-    drivePerformanceMonitor.sample({
-      timestampMs: frameCompletedAt,
-      intervalMs: frameIntervalMs,
-      frameWorkMs,
-      physicsMs: physicsPerformanceMs,
-      tireMs: tirePerformanceMs,
-      renderMs: renderPerformanceMs,
-      physicsSteps: physicsStepsThisFrame,
-      accumulatorMs: accumulator * 1000,
-      renderCalls: rendererInfo?.render?.drawCalls,
-      triangles: rendererInfo?.render?.triangles,
-    });
-    updateControlledBenchmark(frameCompletedAt);
+    if (drivePerformanceMonitor) {
+      drivePerformanceMonitor.sample({
+        timestampMs: frameCompletedAt,
+        intervalMs: frameIntervalMs,
+        frameWorkMs,
+        physicsMs: physicsPerformanceMs,
+        tireMs: tirePerformanceMs,
+        renderMs: renderPerformanceMs,
+        physicsSteps: physicsStepsThisFrame,
+        accumulatorMs: accumulator * 1000,
+        renderCalls: rendererInfo?.render?.drawCalls,
+        triangles: rendererInfo?.render?.triangles,
+      });
+      updateControlledBenchmark(frameCompletedAt);
+    }
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

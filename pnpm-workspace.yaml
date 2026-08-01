@@ -2,6 +2,7 @@ packages:
   - "apex-drive"
   - "apps/apex-demo"
   - "apps/apex-mesh"
+  - "apps/apex-ether-catalog"
   - "apps/apex-run"
   - "packages/*"
   - "!apps/apex-showcase"

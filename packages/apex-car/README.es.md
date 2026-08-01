@@ -1,9 +1,16 @@
-# APEX Car
+# Apex Car
 
-Commit inicial
+Definiciones de vehículos concretos del ecosistema Apex.
 
-Fecha: 2026-07-26
+Este paquete posee la configuración física completa de cada vehículo. Depende
+de los contratos genéricos exportados por Apex Physics; Apex Physics nunca
+depende de este paquete.
 
-Autor: Jonathan Villaverde <jv.sys.arch@gmail.com>
+Definiciones actuales:
 
-Este paquete contendrá definiciones de vehículos y rigs.
+- `APEX_ROAD_CAR`
+- `APEX_MOTORCYCLE`
+
+Cada definición contiene chasis, masa, ruedas, suspensión, frenos, dirección,
+motor, transmisión, diferenciales y aerodinámica. Los assets y la presentación
+visual permanecen fuera de este paquete.

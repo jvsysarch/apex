@@ -30,7 +30,7 @@ export const createApexTrackSegmentOutliner = (
 
   const header = document.createElement('header');
   const title = document.createElement('strong');
-  title.textContent = 'TRAMOS';
+  title.textContent = 'RED DE PISTA';
   const count = document.createElement('small');
   header.append(title, count);
   root.append(header);
@@ -63,7 +63,7 @@ export const createApexTrackSegmentOutliner = (
       );
       const detail = document.createElement('small');
       detail.textContent = (
-        `${segment.pointCount} puntos · ${segment.enabled ? 'activo' : 'off'}`
+        `${segment.pointCount} nodos · ${segment.enabled ? 'visible' : 'oculto'}`
       );
       button.append(label, detail);
       button.addEventListener('click', () => {
@@ -96,14 +96,14 @@ export const createApexTrackSegmentOutliner = (
   const create = document.createElement('button');
   create.type = 'button';
   create.className = 'track-segment-outliner__create';
-  create.textContent = '+ Crear tramo';
+  create.textContent = '+ Nuevo tramo';
   create.title = 'Dibujar un tramo nuevo con la cámara libre';
   create.addEventListener('click', options.onCreate);
   root.append(create);
 
   const hint = document.createElement('p');
   hint.textContent = (
-    'Fase 3 · dibujo libre y configuración independiente.'
+    'Cada tramo conserva geometría, superficie y colisión propias.'
   );
   root.append(hint);
   document.body.append(root);
@@ -124,8 +124,8 @@ export const createApexTrackSegmentOutliner = (
       create.disabled = active;
       renderList();
       hint.textContent = active
-        ? 'Dibujando un tramo nuevo · terminá o cancelá para continuar.'
-        : 'Fase 3 · dibujo libre y configuración independiente.';
+        ? 'Dibujando un tramo nuevo · terminalo o cancelalo para continuar.'
+        : 'Cada tramo conserva geometría, superficie y colisión propias.';
     },
   });
 };

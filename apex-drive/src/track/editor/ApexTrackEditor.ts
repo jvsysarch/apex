@@ -377,16 +377,18 @@ const createPanel = (
   root.setAttribute('aria-label', 'Editor de pista');
   root.innerHTML = `
     <header>
-      <strong>APEX TRACK EDITOR</strong>
-      <small>VOID · prototipo</small>
+      <strong>INSPECTOR DE TRAMO</strong>
+      <small>BORRADOR LOCAL</small>
     </header>
     <output data-role="selection">Control · ninguno</output>
     <output data-role="coordinates">X — · Y — · Z —</output>
     <output data-role="state">Spline · lista</output>
-    <p>
-      Click control · flechas XYZ mover · MMB paneo · LMB órbita · rueda zoom
-      · sostener RMB + mouse/WASD vuelo libre · F enfocar · Esc deseleccionar
-      · Delete eliminar · Snap ajusta altura y peralte
+    <p class="track-editor-panel__help">
+      <span><kbd>LMB</kbd> Órbita</span>
+      <span><kbd>MMB</kbd> Paneo</span>
+      <span><kbd>RMB</kbd> Vuelo</span>
+      <span><kbd>F</kbd> Enfocar</span>
+      <span><kbd>DEL</kbd> Eliminar</span>
     </p>
     <small data-role="spacing">
       Controles ${controlSpacingM.toFixed(1)} m · colisión
@@ -426,14 +428,14 @@ const createPanel = (
         type="button"
         data-action="snap-road"
         title="Proyectar el nodo sobre el camino visual importado"
-      >Snap to road</button>
+      >Ajustar nodo</button>
     </div>
     <div>
       <button
         type="button"
         data-action="snap-all-road"
         title="Proyectar todos los nodos sobre la grilla del camino importado"
-      >Snap all to grid</button>
+      >Ajustar todos</button>
     </div>
     <div>
       <button type="button" data-action="smooth">Suavizar</button>
@@ -441,8 +443,8 @@ const createPanel = (
     </div>
     <div>
       <button type="button" data-action="reset">Restaurar</button>
-      <button type="button" data-action="copy">Copiar pista</button>
-      <button type="button" data-action="save-file">Generar / guardar</button>
+      <button type="button" data-action="copy">Copiar contrato</button>
+      <button type="button" data-action="save-file" data-variant="primary">Guardar fuente</button>
     </div>
   `;
   document.body.append(root);
@@ -1616,7 +1618,7 @@ export const createApexTrackEditor = (
     void navigator.clipboard.writeText(payload).then(() => {
       panel.copy.textContent = 'Copiado';
       window.setTimeout(() => {
-        panel.copy.textContent = 'Copiar pista';
+        panel.copy.textContent = 'Copiar contrato';
       }, 1200);
     });
   });
@@ -1638,7 +1640,7 @@ export const createApexTrackEditor = (
       );
       panel.saveFile.textContent = 'Guardado';
       window.setTimeout(() => {
-        panel.saveFile.textContent = 'Generar / guardar';
+        panel.saveFile.textContent = 'Guardar fuente';
       }, 1400);
     }).catch(error => {
       panel.state.value = (

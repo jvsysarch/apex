@@ -1,9 +1,18 @@
 # APEX Audio
 
-Initial commit
+Runtime de audio de APEX.
 
-Date: 2026-07-26
+## Estado
 
-Author: Jonathan Villaverde <jv.sys.arch@gmail.com>
+Paquete local real y consumido por Apex Drive. Contiene `EngineSynth`, el
+motor sintetizado y la reproducción de muestras asociadas al vehículo.
 
-This package will contain simulation-driven audio.
+El código del runtime está separado de los archivos de audio. Las muestras
+viven en `apex-assets` y permanecen clasificadas como internas hasta confirmar
+su procedencia y licencia.
+
+## Límite
+
+Este paquete interpreta estado del vehículo y produce audio. No modifica la
+simulación física.
+

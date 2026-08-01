@@ -11,6 +11,7 @@ on:
       - 'packages/apex-car/**'
       - 'packages/apex-contracts/**'
       - 'packages/apex-physics/**'
+      - 'packages/apex-ether/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'

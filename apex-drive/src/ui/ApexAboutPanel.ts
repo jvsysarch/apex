@@ -2,6 +2,8 @@ export interface ApexAboutPanelOptions {
   readonly version: string;
   readonly repositoryUrl: string;
   readonly linkedinUrl: string;
+  readonly documentationUrl: string;
+  readonly showcaseUrl: string;
 }
 
 type ApexAboutLanguage = 'es' | 'en';
@@ -21,7 +23,7 @@ const initialAboutLanguage = (): ApexAboutLanguage => {
 export class ApexAboutPanel {
   private readonly root: HTMLElement;
   private readonly trigger: HTMLButtonElement;
-  private readonly panel: HTMLElement;
+  private readonly panel: HTMLDialogElement;
 
   constructor(host: HTMLElement, options: ApexAboutPanelOptions) {
     this.root = document.createElement('aside');
@@ -43,20 +45,10 @@ export class ApexAboutPanel {
           <small>PRE-ALPHA · ABOUT</small>
         </span>
       </button>
-      <button
-        class="apex-about__author-trigger"
-        type="button"
-        aria-controls="apex-about-panel"
-      >
-        <small data-about-author-role>CREADO POR:</small>
-        <span>JONATHAN VILLAVERDE</span>
-      </button>
-      <section
+      <dialog
         id="apex-about-panel"
         class="apex-about__panel"
-        role="dialog"
         aria-labelledby="apex-about-title"
-        hidden
       >
         <header>
           <div>
@@ -82,6 +74,35 @@ export class ApexAboutPanel {
             dinámica vehicular y renderizado en tiempo real trabajando como un
             único sistema.
           </p>
+
+          <div class="apex-about__authorship" aria-label="Autoría">
+            <small>INVESTIGACIÓN INDEPENDIENTE</small>
+            <p>
+              <span>Autor</span>
+              <a
+                href="${options.linkedinUrl}"
+                target="_blank"
+                rel="noreferrer"
+              >Jonathan Villaverde ↗</a>
+            </p>
+            <nav aria-label="Proyecto y documentación">
+              <a
+                href="${options.repositoryUrl}"
+                target="_blank"
+                rel="noreferrer"
+              >GitHub Repo ↗</a>
+              <a
+                href="${options.documentationUrl}"
+                target="_blank"
+                rel="noreferrer"
+              >Documentación ↗</a>
+              <a
+                href="${options.showcaseUrl}"
+                target="_blank"
+                rel="noreferrer"
+              >Showcase ↗</a>
+            </nav>
+          </div>
 
           <dl class="apex-about__features">
             <div>
@@ -132,6 +153,35 @@ export class ApexAboutPanel {
             single system.
           </p>
 
+          <div class="apex-about__authorship" aria-label="Authorship">
+            <small>INDEPENDENT RESEARCH</small>
+            <p>
+              <span>Author</span>
+              <a
+                href="${options.linkedinUrl}"
+                target="_blank"
+                rel="noreferrer"
+              >Jonathan Villaverde ↗</a>
+            </p>
+            <nav aria-label="Project and documentation">
+              <a
+                href="${options.repositoryUrl}"
+                target="_blank"
+                rel="noreferrer"
+              >GitHub Repo ↗</a>
+              <a
+                href="${options.documentationUrl}"
+                target="_blank"
+                rel="noreferrer"
+              >Documentation ↗</a>
+              <a
+                href="${options.showcaseUrl}"
+                target="_blank"
+                rel="noreferrer"
+              >Showcase ↗</a>
+            </nav>
+          </div>
+
           <dl class="apex-about__features">
             <div>
               <dt>APEX Physics</dt>
@@ -172,44 +222,32 @@ export class ApexAboutPanel {
             independent dependency; it is not a fork or modification of Jolt.
           </p>
         </div>
-
-        <footer>
-          <span data-about-author="es">
-            Diseñado y desarrollado por
-            <strong>Jonathan Villaverde</strong>
-          </span>
-          <span data-about-author="en">
-            Designed and developed by
-            <strong>Jonathan Villaverde</strong>
-          </span>
-          <nav aria-label="Project links / Enlaces del proyecto">
-            <a
-              href="${options.repositoryUrl}"
-              target="_blank"
-              rel="noreferrer"
-            >Apex Physics · GitHub ↗</a>
-            <a
-              href="${options.linkedinUrl}"
-              target="_blank"
-              rel="noreferrer"
-            >LinkedIn ↗</a>
-          </nav>
-        </footer>
-      </section>
+      </dialog>
+    `;
+    const socialLinks = document.createElement('nav');
+    socialLinks.className = 'apex-about__social-links';
+    socialLinks.setAttribute('aria-label', 'Enlaces de Jonathan Villaverde');
+    socialLinks.innerHTML = `
+      <a
+        href="${options.repositoryUrl}"
+        target="_blank"
+        rel="noreferrer"
+      >GitHub Repo ↗</a>
+      <a
+        href="${options.linkedinUrl}"
+        target="_blank"
+        rel="noreferrer"
+      >LinkedIn ↗</a>
     `;
 
     this.trigger = this.root.querySelector<HTMLButtonElement>(
       '.apex-about__trigger',
     )!;
-    this.panel = this.root.querySelector<HTMLElement>('.apex-about__panel')!;
+    this.panel = this.root.querySelector<HTMLDialogElement>(
+      '.apex-about__panel',
+    )!;
     const close = this.root.querySelector<HTMLButtonElement>(
       '.apex-about__close',
-    )!;
-    const authorTrigger = this.root.querySelector<HTMLButtonElement>(
-      '.apex-about__author-trigger',
-    )!;
-    const authorRole = authorTrigger.querySelector<HTMLElement>(
-      '[data-about-author-role]',
     )!;
     const languageButtons = Array.from(
       this.root.querySelectorAll<HTMLButtonElement>('[data-about-language]'),
@@ -217,15 +255,9 @@ export class ApexAboutPanel {
     const copies = Array.from(
       this.root.querySelectorAll<HTMLElement>('[data-about-copy]'),
     );
-    const authorLines = Array.from(
-      this.root.querySelectorAll<HTMLElement>('[data-about-author]'),
-    );
     const setLanguage = (language: ApexAboutLanguage) => {
       copies.forEach(copy => {
         copy.hidden = copy.dataset.aboutCopy !== language;
-      });
-      authorLines.forEach(line => {
-        line.hidden = line.dataset.aboutAuthor !== language;
       });
       languageButtons.forEach(button => {
         button.setAttribute(
@@ -235,15 +267,6 @@ export class ApexAboutPanel {
       });
       this.panel.lang = language;
       this.root.dataset.aboutLanguage = language;
-      authorRole.textContent = language === 'es'
-        ? 'CREADO POR:'
-        : 'CREATED BY:';
-      authorTrigger.setAttribute(
-        'aria-label',
-        language === 'es'
-          ? 'Desarrollado por Jonathan Villaverde. Abrir información.'
-          : 'Developed by Jonathan Villaverde. Open About.',
-      );
       try {
         localStorage.setItem(ABOUT_LANGUAGE_STORAGE_KEY, language);
       } catch {
@@ -260,32 +283,34 @@ export class ApexAboutPanel {
     setLanguage(initialAboutLanguage());
 
     this.trigger.addEventListener('click', () => {
-      this.setOpen(this.panel.hidden);
+      this.setOpen(!this.panel.open);
     });
-    authorTrigger.addEventListener('click', () => this.setOpen(true));
     close.addEventListener('click', () => this.setOpen(false));
-    document.addEventListener('keydown', event => {
-      if (event.key === 'Escape' && !this.panel.hidden) {
-        this.setOpen(false);
-        this.trigger.focus();
-      }
+    this.panel.addEventListener('cancel', event => {
+      event.preventDefault();
+      this.setOpen(false);
+      this.trigger.focus();
     });
-    document.addEventListener('pointerdown', event => {
+    this.panel.addEventListener('pointerdown', event => {
+      const bounds = this.panel.getBoundingClientRect();
       if (
-        !this.panel.hidden
-        && event.target instanceof Node
-        && !this.root.contains(event.target)
+        event.clientX < bounds.left
+        || event.clientX > bounds.right
+        || event.clientY < bounds.top
+        || event.clientY > bounds.bottom
       ) {
         this.setOpen(false);
       }
     });
-
-    authorTrigger.remove();
-    host.append(this.root, authorTrigger);
+    host.append(this.root, socialLinks);
   }
 
   private setOpen(open: boolean): void {
-    this.panel.hidden = !open;
+    if (open && !this.panel.open) {
+      this.panel.showModal();
+    } else if (!open && this.panel.open) {
+      this.panel.close();
+    }
     this.trigger.setAttribute('aria-expanded', String(open));
     this.root.classList.toggle('apex-about--open', open);
   }

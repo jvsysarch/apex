@@ -1,6 +1,6 @@
 {
   "name": "@jvsysarch/apex-drive",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.33.0",
@@ -19,6 +19,7 @@
     "@jvsysarch/apex-audio": "workspace:*",
     "@jvsysarch/apex-car": "workspace:*",
     "@jvsysarch/apex-contracts": "workspace:*",
+    "@jvsysarch/apex-ether": "workspace:*",
     "@jvsysarch/apex-physics": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

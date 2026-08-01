@@ -1,9 +1,20 @@
-# APEX Run
+# Apex Run V3 — compatibilidad histórica
 
-Initial commit
+Este directorio preserva documentación y elementos del baseline integrado
+migrado. Ya no es la autoridad del producto.
 
-Date: 2026-07-26
+La aplicación vigente es:
 
-Author: Jonathan Villaverde <jv.sys.arch@gmail.com>
+```text
+/apex/apex-drive
+```
 
-This directory will contain the integrated browser simulator.
+Los comandos de este paquete actúan como alias temporal hacia Apex Drive para
+conservar flujos anteriores.
+
+No agregar nuevas implementaciones aquí. Los componentes se desarrollan bajo
+`packages/apex-*` y se integran en `apex-drive/`.
+
+La documentación vigente comienza en `/docs/README.md`. El contenido bajo
+`apps/apex-run/docs` debe interpretarse como snapshot histórico.
+

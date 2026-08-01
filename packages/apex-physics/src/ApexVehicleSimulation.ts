@@ -1971,6 +1971,7 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
       transmissionSwitchingGear: transmission.IsSwitchingGear(),
       throttle: Math.abs(this.controller.GetForwardInput()),
       brake: this.controller.GetBrakeInput(),
+      steering: this.currentSteeringInput,
       requestedEngineTorqueNm: this.requestedEngineTorqueNm,
       deliveredEngineTorqueNm: this.deliveredEngineTorqueNm,
       deliveredAxleTorqueNm: this.deliveredAxleTorqueNm,

@@ -7,6 +7,7 @@ import apexDriveConfig from '../../apex-drive/vite.config';
 const appRoot = fileURLToPath(new URL('.', import.meta.url));
 const driveRoot = fileURLToPath(new URL('../../apex-drive/', import.meta.url));
 const assetsPublicRoot = new URL('../../packages/apex-assets/public/', import.meta.url);
+const PUBLIC_DEMO_BARE_RUNTIME = true;
 
 const publicDemoFiles = Object.freeze([
   'assets/audio/Car_Acceleration.ogg',
@@ -75,7 +76,16 @@ const publicDemoFiles = Object.freeze([
   'assets/vehicles/130/textures/number_baseColor.png',
   'assets/vehicles/130/textures/number_normal.png',
   'assets/vehicles/130/textures/tire_baseColor.png',
-] as const);
+].filter(fileName => (
+  !PUBLIC_DEMO_BARE_RUNTIME
+  || (
+    !fileName.startsWith('assets/audio/')
+    && fileName !== 'assets/track/curve-lights/curve-chevron-amber.png'
+    && !fileName.startsWith('assets/vehicles/car-covers/')
+    && !fileName.startsWith('assets/vehicles/rambo/')
+    && !fileName.startsWith('assets/vehicles/130/')
+  )
+)));
 
 const publicDemoSources = new Map<string, string>(
   publicDemoFiles.map(fileName => [
@@ -181,16 +191,27 @@ export default defineConfig(({ command }) => mergeConfig(apexDriveConfig, {
   plugins: [publicDemoAssets()],
   define: {
     'import.meta.env.VITE_APEX_DRIVE_PROFILE': JSON.stringify('public-demo'),
+    'import.meta.env.VITE_APEX_DRIVE_BARE_RUNTIME': JSON.stringify(
+      String(PUBLIC_DEMO_BARE_RUNTIME),
+    ),
+    'import.meta.env.VITE_APEX_TRACK_AUTHORING_ENABLED': JSON.stringify(
+      String(!PUBLIC_DEMO_BARE_RUNTIME),
+    ),
     'import.meta.env.VITE_APEX_DRIVE_ENGINE_SAMPLES_BASE_URL': JSON.stringify(
-      'assets/audio',
+      PUBLIC_DEMO_BARE_RUNTIME ? '' : 'assets/audio',
     ),
     'import.meta.env.VITE_APEX_DRIVE_VEHICLE_MANIFESTS': JSON.stringify(
-      JSON.stringify([
-        'assets/vehicles/apex-demo-car-001/vehicle.json',
-        'assets/vehicles/ford-mustang-shelby-gt500/vehicle.json',
-        'assets/vehicles/rambo/vehicle.json',
-        'assets/vehicles/130/vehicle.json',
-      ]),
+      JSON.stringify(PUBLIC_DEMO_BARE_RUNTIME
+        ? [
+          'assets/vehicles/apex-demo-car-001/vehicle.json',
+          'assets/vehicles/ford-mustang-shelby-gt500/vehicle.json',
+        ]
+        : [
+          'assets/vehicles/apex-demo-car-001/vehicle.json',
+          'assets/vehicles/ford-mustang-shelby-gt500/vehicle.json',
+          'assets/vehicles/rambo/vehicle.json',
+          'assets/vehicles/130/vehicle.json',
+        ]),
     ),
   },
   build: {
