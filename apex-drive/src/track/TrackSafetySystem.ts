@@ -57,6 +57,8 @@ export interface TrackSafetyConfiguration {
   readonly curvatureSmoothingDistanceM?: number;
   readonly maximumProtectedCurveRadiusM?: number;
   readonly elevatedGuardrailThresholdM?: number;
+  /** Sólo el terreno adaptativo estrecha el rail interior de horquillas. */
+  readonly adaptiveTerrain?: boolean;
 }
 
 export const TRACK_GUARDRAIL_HEIGHT_M = 1.35;
@@ -402,10 +404,26 @@ export const createTrackSafetySystem = (
     const lateralX = -tangentZ / tangentLength;
     const lateralZ = tangentX / tangentLength;
     const bankedLateralY = -Math.sin(point.bankRadians);
+    const signedCurvature = signedCurvatures[index];
+    const isInnerSide = (
+      (signedCurvature > 0 && side === 1)
+      || (signedCurvature < 0 && side === -1)
+    );
+    const localRadiusM = Math.abs(signedCurvature) > 0.000001
+      ? 1 / Math.abs(signedCurvature)
+      : Number.POSITIVE_INFINITY;
+    // El rail interior no puede avanzar hasta el centro de curvatura. El
+    // límite se aplica solamente en adaptive-terrain para no alterar banquina.
+    const effectiveRailOffsetM = configuration.adaptiveTerrain && isInnerSide
+      ? Math.min(
+        railOffsetM,
+        Math.max(0.5, localRadiusM - Math.max(0.75, railOffsetM * 0.12)),
+      )
+      : railOffsetM;
     return Object.freeze({
-      x: point.x + lateralX * side * railOffsetM,
-      y: point.y + bankedLateralY * side * railOffsetM + 0.03,
-      z: point.z + lateralZ * side * railOffsetM,
+      x: point.x + lateralX * side * effectiveRailOffsetM,
+      y: point.y + bankedLateralY * side * effectiveRailOffsetM + 0.03,
+      z: point.z + lateralZ * side * effectiveRailOffsetM,
     });
   };
 

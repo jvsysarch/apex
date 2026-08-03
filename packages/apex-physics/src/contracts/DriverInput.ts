@@ -14,4 +14,6 @@ export interface DriverInput {
   readonly throttle?: number;
   readonly brake?: number;
   readonly steering?: number;
+  /** Entrada angular 1:1, sin curva, rate limit ni corrección de estabilidad. */
+  readonly directSteering?: boolean;
 }

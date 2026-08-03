@@ -6,11 +6,13 @@
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "node scripts/dev.mjs --host 127.0.0.1 --port 5175 --strictPort",
+    "dev:workbench": "node scripts/dev.mjs --workbench --host 127.0.0.1 --port 5175 --strictPort",
     "dev:web": "vite --host 127.0.0.1 --port 5175 --strictPort",
     "track:server": "node scripts/track-authoring-server.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 5175 --strictPort",
     "test": "tsc --noEmit",
+    "test:adaptive-terrain": "node --test --experimental-strip-types tests/adaptive-terrain.test.ts",
     "audit:tire-selection": "node scripts/audit-tire-selection.mjs",
     "audit:tire-energy": "node scripts/audit-tire-energy.mjs"
   },
@@ -21,6 +23,7 @@
     "@jvsysarch/apex-contracts": "workspace:*",
     "@jvsysarch/apex-ether": "workspace:*",
     "@jvsysarch/apex-physics": "workspace:*",
+    "@jvsysarch/apex-void": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "three": "^0.183.0"

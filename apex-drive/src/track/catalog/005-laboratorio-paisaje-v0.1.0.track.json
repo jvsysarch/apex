@@ -1,0 +1,60 @@
+{
+  "$schema": "../formats/apex-drive-track.v1.schema.json",
+  "format": "apex-drive-track",
+  "formatVersion": 1,
+  "track": {
+    "number": 5,
+    "id": "laboratorio-paisaje",
+    "name": "Laboratorio de Paisaje",
+    "version": "0.1.0"
+  },
+  "assets": {
+    "visual": {
+      "format": "procedural",
+      "generator": "apex-landscape-v0.1.0-parametric-topology",
+      "uri": null
+    },
+    "collision": {
+      "format": "generated",
+      "uri": null
+    }
+  },
+  "configuration": {
+    "profile": "apex-drive",
+    "profileVersion": 1,
+    "coordinateSystem": {
+      "unit": "meter",
+      "upAxis": "Y",
+      "handedness": "right"
+    },
+    "start": {
+      "position": {
+        "x": 0,
+        "y": 10.05,
+        "z": -180
+      },
+      "yawRadians": 3.141592653589793
+    },
+    "geometry": {
+      "roadWidthM": 11,
+      "shoulderWidthM": 7,
+      "groundHeightM": 0,
+      "roadThicknessM": 0.1,
+      "boundaryMode": "guardrails",
+      "roadsideMode": "adaptive-terrain"
+    },
+    "timing": {
+      "startRadiusM": 8,
+      "checkpointRadiusM": 12,
+      "checkpointIntervalPoints": 14,
+      "ignoredTailPoints": 4,
+      "sectorCount": 5,
+      "storageKey": "apex-drive.laboratorio-paisaje.lap-timing.v1"
+    },
+    "surfaces": {
+      "road": "asphalt",
+      "shoulder": "gravel",
+      "ground": "gravel"
+    }
+  }
+}

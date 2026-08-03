@@ -104,6 +104,7 @@ implements ApexTrackSegmentCollisionRegistryPort {
     closed: boolean,
     shoulderWidthM: number,
     groundHeightM: number,
+    roadHalfWidthsM?: readonly number[],
   ): void {
     const normalizedSegmentId = segmentId.trim();
     if (!normalizedSegmentId) {
@@ -118,6 +119,7 @@ implements ApexTrackSegmentCollisionRegistryPort {
       sourcePoints: points,
       sourcePointsAreUnique: true,
       roadWidthM,
+      roadHalfWidthsM,
       roadThicknessM: this.options.roadThicknessM,
       closed,
       withBoundaryWalls: boundaryMode === 'walls',

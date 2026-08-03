@@ -2,7 +2,7 @@ import * as THREE from 'three/webgpu';
 import type { SurfaceId } from '@jvsysarch/apex-physics';
 import {
   ACTIVE_TRACK,
-  ACTIVE_TRACK_SOURCE,
+  ACTIVE_TRACK_PRIMARY_SEGMENT,
   ACTIVE_TRACK_IS_CLOSED,
   ACTIVE_TRACK_LANE_COUNT,
   ACTIVE_TRACK_POINTS,
@@ -26,7 +26,10 @@ export interface TrackSegment {
   readonly surface: SurfaceId;
 }
 
-export const TEST_TRACK_WIDTH_M = ACTIVE_TRACK.configuration.geometry.roadWidthM;
+export const TEST_TRACK_WIDTH_M = (
+  ACTIVE_TRACK_PRIMARY_SEGMENT?.geometry.roadWidthM
+  ?? ACTIVE_TRACK.configuration.geometry.roadWidthM
+);
 export const TEST_TRACK_THICKNESS_M = (
   ACTIVE_TRACK.configuration.geometry.roadThicknessM
 );
@@ -219,7 +222,7 @@ for (let pass = 0; pass < 5; pass += 1) {
   }
   bankAtPoint[0] = 0;
 }
-if (ACTIVE_TRACK_SOURCE) {
+if (ACTIVE_TRACK_PRIMARY_SEGMENT) {
   UNIQUE_TRACK_POINTS.forEach((point, index) => {
     bankAtPoint[index] = point.bankRadians ?? 0;
   });
@@ -228,7 +231,7 @@ if (ACTIVE_TRACK_SOURCE) {
 const centerlineHeightAtPoint = (index: number): number => (
   (UNIQUE_TRACK_POINTS[index].y ?? elevationAtProgress(trackProgress[index]))
   + (
-    ACTIVE_TRACK_SOURCE
+    ACTIVE_TRACK_PRIMARY_SEGMENT
       ? 0
       : TEST_TRACK_WIDTH_M * 0.5 * Math.sin(Math.abs(bankAtPoint[index]))
   )
@@ -278,11 +281,11 @@ export const TEST_TRACK_POINTS: readonly TrackPoint[] = Object.freeze(
     })),
     ...(ACTIVE_TRACK_IS_CLOSED ? [Object.freeze({
       x: UNIQUE_TRACK_POINTS[0].x,
-      y: ACTIVE_TRACK_SOURCE
+      y: ACTIVE_TRACK_PRIMARY_SEGMENT
         ? centerlineHeightAtPoint(0)
         : TEST_TRACK_BASE_HEIGHT_M,
       z: UNIQUE_TRACK_POINTS[0].z,
-      bankRadians: ACTIVE_TRACK_SOURCE ? bankAtPoint[0] : 0,
+      bankRadians: ACTIVE_TRACK_PRIMARY_SEGMENT ? bankAtPoint[0] : 0,
       surface: (
         UNIQUE_TRACK_POINTS[0].surface as SurfaceId | undefined
         ?? ACTIVE_TRACK_ROAD_SURFACE
@@ -317,14 +320,14 @@ export const TEST_TRACK_CURVE = new THREE.CatmullRomCurve3(
   0.5,
 );
 export const TEST_TRACK_SPLINE_SPACING_M = TEST_TRACK_LANE_COUNT === 3 ? 3 : 2;
-export const TEST_TRACK_SPLINE_SAMPLE_COUNT = ACTIVE_TRACK_SOURCE
+export const TEST_TRACK_SPLINE_SAMPLE_COUNT = ACTIVE_TRACK_PRIMARY_SEGMENT
   ? testTrackSplineControls.length
   : Math.max(
     360,
     Math.ceil(TEST_TRACK_CURVE.getLength() / TEST_TRACK_SPLINE_SPACING_M),
   );
 export const TEST_TRACK_SPLINE_POINTS: readonly TrackPoint[] = Object.freeze(
-  ACTIVE_TRACK_SOURCE
+  ACTIVE_TRACK_PRIMARY_SEGMENT
     ? (
       ACTIVE_TRACK_IS_CLOSED
         ? TEST_TRACK_POINTS.slice(0, -1)

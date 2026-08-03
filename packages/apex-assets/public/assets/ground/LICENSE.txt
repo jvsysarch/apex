@@ -1,0 +1,12 @@
+APEX grass surface materials
+Creator: ambientCG
+License: Creative Commons CC0 1.0 Universal
+License information: https://docs.ambientcg.com/license/
+
+Assets:
+- Grass001: https://ambientcg.com/view?id=Grass001
+- Grass004: https://ambientcg.com/view?id=Grass004
+- Ground003: https://ambientcg.com/view?id=Ground003
+- Ground037: https://ambientcg.com/view?id=Ground037
+
+Only the 1K JPG Color, NormalDX and Roughness maps are distributed.

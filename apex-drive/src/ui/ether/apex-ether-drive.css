@@ -142,6 +142,47 @@
   pointer-events: auto;
 }
 
+.apex-drive-ether-tracks {
+  position: absolute;
+  z-index: 5;
+  top: 22px;
+  right: 78px;
+  pointer-events: auto;
+}
+
+.apex-drive-ether-tracks__trigger {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  padding: 7px;
+  place-items: center;
+  border: 0;
+  color: #ffffff63;
+  background: transparent;
+  filter: drop-shadow(0 1px 5px rgb(0 0 0 / 34%));
+  cursor: pointer;
+  transition: color 100ms ease;
+}
+
+.apex-drive-ether-tracks__trigger svg {
+  width: 30px;
+  height: 30px;
+  overflow: visible;
+  fill: currentColor;
+  stroke: none;
+}
+
+.apex-drive-ether-tracks__trigger:hover,
+.apex-drive-ether-tracks__trigger:focus-visible {
+  color: #fff;
+}
+
+.apex-drive-ether-tracks__trigger:focus-visible {
+  border-radius: 50%;
+  outline: 2px solid var(--ether-highlight);
+  outline-offset: 3px;
+}
+
 .apex-drive-ether-settings > .apex-drive-ether-settings__trigger {
   display: grid;
   width: 48px;
@@ -251,6 +292,218 @@
   box-shadow: 0 4px 12px rgb(0 0 0 / 14%);
 }
 
+.apex-drive-ether-settings__surface-toggle {
+  width: min(360px, 100%);
+  min-height: 48px;
+  padding: 0 16px;
+  border: 1px solid rgb(23 34 31 / 18%);
+  border-radius: 11px;
+  color: var(--ether-on-highlight);
+  background: var(--ether-highlight);
+  font-family: var(--ether-font-subtitle);
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.apex-drive-ether-surface-material {
+  position: absolute;
+  z-index: 12;
+  top: 88px;
+  right: 24px;
+  width: min(620px, calc(100vw - 32px));
+  pointer-events: auto;
+  touch-action: auto;
+  cursor: default;
+}
+
+.apex-drive-ether .apex-drive-ether-surface-material__panel {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid rgb(23 34 31 / 16%);
+  border-radius: 20px;
+  color: #17221f;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 22px 64px rgb(0 0 0 / 24%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  /* Ether desactiva eventos en los paneles de telemetría por defecto. Este
+     panel es un inspector interactivo y debe recuperar su propio hit testing. */
+  pointer-events: auto;
+}
+
+.apex-drive-ether-surface-material__panel > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.apex-drive-ether-surface-material[data-dragging]
+  .apex-drive-ether-surface-material__panel > header {
+  cursor: grabbing;
+}
+
+.apex-drive-ether-surface-material__panel > header div {
+  display: grid;
+  gap: 3px;
+}
+
+.apex-drive-ether-surface-material__panel > header span {
+  color: var(--ether-highlight);
+  font-family: var(--ether-font-small);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .12em;
+}
+
+.apex-drive-ether-surface-material__panel > header strong {
+  font-family: var(--ether-font-title);
+  font-size: 24px;
+  letter-spacing: -.025em;
+}
+
+.apex-drive-ether-surface-material__panel > header button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgb(23 34 31 / 16%);
+  border-radius: 50%;
+  color: #17221f;
+  background: #f3f5f4;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.apex-drive-ether-surface-material__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.apex-drive-ether-surface-material__grid details {
+  min-width: 0;
+  border: 1px solid rgb(23 34 31 / 12%);
+  border-radius: 14px;
+  background: #f7f8f7;
+  overflow: hidden;
+}
+
+.apex-drive-ether-surface-material__grid summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  font-family: var(--ether-font-title);
+  font-size: 18px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.apex-drive-ether-surface-material__grid summary::-webkit-details-marker { display: none; }
+.apex-drive-ether-surface-material__grid summary::after { content: '+'; }
+.apex-drive-ether-surface-material__grid details[open] summary::after { content: '−'; }
+
+.apex-drive-ether-surface-material__grid details > div {
+  display: grid;
+  gap: 10px;
+  padding: 0 14px 14px;
+}
+
+.apex-drive-ether-surface-material__grid label {
+  display: grid;
+  gap: 5px;
+}
+
+.apex-drive-ether-surface-material__grid label > span {
+  color: #52615b;
+  font-family: var(--ether-font-small);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.apex-drive-ether-surface-material__grid select {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 9px;
+  border: 1px solid rgb(23 34 31 / 18%);
+  border-radius: 9px;
+  color: #17221f;
+  background: #fff;
+  font: 700 13px/1 var(--ether-font-subtitle);
+}
+
+.apex-drive-ether-surface-material__grid input[type='color'] {
+  width: 100%;
+  height: 36px;
+  padding: 3px;
+  border: 1px solid rgb(23 34 31 / 18%);
+  border-radius: 9px;
+  background: #fff;
+}
+
+.apex-drive-ether-surface-material__range {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 8px;
+}
+
+.apex-drive-ether-surface-material__range input { width: 100%; accent-color: var(--ether-highlight); }
+.apex-drive-ether-surface-material__range output { color: #17221f; font: 800 11px/1 var(--ether-font-small); text-align: right; }
+
+.apex-drive-ether-surface-material__diagnostics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.apex-drive-ether-surface-material__diagnostics label {
+  padding: 9px 11px;
+  border: 1px solid rgb(23 34 31 / 12%);
+  border-radius: 10px;
+  background: #f7f8f7;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.apex-drive-ether-surface-material__diagnostics input { accent-color: var(--ether-highlight); }
+
+.apex-drive-ether-surface-material__diagnostics button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgb(23 34 31 / 16%);
+  border-radius: 10px;
+  color: #17221f;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.apex-drive-ether-surface-material__panel > footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #52615b;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.apex-drive-ether-surface-material__panel > footer[data-status='error'] span { color: #b02538; }
+.apex-drive-ether-surface-material__panel > footer[data-status='loading'] span { color: #9b6b00; }
+
+@media (max-width: 700px) {
+  .apex-drive-ether-surface-material { top: 76px; right: 16px; }
+  .apex-drive-ether-surface-material__grid { grid-template-columns: 1fr; }
+  .apex-drive-ether .apex-drive-ether-surface-material__panel { max-height: calc(100vh - 92px); overflow: auto; }
+}
+
 .apex-drive-ether-admin-layer {
   position: fixed;
   z-index: 100;
@@ -274,6 +527,237 @@
   background: #fff;
   box-shadow: 0 28px 80px rgb(0 0 0 / 24%);
   pointer-events: auto;
+}
+
+.apex-drive-ether .apex-drive-ether-track-admin {
+  display: grid;
+  width: min(1120px, calc(100vw - 48px));
+  max-height: min(860px, calc(100vh - 48px));
+  gap: 28px;
+  overflow: auto;
+  padding: 28px;
+  border: 1px solid rgb(23 34 31 / 16%);
+  border-radius: 24px;
+  color: #17221f;
+  background: #fff;
+  box-shadow: 0 28px 80px rgb(0 0 0 / 24%);
+  pointer-events: auto;
+}
+
+.apex-drive-ether-track-admin h3,
+.apex-drive-ether-track-admin h4,
+.apex-drive-ether-track-admin p,
+.apex-drive-ether-track-admin dl,
+.apex-drive-ether-track-admin dd {
+  margin: 0;
+}
+
+.apex-drive-ether-track-admin section > header {
+  display: grid;
+  gap: 6px;
+}
+
+.apex-drive-ether-track-admin section > header > span,
+.apex-drive-ether-track-admin__presets small,
+.apex-drive-ether-track-admin label > span {
+  color: var(--ether-highlight);
+  font-family: var(--ether-font-small);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.apex-drive-ether-track-admin h3 {
+  font-family: var(--ether-font-title);
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -.025em;
+}
+
+.apex-drive-ether-track-admin section > header p {
+  max-width: 760px;
+  color: #52615b;
+  font-family: var(--ether-font-subtitle);
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.apex-drive-ether-track-admin__existing {
+  display: grid;
+  gap: 14px;
+}
+
+.apex-drive-ether-track-admin__lock-note {
+  margin: 0;
+  padding: 11px 13px;
+  border: 1px solid rgb(179 126 0 / 22%);
+  border-radius: 11px;
+  color: #715100;
+  background: #fff8df;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.apex-drive-ether-track-admin__existing > div {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.3fr) minmax(220px, 1fr) auto auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.apex-drive-ether-track-admin label {
+  display: grid;
+  gap: 6px;
+}
+
+.apex-drive-ether-track-admin select,
+.apex-drive-ether-track-admin button {
+  min-height: 44px;
+  border: 1px solid rgb(23 34 31 / 18%);
+  border-radius: 11px;
+  color: #17221f;
+  background: #f5f7f6;
+  font-family: var(--ether-font-subtitle);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.apex-drive-ether-track-admin select {
+  min-width: 0;
+  padding: 0 12px;
+}
+
+.apex-drive-ether-track-admin button {
+  padding: 0 18px;
+  cursor: pointer;
+}
+
+.apex-drive-ether-track-admin select:disabled,
+.apex-drive-ether-track-admin button:disabled {
+  color: rgb(23 34 31 / 46%);
+  border-color: rgb(23 34 31 / 10%);
+  background: #edf0ee;
+  cursor: not-allowed;
+  opacity: .72;
+}
+
+.apex-drive-ether-track-admin button:disabled:hover {
+  border-color: rgb(23 34 31 / 10%);
+  background: #edf0ee;
+}
+
+.apex-drive-ether-track-admin button:hover,
+.apex-drive-ether-track-admin button:focus-visible {
+  border-color: var(--ether-highlight);
+  background: #fff;
+}
+
+.apex-drive-ether-track-admin__generator {
+  display: grid;
+  gap: 16px;
+  padding-top: 24px;
+  border-top: 1px solid rgb(23 34 31 / 14%);
+}
+
+.apex-drive-ether-track-admin__presets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.apex-drive-ether-track-admin__presets article {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid rgb(23 34 31 / 14%);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgb(0 0 0 / 7%);
+}
+
+.apex-drive-ether-track-admin__presets article[data-disabled='true'] {
+  background: #f4f6f5;
+  box-shadow: none;
+  opacity: .72;
+}
+
+.apex-drive-ether-track-admin__presets h4 {
+  font-family: var(--ether-font-hero);
+  font-size: 25px;
+  font-weight: 560;
+  letter-spacing: -.035em;
+}
+
+.apex-drive-ether-track-admin__presets p {
+  min-height: 48px;
+  color: #52615b;
+  font-family: var(--ether-font-subtitle);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.apex-drive-ether-track-admin__presets dl {
+  display: grid;
+  gap: 7px;
+  padding: 12px 0;
+  border-top: 1px solid rgb(23 34 31 / 11%);
+}
+
+.apex-drive-ether-track-admin__presets dl > div {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.apex-drive-ether-track-admin__presets dt {
+  color: #6c7974;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.apex-drive-ether-track-admin__presets dd {
+  overflow: hidden;
+  color: #17221f;
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apex-drive-ether-track-admin__presets article > a {
+  color: #52615b;
+  font-family: var(--ether-font-small);
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration-color: rgb(23 34 31 / 24%);
+  text-underline-offset: 3px;
+}
+
+.apex-drive-ether-track-admin__presets article > a:hover,
+.apex-drive-ether-track-admin__presets article > a:focus-visible {
+  color: var(--ether-highlight);
+  text-decoration-color: currentColor;
+}
+
+.apex-drive-ether-track-admin__presets article > button {
+  margin-top: auto;
+  color: var(--ether-on-highlight);
+  border-color: var(--ether-highlight);
+  background: var(--ether-highlight);
+}
+
+@media (max-width: 880px) {
+  .apex-drive-ether-track-admin__existing > div,
+  .apex-drive-ether-track-admin__presets {
+    grid-template-columns: 1fr;
+  }
+
+  .apex-drive-ether-track-admin__presets p {
+    min-height: 0;
+  }
 }
 
 .apex-drive-ether-admin__header {

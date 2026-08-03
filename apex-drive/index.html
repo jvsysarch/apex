@@ -126,6 +126,16 @@
         <output id="track-studio-document-name">Pista</output>
         <span id="track-studio-document-meta">Fuente local</span>
       </div>
+      <div class="track-studio-header__selectors">
+        <label>
+          <span>Pista</span>
+          <select id="track-studio-track-select" aria-label="Pista activa"></select>
+        </label>
+        <label id="track-studio-landscape-field" hidden>
+          <span>Paisaje</span>
+          <select id="track-studio-landscape-select" aria-label="Paisaje procedural"></select>
+        </label>
+      </div>
       <div
         id="track-studio-save-status"
         class="track-studio-header__status"
@@ -136,7 +146,13 @@
         <i aria-hidden="true"></i>
         <span>Borrador local listo</span>
       </div>
-      <button id="track-studio-exit" type="button">Volver a Drive</button>
+      <div class="track-studio-header__actions">
+        <button id="track-studio-create" type="button">Nueva pista</button>
+        <button id="track-studio-environment" type="button">Environment</button>
+        <button id="track-studio-regenerate" type="button" hidden>Nueva ruta</button>
+        <button id="track-studio-play" type="button" disabled>Preview</button>
+        <button id="track-studio-exit" type="button">Salir</button>
+      </div>
     </header>
     <aside id="vehicle-workshop" class="vehicle-workshop" hidden aria-label="Taller del vehículo">
       <button
@@ -393,6 +409,17 @@
       </button>
       <small id="autonomous-drive-status" aria-live="polite">IA · esperando activación</small>
       <small id="controller-status">Joystick · buscando…</small>
+      <div class="motion-steering-controls">
+        <button id="motion-steering-toggle" type="button" aria-pressed="false">
+          Volante DualShock · activar
+        </button>
+        <button id="motion-steering-calibrate" type="button" hidden>
+          Centrar volante
+        </button>
+        <small id="motion-steering-status" aria-live="polite">
+          Inclinación ±45° · dirección directa
+        </small>
+      </div>
       <button id="copy-racing-line" type="button">Copiar plan de trazada</button>
       <small id="racing-line-status" aria-live="polite">Trazada · aproximación inicial</small>
     </aside>
@@ -514,49 +541,169 @@
         </output>
       </section>
     </details>
+    <dialog id="track-create-dialog" class="track-preview-dialog" aria-labelledby="track-create-title">
+      <form id="track-create-form" class="track-preview-dialog__surface">
+        <header>
+          <div>
+            <small>APEX TRACK STUDIO</small>
+            <h2 id="track-create-title">Nueva pista local</h2>
+            <p>Crea un documento independiente. El primer guardado ocurre en este navegador.</p>
+          </div>
+          <button id="track-create-close" type="button" aria-label="Cerrar">Ã—</button>
+        </header>
+        <div class="track-create-dialog__fields">
+          <label>
+            <span>Nombre</span>
+            <input id="track-create-name" name="name" type="text" minlength="3" maxlength="80" autocomplete="off" required value="Nueva pista" />
+          </label>
+          <label>
+            <span>Paisaje inicial</span>
+            <select id="track-create-landscape" name="landscape"></select>
+          </label>
+        </div>
+        <p id="track-create-error" class="track-create-dialog__error" role="alert" hidden></p>
+        <p class="track-preview-dialog__note">
+          Track Studio continuará funcionando aunque APEX Void no esté disponible; cuando lo esté, sincronizará el borrador mediante su API.
+        </p>
+        <div class="track-preview-dialog__actions">
+          <button id="track-create-cancel" type="button">Cancelar</button>
+          <button id="track-create-confirm" type="submit">Crear y editar</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="track-preview-dialog" class="track-preview-dialog" aria-labelledby="track-preview-title">
+      <section class="track-preview-dialog__surface">
+        <header>
+          <div>
+            <small>APEX TRACK STUDIO</small>
+            <h2 id="track-preview-title">Preview de conducción</h2>
+            <p>Revisá el trazado activo y entrá a conducir su último borrador.</p>
+          </div>
+          <button id="track-preview-close" type="button" aria-label="Cerrar preview">×</button>
+        </header>
+        <dl class="track-preview-dialog__metrics">
+          <div><dt>Pista</dt><dd><output id="track-preview-name">—</output></dd></div>
+          <div><dt>Longitud</dt><dd><output id="track-preview-length">—</output></dd></div>
+          <div><dt>Pendiente máxima</dt><dd><output id="track-preview-grade">—</output></dd></div>
+          <div><dt>Superficie</dt><dd><output id="track-preview-surface">Asfalto</output></dd></div>
+        </dl>
+        <p class="track-preview-dialog__note">
+          El preview guarda el trazado actual y carga su colisión, asfalto y ambiente como una pista conducible.
+        </p>
+        <div class="track-preview-dialog__actions">
+          <button id="track-preview-cancel" type="button">Seguir editando</button>
+          <button id="track-preview-launch" type="button">Conducir pista</button>
+        </div>
+      </section>
+    </dialog>
     <details id="rendering-panel" hidden>
       <summary>⚙ Entornos / Rendering</summary>
       <section class="environment-controls">
-        <label>Perfil
-          <select id="environment-profile" aria-label="Perfil de entorno"></select>
-        </label>
-        <label>Nombre
-          <input id="environment-profile-name" type="text" maxlength="48" placeholder="Mi atardecer">
-        </label>
-        <label>HDRI
-          <select id="environment-asset" aria-label="HDRI activo"></select>
-        </label>
-        <label>Exposición <output id="environment-exposure-value">1.00</output>
-          <input id="environment-exposure" type="range" min="0.2" max="2.5" step="0.01" value="1">
-        </label>
-        <label>Luz HDRI <output id="environment-hdri-intensity-value">1.00</output>
-          <input id="environment-hdri-intensity" type="range" min="0" max="3" step="0.05" value="1">
-        </label>
-        <label>Brillo del cielo <output id="environment-sky-intensity-value">1.00</output>
-          <input id="environment-sky-intensity" type="range" min="0" max="2" step="0.05" value="1">
-        </label>
-        <label>Desenfoque cielo <output id="environment-sky-blur-value">0.00</output>
-          <input id="environment-sky-blur" type="range" min="0" max="1" step="0.01" value="0">
-        </label>
-        <label>Rotación HDRI <output id="environment-rotation-value">0°</output>
-          <input id="environment-rotation" type="range" min="-180" max="180" step="1" value="0">
-        </label>
-        <label>Color del sol
-          <input id="environment-sun-color" type="color" value="#fff1d8">
-        </label>
-        <label>Sol direccional <output id="environment-sun-intensity-value">2.35</output>
-          <input id="environment-sun-intensity" type="range" min="0" max="5" step="0.05" value="2.35">
-        </label>
-        <label>Altura del sol <output id="environment-sun-altitude-value">45°</output>
-          <input id="environment-sun-altitude" type="range" min="0" max="90" step="1" value="45">
-        </label>
-        <label>Ángulo del sol <output id="environment-sun-azimuth-value">0°</output>
-          <input id="environment-sun-azimuth" type="range" min="-180" max="180" step="1" value="0">
-        </label>
-        <label class="environment-checkbox">
-          <input id="environment-shadows" type="checkbox" checked>
-          Sombras suaves
-        </label>
+        <header class="environment-controls__header">
+          <div>
+            <small>APEX TRACK STUDIO</small>
+            <h2>Environment</h2>
+            <p>Iluminación, atmósfera y render de esta pista.</p>
+          </div>
+          <button id="environment-panel-close" type="button" aria-label="Cerrar Environment">×</button>
+        </header>
+        <details class="environment-controls__section" open>
+          <summary>Perfil y HDRI</summary>
+          <div>
+            <label>Perfil
+              <select id="environment-profile" aria-label="Perfil de entorno"></select>
+            </label>
+            <label>Nombre
+              <input id="environment-profile-name" type="text" maxlength="48" placeholder="Mi atardecer">
+            </label>
+            <label>HDRI
+              <select id="environment-asset" aria-label="HDRI activo"></select>
+            </label>
+          </div>
+        </details>
+        <details class="environment-controls__section" open>
+          <summary>Iluminación HDRI</summary>
+          <div>
+            <label>Exposición <output id="environment-exposure-value">1.00</output>
+              <input id="environment-exposure" type="range" min="0.2" max="2.5" step="0.01" value="1">
+            </label>
+            <label>Luz HDRI <output id="environment-hdri-intensity-value">1.00</output>
+              <input id="environment-hdri-intensity" type="range" min="0" max="3" step="0.05" value="1">
+            </label>
+            <label>Brillo del cielo <output id="environment-sky-intensity-value">1.00</output>
+              <input id="environment-sky-intensity" type="range" min="0" max="2" step="0.05" value="1">
+            </label>
+            <label>Desenfoque cielo <output id="environment-sky-blur-value">0.00</output>
+              <input id="environment-sky-blur" type="range" min="0" max="1" step="0.01" value="0">
+            </label>
+            <label>Rotación HDRI <output id="environment-rotation-value">0°</output>
+              <input id="environment-rotation" type="range" min="-180" max="180" step="1" value="0">
+            </label>
+          </div>
+        </details>
+        <details class="environment-controls__section" open>
+          <summary>Sol y sombras</summary>
+          <div>
+            <label>Color del sol
+              <input id="environment-sun-color" type="color" value="#fff1d8">
+            </label>
+            <label>Sol direccional <output id="environment-sun-intensity-value">2.35</output>
+              <input id="environment-sun-intensity" type="range" min="0" max="5" step="0.05" value="2.35">
+            </label>
+            <label>Altura del sol <output id="environment-sun-altitude-value">45°</output>
+              <input id="environment-sun-altitude" type="range" min="0" max="90" step="1" value="45">
+            </label>
+            <label>Ángulo del sol <output id="environment-sun-azimuth-value">0°</output>
+              <input id="environment-sun-azimuth" type="range" min="-180" max="180" step="1" value="0">
+            </label>
+            <label class="environment-checkbox">
+              <input id="environment-shadows" type="checkbox" checked>
+              Sombras suaves
+            </label>
+          </div>
+        </details>
+        <details class="environment-controls__section">
+          <summary>Atmósfera y fog</summary>
+          <div>
+            <label class="environment-checkbox">
+              <input id="environment-fog-enabled" type="checkbox">
+              Fog atmosférico
+            </label>
+            <label>Color del fog
+              <input id="environment-fog-color" type="color" value="#c8d2d0">
+            </label>
+            <label>Inicio del fog <output id="environment-fog-near-value">700 m</output>
+              <input id="environment-fog-near" type="range" min="0" max="10000" step="10" value="700">
+            </label>
+            <label>Final del fog <output id="environment-fog-far-value">2200 m</output>
+              <input id="environment-fog-far" type="range" min="100" max="20000" step="10" value="2200">
+            </label>
+          </div>
+        </details>
+        <details class="environment-controls__section" open>
+          <summary>Asfalto PBR</summary>
+          <div>
+            <label>Material
+              <select id="scene-road-material" aria-label="Material de asfalto"></select>
+            </label>
+            <label>Roughness <output id="scene-road-roughness-value">1.00</output>
+              <input id="scene-road-roughness" type="range" min="0" max="1" step="0.02" value="1">
+            </label>
+            <label>Relieve normal <output id="scene-road-normal-value">1.00</output>
+              <input id="scene-road-normal" type="range" min="0" max="2" step="0.05" value="1">
+            </label>
+            <label>Reflejo HDRI <output id="scene-road-environment-value">1.00</output>
+              <input id="scene-road-environment" type="range" min="0" max="3" step="0.05" value="1">
+            </label>
+            <label>Escala textura <output id="scene-road-scale-value">1.00×</output>
+              <input id="scene-road-scale" type="range" min="0.25" max="4" step="0.05" value="1">
+            </label>
+            <label>Tinte
+              <input id="scene-road-color" type="color" value="#ffffff">
+            </label>
+            <output id="scene-road-status">Asfalto listo</output>
+          </div>
+        </details>
         <div class="environment-actions">
           <button id="environment-save" type="button">Guardar perfil</button>
           <button id="environment-reset" type="button">Restablecer</button>

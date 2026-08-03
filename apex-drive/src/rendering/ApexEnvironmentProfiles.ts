@@ -19,6 +19,10 @@ export interface ApexEnvironmentSettings {
   readonly sunAltitudeDegrees: number;
   readonly sunAzimuthDegrees: number;
   readonly softShadows: boolean;
+  readonly fogEnabled: boolean;
+  readonly fogColor: string;
+  readonly fogNearM: number;
+  readonly fogFarM: number;
 }
 
 export interface ApexEnvironmentProfile {
@@ -60,6 +64,46 @@ export const APEX_ENVIRONMENT_ASSETS: readonly ApexEnvironmentAsset[] = Object.f
     ),
     attribution: 'ambientCG · CC0',
   }),
+  Object.freeze({
+    id: 'day-environment-040',
+    name: 'Bosque húmedo',
+    uri: apexDrivePublicUrl(
+      'assets/environments/ambientcg/DayEnvironmentHDRI040_1K_HDR.exr',
+    ),
+    attribution: 'ambientCG · CC0',
+  }),
+  Object.freeze({
+    id: 'day-environment-077',
+    name: 'Ruta de montaña',
+    uri: apexDrivePublicUrl(
+      'assets/environments/ambientcg/DayEnvironmentHDRI077_1K_HDR.exr',
+    ),
+    attribution: 'ambientCG · CC0',
+  }),
+  Object.freeze({
+    id: 'polyhaven-quarry-02',
+    name: 'Quebrada Andina',
+    uri: apexDrivePublicUrl(
+      'assets/environments/polyhaven/quarry_02_1k.hdr',
+    ),
+    attribution: 'Poly Haven · CC0',
+  }),
+  Object.freeze({
+    id: 'polyhaven-versveldpas',
+    name: 'Sierras de Altura',
+    uri: apexDrivePublicUrl(
+      'assets/environments/polyhaven/versveldpas_1k.hdr',
+    ),
+    attribution: 'Poly Haven · CC0',
+  }),
+  Object.freeze({
+    id: 'polyhaven-ostrich-road',
+    name: 'Estepa Cordillerana',
+    uri: apexDrivePublicUrl(
+      'assets/environments/polyhaven/ostrich_road_1k.hdr',
+    ),
+    attribution: 'Poly Haven · CC0',
+  }),
 ]);
 
 const createBuiltInProfile = (
@@ -87,6 +131,10 @@ export const DEFAULT_ENVIRONMENT_PROFILES: readonly ApexEnvironmentProfile[] = (
       sunAltitudeDegrees: 55,
       sunAzimuthDegrees: 180,
       softShadows: true,
+      fogEnabled: false,
+      fogColor: '#c8d2d0',
+      fogNearM: 700,
+      fogFarM: 2200,
     }),
     createBuiltInProfile('apex-hit-the-road', 'MS Win95', {
       environmentId: 'day-sky-065a',
@@ -100,6 +148,95 @@ export const DEFAULT_ENVIRONMENT_PROFILES: readonly ApexEnvironmentProfile[] = (
       sunAltitudeDegrees: 43,
       sunAzimuthDegrees: 150,
       softShadows: true,
+      fogEnabled: false,
+      fogColor: '#c9d1d0',
+      fogNearM: 700,
+      fogFarM: 2200,
+    }),
+    createBuiltInProfile('apex-bosque-humedo', 'Bosque húmedo', {
+      environmentId: 'day-environment-040',
+      exposure: 0.82,
+      hdriIntensity: 1.15,
+      skyIntensity: 0.86,
+      skyBlur: 0.08,
+      rotationDegrees: 18,
+      sunIntensity: 1.8,
+      sunColor: '#d9e5df',
+      sunAltitudeDegrees: 32,
+      sunAzimuthDegrees: 132,
+      softShadows: true,
+      fogEnabled: true,
+      fogColor: '#aebcb7',
+      fogNearM: 420,
+      fogFarM: 1450,
+    }),
+    createBuiltInProfile('apex-ruta-montana', 'Ruta de montaña', {
+      environmentId: 'day-environment-077',
+      exposure: 0.92,
+      hdriIntensity: 1.12,
+      skyIntensity: 0.98,
+      skyBlur: 0.01,
+      rotationDegrees: -48,
+      sunIntensity: 4.6,
+      sunColor: '#fff0cb',
+      sunAltitudeDegrees: 49,
+      sunAzimuthDegrees: 158,
+      softShadows: true,
+      fogEnabled: true,
+      fogColor: '#bdcbd1',
+      fogNearM: 900,
+      fogFarM: 3100,
+    }),
+    createBuiltInProfile('apex-quebrada-andina', 'Quebrada Andina', {
+      environmentId: 'polyhaven-quarry-02',
+      exposure: 0.93,
+      hdriIntensity: 1.08,
+      skyIntensity: 0.98,
+      skyBlur: 0.04,
+      rotationDegrees: 26,
+      sunIntensity: 4.6,
+      sunColor: '#ffe0b3',
+      sunAltitudeDegrees: 42,
+      sunAzimuthDegrees: 138,
+      softShadows: true,
+      fogEnabled: true,
+      fogColor: '#cbbda7',
+      fogNearM: 650,
+      fogFarM: 2000,
+    }),
+    createBuiltInProfile('apex-sierras-de-altura', 'Sierras de Altura', {
+      environmentId: 'polyhaven-versveldpas',
+      exposure: 0.86,
+      hdriIntensity: 1.02,
+      skyIntensity: 0.94,
+      skyBlur: 0.02,
+      rotationDegrees: -22,
+      sunIntensity: 4.2,
+      sunColor: '#fff1ce',
+      sunAltitudeDegrees: 51,
+      sunAzimuthDegrees: 164,
+      softShadows: true,
+      fogEnabled: true,
+      fogColor: '#b8c6c8',
+      fogNearM: 520,
+      fogFarM: 1800,
+    }),
+    createBuiltInProfile('apex-estepa-cordillerana', 'Estepa Cordillerana', {
+      environmentId: 'polyhaven-ostrich-road',
+      exposure: 0.88,
+      hdriIntensity: 1.04,
+      skyIntensity: 0.96,
+      skyBlur: 0.03,
+      rotationDegrees: 64,
+      sunIntensity: 4.4,
+      sunColor: '#ffe7c1',
+      sunAltitudeDegrees: 38,
+      sunAzimuthDegrees: 205,
+      softShadows: true,
+      fogEnabled: true,
+      fogColor: '#c4c8c2',
+      fogNearM: 760,
+      fogFarM: 2300,
     }),
   ])
 );
@@ -126,6 +263,15 @@ const sanitizeSettings = (value: unknown): ApexEnvironmentSettings | undefined =
     && /^#[0-9a-f]{6}$/i.test(settings.sunColor)
     ? settings.sunColor
     : '#ffffff';
+  const fogColor = typeof settings.fogColor === 'string'
+    && /^#[0-9a-f]{6}$/i.test(settings.fogColor)
+    ? settings.fogColor
+    : '#c8d2d0';
+  const fogNearM = finiteInRange(settings.fogNearM, 700, 0, 10_000);
+  const fogFarM = Math.max(
+    fogNearM + 1,
+    finiteInRange(settings.fogFarM, 2200, 1, 20_000),
+  );
   return Object.freeze({
     environmentId,
     exposure: finiteInRange(settings.exposure, 1, 0.2, 2.5),
@@ -138,7 +284,34 @@ const sanitizeSettings = (value: unknown): ApexEnvironmentSettings | undefined =
     sunAltitudeDegrees: finiteInRange(settings.sunAltitudeDegrees, 45, 0, 90),
     sunAzimuthDegrees: finiteInRange(settings.sunAzimuthDegrees, 0, -180, 180),
     softShadows: settings.softShadows !== false,
+    fogEnabled: settings.fogEnabled === true,
+    fogColor,
+    fogNearM,
+    fogFarM,
   });
+};
+
+export const readApexEnvironmentSettings = (
+  storageKey: string,
+): ApexEnvironmentSettings | undefined => {
+  try {
+    return sanitizeSettings(JSON.parse(localStorage.getItem(storageKey) ?? 'null'));
+  } catch {
+    return undefined;
+  }
+};
+
+export const writeApexEnvironmentSettings = (
+  storageKey: string,
+  settings: ApexEnvironmentSettings,
+): void => {
+  const sanitized = sanitizeSettings(settings);
+  if (!sanitized) return;
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(sanitized));
+  } catch {
+    // Rendering remains usable when storage is unavailable.
+  }
 };
 
 const readStoredProfiles = (): {
@@ -220,12 +393,17 @@ export class ApexEnvironmentProfilePanel {
     readonly sunAltitudeDegrees: HTMLInputElement;
     readonly sunAzimuthDegrees: HTMLInputElement;
     readonly softShadows: HTMLInputElement;
+    readonly fogEnabled: HTMLInputElement;
+    readonly fogColor: HTMLInputElement;
+    readonly fogNearM: HTMLInputElement;
+    readonly fogFarM: HTMLInputElement;
   };
 
   constructor(
     root: HTMLElement,
     private readonly apply: (settings: ApexEnvironmentSettings) => void,
     initialProfileId?: string,
+    initialSettings?: ApexEnvironmentSettings,
   ) {
     const stored = readStoredProfiles();
     this.customProfiles = stored.profiles;
@@ -250,6 +428,10 @@ export class ApexEnvironmentProfilePanel {
       sunAltitudeDegrees: root.querySelector('#environment-sun-altitude')!,
       sunAzimuthDegrees: root.querySelector('#environment-sun-azimuth')!,
       softShadows: root.querySelector('#environment-shadows')!,
+      fogEnabled: root.querySelector('#environment-fog-enabled')!,
+      fogColor: root.querySelector('#environment-fog-color')!,
+      fogNearM: root.querySelector('#environment-fog-near')!,
+      fogFarM: root.querySelector('#environment-fog-far')!,
     };
     this.outputs = Object.fromEntries([
       'exposure',
@@ -260,6 +442,8 @@ export class ApexEnvironmentProfilePanel {
       'sun-intensity',
       'sun-altitude',
       'sun-azimuth',
+      'fog-near',
+      'fog-far',
     ].map(key => [
       key,
       root.querySelector<HTMLOutputElement>(`#environment-${key}-value`)!,
@@ -271,7 +455,7 @@ export class ApexEnvironmentProfilePanel {
     this.renderProfileOptions();
     const initial = this.findProfile(this.selectedProfileId)
       ?? DEFAULT_ENVIRONMENT_PROFILES[0];
-    this.selectProfile(initial);
+    this.selectProfile(initial, initialSettings);
 
     this.profileSelect.addEventListener('change', () => {
       const profile = this.findProfile(this.profileSelect.value);
@@ -328,24 +512,36 @@ export class ApexEnvironmentProfilePanel {
     this.profileSelect.value = this.selectedProfileId;
   }
 
-  private selectProfile(profile: ApexEnvironmentProfile): void {
+  private writeSettings(settings: ApexEnvironmentSettings): void {
+    this.environmentSelect.value = settings.environmentId;
+    this.inputs.exposure.value = String(settings.exposure);
+    this.inputs.hdriIntensity.value = String(settings.hdriIntensity);
+    this.inputs.skyIntensity.value = String(settings.skyIntensity);
+    this.inputs.skyBlur.value = String(settings.skyBlur);
+    this.inputs.rotationDegrees.value = String(settings.rotationDegrees);
+    this.inputs.sunIntensity.value = String(settings.sunIntensity);
+    this.inputs.sunColor.value = settings.sunColor;
+    this.inputs.sunAltitudeDegrees.value = String(settings.sunAltitudeDegrees);
+    this.inputs.sunAzimuthDegrees.value = String(settings.sunAzimuthDegrees);
+    this.inputs.softShadows.checked = settings.softShadows;
+    this.inputs.fogEnabled.checked = settings.fogEnabled;
+    this.inputs.fogColor.value = settings.fogColor;
+    this.inputs.fogNearM.value = String(settings.fogNearM);
+    this.inputs.fogFarM.value = String(settings.fogFarM);
+  }
+
+  private selectProfile(
+    profile: ApexEnvironmentProfile,
+    settingsOverride?: ApexEnvironmentSettings,
+  ): void {
     this.selectedProfileId = profile.id;
     this.profileSelect.value = profile.id;
     this.profileNameInput.value = profile.builtIn ? '' : profile.name;
-    this.environmentSelect.value = profile.settings.environmentId;
-    this.inputs.exposure.value = String(profile.settings.exposure);
-    this.inputs.hdriIntensity.value = String(profile.settings.hdriIntensity);
-    this.inputs.skyIntensity.value = String(profile.settings.skyIntensity);
-    this.inputs.skyBlur.value = String(profile.settings.skyBlur);
-    this.inputs.rotationDegrees.value = String(profile.settings.rotationDegrees);
-    this.inputs.sunIntensity.value = String(profile.settings.sunIntensity);
-    this.inputs.sunColor.value = profile.settings.sunColor;
-    this.inputs.sunAltitudeDegrees.value = String(profile.settings.sunAltitudeDegrees);
-    this.inputs.sunAzimuthDegrees.value = String(profile.settings.sunAzimuthDegrees);
-    this.inputs.softShadows.checked = profile.settings.softShadows;
+    const settings = settingsOverride ?? profile.settings;
+    this.writeSettings(settings);
     this.deleteButton.disabled = profile.builtIn;
     this.refreshOutputs();
-    this.apply(profile.settings);
+    this.apply(settings);
     this.persist();
   }
 
@@ -362,6 +558,10 @@ export class ApexEnvironmentProfilePanel {
       sunAltitudeDegrees: Number(this.inputs.sunAltitudeDegrees.value),
       sunAzimuthDegrees: Number(this.inputs.sunAzimuthDegrees.value),
       softShadows: this.inputs.softShadows.checked,
+      fogEnabled: this.inputs.fogEnabled.checked,
+      fogColor: this.inputs.fogColor.value,
+      fogNearM: Number(this.inputs.fogNearM.value),
+      fogFarM: Number(this.inputs.fogFarM.value),
     });
   }
 
@@ -386,6 +586,8 @@ export class ApexEnvironmentProfilePanel {
     ).toFixed(2);
     this.outputs['sun-altitude'].value = `${this.inputs.sunAltitudeDegrees.value}°`;
     this.outputs['sun-azimuth'].value = `${this.inputs.sunAzimuthDegrees.value}°`;
+    this.outputs['fog-near'].value = `${this.inputs.fogNearM.value} m`;
+    this.outputs['fog-far'].value = `${this.inputs.fogFarM.value} m`;
   }
 
   private saveProfile(): void {

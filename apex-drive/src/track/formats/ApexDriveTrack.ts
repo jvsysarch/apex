@@ -48,6 +48,11 @@ export interface ApexDriveTrackDefinition {
       };
       readonly yawRadians: number;
     };
+    /** Elementos de experiencia embebidos por pistas legacy. */
+    readonly presentation?: {
+      readonly garage: boolean;
+      readonly startLine: boolean;
+    };
     readonly geometry: {
       readonly roadWidthM: number;
       readonly shoulderWidthM: number;
@@ -210,6 +215,21 @@ export const parseApexDriveTrack = (input: unknown): ApexDriveTrackDefinition =>
   numberAt(position.y, 'configuration.start.position.y');
   numberAt(position.z, 'configuration.start.position.z');
   numberAt(start.yawRadians, 'configuration.start.yawRadians');
+
+  if (configuration.presentation !== undefined) {
+    const presentation = recordAt(
+      configuration.presentation,
+      'configuration.presentation',
+    );
+    if (
+      typeof presentation.garage !== 'boolean'
+      || typeof presentation.startLine !== 'boolean'
+    ) {
+      throw new Error(
+        'configuration.presentation debe definir garage y startLine booleanos',
+      );
+    }
+  }
 
   const geometry = recordAt(configuration.geometry, 'configuration.geometry');
   numberAt(geometry.roadWidthM, 'configuration.geometry.roadWidthM', 0.1);

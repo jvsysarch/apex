@@ -1,0 +1,10 @@
+Poly Haven HDRIs
+License: CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Assets used by Apex Drive landscape presets:
+- Quarry 02: https://polyhaven.com/a/quarry_02
+- Versveldpas: https://polyhaven.com/a/versveldpas
+- Ostrich Road: https://polyhaven.com/a/ostrich_road
+
+Source: https://polyhaven.com/license

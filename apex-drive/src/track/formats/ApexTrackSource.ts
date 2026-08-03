@@ -18,14 +18,14 @@ import {
 } from './ApexTrackNetwork';
 import { isApexTrackBoundaryMode } from '../TrackBoundaryMode';
 import { isApexTrackRoadsideMode } from '../TrackRoadsideMode';
+import {
+  APEX_VOID_ENABLED,
+  apexVoidClient,
+} from '../../runtime/ApexVoidRuntime';
 
-export const APEX_TRACK_AUTHORING_SERVER_ORIGIN = 'http://127.0.0.1:5180';
 export const APEX_TRACK_SOURCE_FORMAT = 'apex-track-source';
 export const APEX_TRACK_SOURCE_FORMAT_VERSION = 2;
 export const APEX_TRACK_SOURCE_LEGACY_FORMAT_VERSION = 1;
-const APEX_TRACK_AUTHORING_ENABLED = (
-  import.meta.env.VITE_APEX_TRACK_AUTHORING_ENABLED !== 'false'
-);
 const bundledTrackSources = import.meta.glob(
   '../generated/*-track-source.json',
   {
@@ -466,25 +466,15 @@ export const loadGeneratedApexTrackSource = async (
 ): Promise<ApexTrackSource | undefined> => {
   if (
     typeof window !== 'undefined'
-    && import.meta.env.DEV
-    && APEX_TRACK_AUTHORING_ENABLED
+    && APEX_VOID_ENABLED
   ) {
-    const query = new URLSearchParams({ trackId, trackVersion });
     try {
-      const response = await fetch(
-        `${APEX_TRACK_AUTHORING_SERVER_ORIGIN}/api/tracks/source?${query}`,
-        { cache: 'no-store' },
-      );
-      if (response.status !== 204 && response.status !== 404) {
-        const payload = await response.json() as {
-          readonly ok?: boolean;
-          readonly source?: unknown;
-          readonly error?: string;
-        };
-        if (!response.ok || payload.ok !== true) {
-          throw new Error(payload.error ?? `HTTP ${response.status}`);
-        }
-        const source = parseApexTrackSource(payload.source);
+      const storedSource = await apexVoidClient.loadMapSource<unknown>({
+        trackId,
+        trackVersion,
+      });
+      if (storedSource) {
+        const source = parseApexTrackSource(storedSource);
         if (
           source.definition.track.id !== trackId
           || source.definition.track.version !== trackVersion

@@ -48,22 +48,33 @@ export class ApexInputFilter {
       : undefined;
     const rawSteering = analogSteering
       ?? (input.right && !input.left ? 1 : input.left && !input.right ? -1 : 0);
+    const directSteering = input.directSteering === true
+      && analogSteering !== undefined;
     const highSpeedBlend = clamp((Math.abs(speedKmh) - 35) / 105, 0, 1);
     const lowSlipBlend = clamp((Math.abs(speedKmh) - 20) / 100, 0, 1);
     const maximumSteering = profile === 'low-slip'
-      ? 1 - lowSlipBlend * 0.58
+      ? 1
       : analogSteering !== undefined
       ? 1
       : profile === 'physical-steering'
       ? 1
       : 1 - highSpeedBlend * 0.7;
     const steeringTarget = rawSteering * maximumSteering;
-    const steeringRate = profile === 'low-slip'
+    const reversingSteering = (
+      rawSteering !== 0
+      && this.steering !== 0
+      && Math.sign(rawSteering) !== Math.sign(this.steering)
+    );
+    const steeringRate = reversingSteering
+      ? profile === 'low-slip' ? 8.5 : 7
+      : profile === 'low-slip'
       ? rawSteering === 0 ? 4.8 : 2.6 - lowSlipBlend * 1.2
       : profile === 'physical-steering'
       ? rawSteering === 0 ? 4.2 : 2.6 - highSpeedBlend * 1.1
       : rawSteering === 0 ? 4.8 : 3.4 - highSpeedBlend * 1.1;
-    this.steering = moveToward(this.steering, steeringTarget, steeringRate * dt);
+    this.steering = directSteering
+      ? rawSteering
+      : moveToward(this.steering, steeringTarget, steeringRate * dt);
 
     const handbrakeTarget = input.handbrake ? 1 : 0;
     this.handbrake = moveToward(this.handbrake, handbrakeTarget, 8 * dt);
@@ -73,7 +84,9 @@ export class ApexInputFilter {
       pedal: this.pedal,
       // Conserva el recorrido completo, pero entrega menos ángulo alrededor
       // del centro para que la fuerza lateral no aparezca como un escalón.
-      steering: progressiveSteering(this.steering),
+      steering: directSteering
+        ? this.steering
+        : progressiveSteering(this.steering),
       handbrake: this.handbrake,
     });
   }

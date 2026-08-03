@@ -28,6 +28,9 @@ importers:
       '@jvsysarch/apex-physics':
         specifier: workspace:*
         version: link:../packages/apex-physics
+      '@jvsysarch/apex-void':
+        specifier: workspace:*
+        version: link:../packages/apex-void
       react:
         specifier: ^19.0.0
         version: 19.2.8
@@ -120,6 +123,15 @@ importers:
         version: 7.3.6(@types/node@22.20.1)
 
   apps/apex-run: {}
+
+  apps/apex-track-studio:
+    devDependencies:
+      typescript:
+        specifier: ^5.8.0
+        version: 5.9.3
+      vite:
+        specifier: ^7.0.0
+        version: 7.3.6(@types/node@22.20.1)
 
   packages/apex-assets: {}
 

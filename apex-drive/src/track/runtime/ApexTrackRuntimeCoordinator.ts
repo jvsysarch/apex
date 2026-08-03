@@ -25,6 +25,7 @@ export interface ApexTrackSegmentCollisionRegistry {
     closed: boolean,
     shoulderWidthM: number,
     groundHeightM: number,
+    roadHalfWidthsM?: readonly number[],
   ): void;
   removeTrackSegmentCollision(segmentId: string): void;
   retainTrackSegmentCollisions(segmentIds: ReadonlySet<string>): void;
@@ -85,6 +86,7 @@ const replaceCollision = (
     state.closed,
     state.shoulderWidthM,
     state.groundHeightM,
+    state.roadHalfWidthsM,
   );
 };
 

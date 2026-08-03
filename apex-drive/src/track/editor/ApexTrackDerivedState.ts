@@ -18,6 +18,7 @@ import {
   createTrackSafetySystem,
   type TrackSafetySystem,
 } from '../TrackSafetySystem';
+import { resolveTrackAdaptiveRoadHalfWidthsM } from '../TrackShoulderSystem';
 
 export interface ApexTrackDerivedTiming {
   readonly startRadiusM: number;
@@ -46,6 +47,8 @@ export interface ApexTrackDerivedState {
   readonly closed: boolean;
   readonly groundHeightM: number;
   readonly shoulderWidthM: number;
+  /** Ancho de media calzada ya limitado para no invertir curvas adaptativas. */
+  readonly roadHalfWidthsM: readonly number[];
   readonly distancesM: readonly number[];
   readonly lengthM: number;
   readonly frames: readonly RacingLineFrame[];
@@ -131,6 +134,13 @@ export const createApexTrackDerivedState = (
     });
   }));
   const frozenDistancesM = Object.freeze(distancesM);
+  const roadHalfWidthsM = configuration.roadsideMode === 'adaptive-terrain'
+    ? resolveTrackAdaptiveRoadHalfWidthsM(
+      points,
+      configuration.roadWidthM,
+      configuration.closed,
+    )
+    : Object.freeze(points.map(() => configuration.roadWidthM * 0.5));
   const centerLine = Object.freeze(points.map((point, index) => Object.freeze({
     x: point.x,
     y: point.y,
@@ -160,6 +170,7 @@ export const createApexTrackDerivedState = (
     leadDistanceM: configuration.laneCount === 3 ? 120 : 45,
     maximumProtectedCurveRadiusM: configuration.laneCount === 3 ? 520 : 260,
     elevatedGuardrailThresholdM: configuration.laneCount === 3 ? 3 : undefined,
+    adaptiveTerrain: configuration.roadsideMode === 'adaptive-terrain',
   });
 
   const start = points[0];
@@ -222,6 +233,7 @@ export const createApexTrackDerivedState = (
     closed: configuration.closed,
     groundHeightM: configuration.groundHeightM,
     shoulderWidthM: configuration.shoulderWidthM,
+    roadHalfWidthsM,
     distancesM: frozenDistancesM,
     lengthM,
     frames,

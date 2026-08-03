@@ -16,8 +16,16 @@ const viteScript = resolve(
   'bin',
   'vite.js',
 );
+const publicDemoConfig = resolve(
+  projectRoot,
+  '..',
+  'apps',
+  'apex-demo',
+  'vite.config.ts',
+);
 const children = new Set();
 let stopping = false;
+const VOID_STARTUP_TIMEOUT_MS = 60_000;
 
 const start = (script, args = []) => {
   const child = spawn(node, [script, ...args], {
@@ -43,21 +51,24 @@ const voidAvailable = async () => {
     const response = await fetch('http://127.0.0.1:5180/health');
     if (!response.ok) return false;
     const payload = await response.json();
-    return payload?.service === 'apex-void-local';
+    return payload?.service === 'apex-void';
   } catch {
     return false;
   }
 };
 
 const waitForVoidServer = async child => {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
+  const deadline = Date.now() + VOID_STARTUP_TIMEOUT_MS;
+  while (Date.now() < deadline) {
     if (child.exitCode !== null) {
       throw new Error('APEX Void terminó antes de iniciar Apex Drive');
     }
     if (await voidAvailable()) return;
     await new Promise(resolveWait => setTimeout(resolveWait, 100));
   }
-  throw new Error('APEX Void no respondió en 5 segundos');
+  throw new Error(
+    `APEX Void no respondió en ${VOID_STARTUP_TIMEOUT_MS / 1_000} segundos`,
+  );
 };
 
 process.once('SIGINT', () => stopAll('SIGINT'));
@@ -69,7 +80,15 @@ try {
     trackServer = start(trackServerScript);
     await waitForVoidServer(trackServer);
   }
-  const vite = start(viteScript, process.argv.slice(2));
+  const requestedArguments = process.argv.slice(2);
+  const workbench = requestedArguments.includes('--workbench');
+  const viteArguments = requestedArguments.filter(
+    argument => argument !== '--workbench',
+  );
+  if (!workbench) {
+    viteArguments.push('--config', publicDemoConfig);
+  }
+  const vite = start(viteScript, viteArguments);
   const exitCode = await new Promise(resolveExit => {
     const finish = code => resolveExit(code ?? 0);
     trackServer?.once('exit', finish);

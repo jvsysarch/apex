@@ -21,6 +21,7 @@ export interface ApexTrackSurfaceCollisionOptions {
   readonly sourcePoints: readonly TrackPoint[];
   readonly sourcePointsAreUnique: boolean;
   readonly roadWidthM: number;
+  readonly roadHalfWidthsM?: readonly number[];
   readonly roadThicknessM: number;
   readonly closed: boolean;
   readonly withBoundaryWalls: boolean;
@@ -39,6 +40,7 @@ const createRings = (
   points: readonly TrackPoint[],
   roadWidthM: number,
   closed: boolean,
+  roadHalfWidthsM?: readonly number[],
 ): readonly ApexTrackCollisionRing[] => points.map((point, index) => {
   const previous = points[
     closed
@@ -59,9 +61,10 @@ const createRings = (
   const left = new THREE.Vector3(-forward.z, 0, forward.x)
     .normalize()
     .applyAxisAngle(forward, point.bankRadians);
+  const halfWidthM = roadHalfWidthsM?.[index] ?? roadWidthM / 2;
   return {
-    left: center.clone().addScaledVector(left, roadWidthM / 2),
-    right: center.clone().addScaledVector(left, -roadWidthM / 2),
+    left: center.clone().addScaledVector(left, halfWidthM),
+    right: center.clone().addScaledVector(left, -halfWidthM),
   };
 });
 
@@ -296,7 +299,12 @@ export const createApexTrackSurfaceCollisionGroup = (
       colliders: Object.freeze([]),
     });
   }
-  const rings = createRings(points, options.roadWidthM, options.closed);
+  const rings = createRings(
+    points,
+    options.roadWidthM,
+    options.closed,
+    options.roadHalfWidthsM,
+  );
   const colliders = [
     ...createRoadColliders(
       segmentId,

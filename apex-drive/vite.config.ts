@@ -44,11 +44,17 @@ export default defineConfig({
     },
   }],
   server: {
+    host: '127.0.0.1',
+    port: 5175,
+    strictPort: true,
     fs: {
       allow: [apexRoot],
     },
     watch: {
-      ignored: ['**/src/track/generated/**'],
+      // `dist` sólo es salida de build. Vigilarlo durante el editor hace que
+      // Chokidar intente abrir los .ogg copiados y falle en Windows si el
+      // navegador o un reproductor los mantiene bloqueados.
+      ignored: ['**/dist/**', '**/src/track/generated/**'],
     },
   },
   build: {

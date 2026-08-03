@@ -25,10 +25,21 @@ Desde la raíz de `/apex`:
 corepack pnpm dev:drive
 ```
 
+El desarrollo local de Drive utiliza exactamente el mismo perfil de
+presentación que `apps/apex-demo`: Apex Ether, runtime `bare`, activos públicos
+y capacidades de producto. No existe una segunda UI local que pueda divergir
+de lo que se publicará.
+
 URL:
 
 ```text
 http://127.0.0.1:5175/
+```
+
+El banco técnico anterior sigue disponible explícitamente para diagnóstico:
+
+```text
+corepack pnpm dev:workbench
 ```
 
 El flujo histórico `apps/apex-run` permanece como alias temporal.

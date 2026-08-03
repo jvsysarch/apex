@@ -8,6 +8,7 @@ import type { TrackPoint } from '../ApexTestTrack';
 import type { ApexTrackRoadsideMode } from '../TrackRoadsideMode';
 import {
   createTrackShoulderProfile,
+  resolveTrackAdaptiveRoadHalfWidthsM,
   solveTrackShoulderConfluences,
   type TrackShoulderPoint,
 } from '../TrackShoulderSystem';
@@ -57,6 +58,33 @@ const appendUpwardQuad = (
   }
 };
 
+const appendUpwardTriangle = (
+  vertices: ApexVector3Tuple[],
+  indices: number[],
+  first: TrianglePoint,
+  second: TrianglePoint,
+  third: TrianglePoint,
+): void => {
+  const edgeOneX = second[0] - first[0];
+  const edgeOneY = second[1] - first[1];
+  const edgeOneZ = second[2] - first[2];
+  const edgeTwoX = third[0] - first[0];
+  const edgeTwoY = third[1] - first[1];
+  const edgeTwoZ = third[2] - first[2];
+  const normalX = edgeOneY * edgeTwoZ - edgeOneZ * edgeTwoY;
+  const normalY = edgeOneZ * edgeTwoX - edgeOneX * edgeTwoZ;
+  const normalZ = edgeOneX * edgeTwoY - edgeOneY * edgeTwoX;
+  if (normalX * normalX + normalY * normalY + normalZ * normalZ <= 1e-8) return;
+  const projectedNormalY = (
+    (second[2] - first[2]) * (third[0] - first[0])
+    - (second[0] - first[0]) * (third[2] - first[2])
+  );
+  const triangle = projectedNormalY >= 0 ? [first, second, third] : [first, third, second];
+  const baseIndex = vertices.length;
+  vertices.push(...triangle);
+  indices.push(baseIndex, baseIndex + 1, baseIndex + 2);
+};
+
 const asTuple = (point: TrackShoulderPoint): TrianglePoint => (
   [point.x, point.y, point.z]
 );
@@ -89,6 +117,13 @@ export const createApexTrackRoadsideCollisionGroup = (
   if (points.length < 2) return emptyGroup(segmentId);
 
   const lastUniqueIndex = points.length - 1;
+  const roadHalfWidthsM = options.roadsideMode === 'adaptive-terrain'
+    ? resolveTrackAdaptiveRoadHalfWidthsM(
+      points,
+      options.roadWidthM,
+      options.closed,
+    )
+    : points.map(() => options.roadWidthM * 0.5);
   const rings = points.map((point, index) => {
     const previous = points[
       options.closed
@@ -115,7 +150,7 @@ export const createApexTrackRoadsideCollisionGroup = (
       forward,
       point.bankRadians,
     );
-    const innerOffset = options.roadWidthM / 2;
+    const innerOffset = roadHalfWidthsM[index];
     const innerLeft = center.clone().addScaledVector(
       bankedLeft,
       innerOffset,
@@ -130,10 +165,11 @@ export const createApexTrackRoadsideCollisionGroup = (
       innerRight,
       horizontalLeftX: horizontalLeft.x,
       horizontalLeftZ: horizontalLeft.z,
-      roadWidthM: options.roadWidthM,
+      roadWidthM: innerOffset * 2,
       shoulderWidthM: options.shoulderWidthM,
       groundHeightM: options.groundHeightM,
       progress: index / Math.max(1, lastUniqueIndex),
+      adaptiveTerrain: options.roadsideMode === 'adaptive-terrain',
     });
   });
 
@@ -171,6 +207,8 @@ export const createApexTrackRoadsideCollisionGroup = (
         left: [true, true, true, true, true],
         right: [true, true, true, true, true],
       })),
+      adaptivePatches: [],
+      interiorFills: [],
     };
   const confluenceRings = options.closed
     ? [...shoulderConfluence.profiles, shoulderConfluence.profiles[0]]
@@ -178,11 +216,19 @@ export const createApexTrackRoadsideCollisionGroup = (
   const vertices: ApexVector3Tuple[] = [];
   const indices: number[] = [];
   const segmentCount = options.closed ? points.length : points.length - 1;
+  const replacedSegments = {
+    left: new Set<number>(),
+    right: new Set<number>(),
+  };
+  for (const patch of shoulderConfluence.adaptivePatches) {
+    patch.replacedSegmentIndices.forEach(index => replacedSegments[patch.side].add(index));
+  }
 
   for (let index = 0; index < segmentCount; index += 1) {
     const current = confluenceRings[index];
     const next = confluenceRings[index + 1];
     for (const side of ['left', 'right'] as const) {
+      if (replacedSegments[side].has(index)) continue;
       for (let stage = 0; stage < current[side].length - 1; stage += 1) {
         if (options.roadsideMode === 'shoulder' && stage !== 0) continue;
         const nextIndex = (index + 1) % points.length;
@@ -199,6 +245,17 @@ export const createApexTrackRoadsideCollisionGroup = (
           asTuple(current[side][stage + 1]),
         );
       }
+    }
+  }
+  for (const patch of shoulderConfluence.adaptivePatches) {
+    for (const triangle of patch.triangles) {
+      appendUpwardTriangle(
+        vertices,
+        indices,
+        asTuple(triangle.points[0]),
+        asTuple(triangle.points[1]),
+        asTuple(triangle.points[2]),
+      );
     }
   }
 

@@ -3,12 +3,20 @@ import { AUTOPISTA_CUMBRE_TRACK } from './AutopistaCumbreDefinition';
 import { CIRCUITO_BRAVO_TRACK } from './CircuitoBravoDefinition';
 import { CIRCUITO_CHALLHUACO_TRACK } from './ChallhuacoDefinition';
 import { CIRCUITO_VECTOR_TRACK } from './CircuitoVectorDefinition';
+import {
+  CIRCUITO_VECTOR_EVOLUCION_TRACK,
+} from './CircuitoVectorEvolucionDefinition';
+import { PROCEDURAL_LANDSCAPE_TRACK } from './ProceduralLandscapeDefinition';
+import { readApexTrackStudioLocalTracks } from './ApexTrackStudioLocalCatalog';
 
 export const APEX_DRIVE_TRACKS: readonly ApexDriveTrackDefinition[] = Object.freeze([
   CIRCUITO_BRAVO_TRACK,
   AUTOPISTA_CUMBRE_TRACK,
   CIRCUITO_VECTOR_TRACK,
   CIRCUITO_CHALLHUACO_TRACK,
+  PROCEDURAL_LANDSCAPE_TRACK,
+  CIRCUITO_VECTOR_EVOLUCION_TRACK,
+  ...readApexTrackStudioLocalTracks(),
 ]);
 
 const tracksByNumber = new Map<number, ApexDriveTrackDefinition>();

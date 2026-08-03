@@ -40,6 +40,12 @@ export interface ApexTrackEditorOptions {
   readonly snapToRoad?: (
     position: THREE.Vector3,
   ) => Promise<ApexTrackRoadSnap | undefined>;
+  readonly onPreview?: (
+    evaluatedPoints: readonly TrackPoint[],
+    roadWidthM: number,
+    boundaryMode: ApexTrackBoundaryMode,
+    roadsideMode: ApexTrackRoadsideMode,
+  ) => void;
   readonly onCommit: (
     evaluatedPoints: readonly TrackPoint[],
     controlPoints: readonly TrackPoint[],
@@ -63,7 +69,10 @@ export interface ApexTrackEditorOptions {
     boundaryMode: ApexTrackBoundaryMode,
     roadsideMode: ApexTrackRoadsideMode,
     simplificationToleranceM: number,
-  ) => Promise<{ readonly relativePath: string }>;
+  ) => Promise<{
+    readonly relativePath: string;
+    readonly revision?: string;
+  }>;
 }
 
 export interface ApexTrackRoadSnap {
@@ -690,6 +699,8 @@ export const createApexTrackEditor = (
   let pointerDownY = 0;
   let pointerDownForSelection = false;
   let draftAutosaveTimer: number | undefined;
+  let previewAnimationFrame: number | undefined;
+  let lastPreviewRenderedAt = 0;
   let flyPointerId: number | null = null;
   let flyYawRadians = 0;
   let flyPitchRadians = 0;
@@ -909,6 +920,37 @@ export const createApexTrackEditor = (
       : 'Edición pendiente · draft temporal guardado · soltar para aplicar';
   };
 
+  const renderTransientRoadPreview = (timestamp: number): void => {
+    if (timestamp - lastPreviewRenderedAt < 42) {
+      previewAnimationFrame = window.requestAnimationFrame(
+        renderTransientRoadPreview,
+      );
+      return;
+    }
+    previewAnimationFrame = undefined;
+    lastPreviewRenderedAt = timestamp;
+    if (!options.onPreview) return;
+    const transientEvaluated = simplifyEvaluatedTrack(
+      evaluateControlSpline(controls, collisionSpacingM, closed),
+      closed,
+      simplificationToleranceM,
+      APEX_TRACK_EDITOR_SIMPLIFICATION_MAX_SEGMENT_M,
+    );
+    options.onPreview(
+      readonlySnapshot(transientEvaluated),
+      roadWidthM,
+      boundaryMode,
+      roadsideMode,
+    );
+  };
+
+  const scheduleTransientRoadPreview = (): void => {
+    if (!options.onPreview || previewAnimationFrame !== undefined) return;
+    previewAnimationFrame = window.requestAnimationFrame(
+      renderTransientRoadPreview,
+    );
+  };
+
   const scheduleTransientDraftSave = (): void => {
     if (!options.onDraftSave) return;
     if (draftAutosaveTimer !== undefined) {
@@ -949,10 +991,15 @@ export const createApexTrackEditor = (
     updateReadout();
     panel.state.value = 'Spline · cambio pendiente · soltar para recalcular';
     panel.state.dataset.dirty = 'true';
+    scheduleTransientRoadPreview();
     scheduleTransientDraftSave();
   };
 
   const recalculateAndCommit = (): void => {
+    if (previewAnimationFrame !== undefined) {
+      window.cancelAnimationFrame(previewAnimationFrame);
+      previewAnimationFrame = undefined;
+    }
     if (draftAutosaveTimer !== undefined) {
       window.clearTimeout(draftAutosaveTimer);
       draftAutosaveTimer = undefined;
@@ -1626,7 +1673,7 @@ export const createApexTrackEditor = (
   panel.saveFile.addEventListener('click', () => {
     if (!options.onSaveFile) return;
     panel.saveFile.disabled = true;
-    panel.state.value = 'Archivo · enviando al servidor local…';
+    panel.state.value = 'Publicando una revisión en APEX Void…';
     void options.onSaveFile(
       readonlySnapshot(controls),
       readonlySnapshot(evaluated),
@@ -1635,9 +1682,9 @@ export const createApexTrackEditor = (
       roadsideMode,
       simplificationToleranceM,
     ).then(result => {
-      panel.state.value = (
-        `Archivo guardado · ${result.relativePath} · activo al recargar`
-      );
+      panel.state.value = result.revision
+        ? `Publicado en APEX Void · ${result.revision}`
+        : `Publicado · ${result.relativePath}`;
       panel.saveFile.textContent = 'Guardado';
       window.setTimeout(() => {
         panel.saveFile.textContent = 'Guardar fuente';
@@ -1681,6 +1728,10 @@ export const createApexTrackEditor = (
     if (draftAutosaveTimer !== undefined) {
       window.clearTimeout(draftAutosaveTimer);
       draftAutosaveTimer = undefined;
+    }
+    if (previewAnimationFrame !== undefined) {
+      window.cancelAnimationFrame(previewAnimationFrame);
+      previewAnimationFrame = undefined;
     }
     transform.detach();
     transform.enabled = true;

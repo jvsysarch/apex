@@ -1,4 +1,5 @@
 import * as THREE from 'three/webgpu';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -8,6 +9,7 @@ import {
   type ApexCarPhysicsDefinition,
   type ApexHandlingStage,
   type ApexMotorcyclePhysicsDefinition,
+  type ApexVector3Tuple,
   type ApexVehicleTrainingSnapshot,
   type DriverInput,
   PHYSICS_HZ,
@@ -16,11 +18,8 @@ import {
 import { SurfaceRegistry } from '@jvsysarch/apex-physics';
 import {
   APEX_MOTORCYCLE_CATALOG,
-  APEX_VEHICLE_DEFINITIONS,
   DEFAULT_APEX_MOTORCYCLE,
   findApexMotorcycle,
-  parseApexDriveCarSpecification,
-  type ApexDriveCarSpecification,
 } from '@jvsysarch/apex-car';
 import {
   loadApexPhysicsBrowserRuntime,
@@ -30,6 +29,14 @@ import {
   APEX_DRIVE_RUNTIME_PROFILE,
 } from './runtime/ApexDriveRuntimeProfile';
 import { apexDrivePublicUrl } from './runtime/ApexDrivePublicUrl';
+import {
+  readApexDriveStartupContext,
+} from './runtime/ApexDriveStartupContext';
+import {
+  APEX_MOTION_STEERING_FULL_TILT_DEGREES,
+  ApexDualShockMotionSteering,
+  type ApexMotionSteeringSnapshot,
+} from './runtime/ApexDualShockMotionSteering';
 import {
   loadApexVoidAsset,
   loadApexVoidAssetCatalog,
@@ -58,7 +65,9 @@ import {
   APEX_ENVIRONMENT_ASSETS,
   ApexEnvironmentProfilePanel,
   DEFAULT_ENVIRONMENT_PROFILES,
+  readApexEnvironmentSettings,
   type ApexEnvironmentSettings,
+  writeApexEnvironmentSettings,
 } from './rendering/ApexEnvironmentProfiles';
 import { createApexParkingLotVisual } from './rendering/ApexParkingLotRenderer';
 import {
@@ -89,15 +98,33 @@ import {
 import { createTrackTunnelSystem } from './rendering/TrackTunnelSystem';
 import { createTrackVisualLodSystem } from './rendering/TrackVisualLodSystem';
 import {
+  ACTIVE_PROCEDURAL_TRACK,
   ACTIVE_TRACK,
+  ACTIVE_TRACK_INSTANCE_ID,
   ACTIVE_TRACK_OPTIONS,
   ACTIVE_TRACK_PRIMARY_SEGMENT,
   ACTIVE_TRACK_SOURCE,
 } from './track/ActiveTrack';
 import {
-  APEX_TRACK_AUTHORING_SERVER_ORIGIN,
-} from './track/formats/ApexTrackSource';
+  APEX_LANDSCAPE_PRESETS,
+  PROCEDURAL_LANDSCAPE_TRACK_ID,
+  readActiveApexLandscapePreset,
+  writeActiveApexLandscapePreset,
+} from './track/landscape/ApexLandscapePresets';
+import {
+  createApexAdaptiveTrackFloorGeometry,
+  createApexProceduralLandscapeGeometry,
+} from './track/landscape/ApexProceduralLandscape';
+import { createApexProceduralRouteSeed } from './track/ProceduralLandscapeTrack';
+import {
+  APEX_VOID_BASE_URL,
+  apexVoidClient,
+} from './runtime/ApexVoidRuntime';
 import { formatApexDriveTrackNumber } from './track/catalog/ApexDriveTrackCatalog';
+import {
+  createApexTrackStudioLocalTrack,
+  isApexProceduralLandscapeDefinition,
+} from './track/catalog/ApexTrackStudioLocalCatalog';
 import {
   CIRCUITO_CHALLHUACO_CONTROL_POINTS,
   CIRCUITO_CHALLHUACO_ID,
@@ -128,7 +155,13 @@ import {
   APEX_TRACK_DRAFT_FORMAT_VERSION,
   loadApexTrackDraft,
   saveApexTrackDraft,
+  type ApexTrackDraft,
 } from './track/editor/ApexTrackDraftStorage';
+import {
+  loadApexMapDraftFromVoid,
+  saveApexMapDraftToVoid,
+  scheduleApexMapDraftSave,
+} from './track/editor/ApexVoidMapDraftRepository';
 import {
   TEST_TRACK_ACTUAL_MAX_BANK_DEGREES,
   TEST_TRACK_CURVE,
@@ -158,6 +191,7 @@ import {
 import { resolveTrackRoadsideWidthM } from './track/TrackRoadsideWidth';
 import {
   createTrackShoulderProfile,
+  resolveTrackAdaptiveRoadHalfWidthsM,
   solveTrackShoulderConfluences,
   type TrackShoulderProfile,
 } from './track/TrackShoulderSystem';
@@ -176,7 +210,13 @@ import {
   replaceApexCarCatalog,
   type ApexCarDefinition,
 } from './vehicle/ApexCarCatalog';
+import {
+  createApexCarPhysicsDefinition,
+} from './vehicle/ApexCarPhysicsDefinitionFactory';
 import { configureApexCarMaterial } from './vehicle/ApexCarMaterials';
+import {
+  loadApexDriveVehicleSpecifications,
+} from './vehicle/ApexVehicleManifestLoader';
 import {
   ApexAutonomousDriver,
   type ApexAutonomousObstacle,
@@ -195,8 +235,20 @@ import './style.css';
 type UiMode = 'off' | 'read' | 'tuning';
 
 document.documentElement.dataset.apexDriveProfile = APEX_DRIVE_RUNTIME_PROFILE;
-const APEX_DRIVE_BARE_RUNTIME = (
-  import.meta.env.VITE_APEX_DRIVE_BARE_RUNTIME === 'true'
+const {
+  bareRuntime: APEX_DRIVE_BARE_RUNTIME,
+  searchParams,
+  trackStudioApplication: apexTrackStudioApplication,
+  trackEditorMode,
+  driveApplicationUrl: apexDriveApplicationUrl,
+  trackStudioApplicationUrl: apexTrackStudioApplicationUrl,
+  requestedEtherHud,
+  requestedTrackEditorSegmentId,
+} = readApexDriveStartupContext();
+const trackDraftPreviewMode = (
+  !APEX_DRIVE_PUBLIC_DEMO
+  && !trackEditorMode
+  && searchParams.get('play') === 'draft'
 );
 document.documentElement.dataset.apexDrivePresentation = (
   APEX_DRIVE_BARE_RUNTIME ? 'bare' : 'full'
@@ -204,11 +256,9 @@ document.documentElement.dataset.apexDrivePresentation = (
 if (!APEX_DRIVE_BARE_RUNTIME) {
   await import('./ui/ethereal.css');
 }
-const searchParams = new URLSearchParams(window.location.search);
-const requestedEtherHud = searchParams.get('ether');
-const trackEditorMode = searchParams.get('edit') === 'track';
-const requestedTrackEditorSegmentId = (
-  searchParams.get('editSegment')?.trim() || undefined
+const activeLandscapePreset = readActiveApexLandscapePreset(
+  ACTIVE_TRACK.track.id,
+  isApexProceduralLandscapeDefinition(ACTIVE_TRACK),
 );
 document.documentElement.dataset.apexTrackStudio = String(trackEditorMode);
 if (trackEditorMode) {
@@ -238,8 +288,74 @@ const trackStudioDocumentMeta = document.querySelector<HTMLElement>(
 const trackStudioSaveStatus = document.querySelector<HTMLElement>(
   '#track-studio-save-status',
 )!;
+const trackStudioTrackSelect = document.querySelector<HTMLSelectElement>(
+  '#track-studio-track-select',
+)!;
+const trackStudioLandscapeField = document.querySelector<HTMLElement>(
+  '#track-studio-landscape-field',
+)!;
+const trackStudioLandscapeSelect = document.querySelector<HTMLSelectElement>(
+  '#track-studio-landscape-select',
+)!;
+const trackStudioPlay = document.querySelector<HTMLButtonElement>(
+  '#track-studio-play',
+)!;
+const trackStudioRegenerate = document.querySelector<HTMLButtonElement>(
+  '#track-studio-regenerate',
+)!;
+const trackStudioEnvironment = document.querySelector<HTMLButtonElement>(
+  '#track-studio-environment',
+)!;
 const trackStudioExit = document.querySelector<HTMLButtonElement>(
   '#track-studio-exit',
+)!;
+const trackStudioCreate = document.querySelector<HTMLButtonElement>(
+  '#track-studio-create',
+)!;
+const trackCreateDialog = document.querySelector<HTMLDialogElement>(
+  '#track-create-dialog',
+)!;
+const trackCreateForm = document.querySelector<HTMLFormElement>(
+  '#track-create-form',
+)!;
+const trackCreateClose = document.querySelector<HTMLButtonElement>(
+  '#track-create-close',
+)!;
+const trackCreateCancel = document.querySelector<HTMLButtonElement>(
+  '#track-create-cancel',
+)!;
+const trackCreateName = document.querySelector<HTMLInputElement>(
+  '#track-create-name',
+)!;
+const trackCreateLandscape = document.querySelector<HTMLSelectElement>(
+  '#track-create-landscape',
+)!;
+const trackCreateError = document.querySelector<HTMLElement>(
+  '#track-create-error',
+)!;
+const trackPreviewDialog = document.querySelector<HTMLDialogElement>(
+  '#track-preview-dialog',
+)!;
+const trackPreviewClose = document.querySelector<HTMLButtonElement>(
+  '#track-preview-close',
+)!;
+const trackPreviewCancel = document.querySelector<HTMLButtonElement>(
+  '#track-preview-cancel',
+)!;
+const trackPreviewLaunch = document.querySelector<HTMLButtonElement>(
+  '#track-preview-launch',
+)!;
+const trackPreviewName = document.querySelector<HTMLOutputElement>(
+  '#track-preview-name',
+)!;
+const trackPreviewLength = document.querySelector<HTMLOutputElement>(
+  '#track-preview-length',
+)!;
+const trackPreviewGrade = document.querySelector<HTMLOutputElement>(
+  '#track-preview-grade',
+)!;
+const trackPreviewSurface = document.querySelector<HTMLOutputElement>(
+  '#track-preview-surface',
 )!;
 const setTrackStudioSaveStatus = (
   message: string,
@@ -257,12 +373,35 @@ if (trackEditorMode) {
     ACTIVE_TRACK.track.name,
   ].join(' · ');
   trackStudioDocumentMeta.textContent = [
-    ACTIVE_TRACK.track.id,
+    ACTIVE_TRACK_INSTANCE_ID,
     `v${ACTIVE_TRACK.track.version}`,
+    ...(ACTIVE_PROCEDURAL_TRACK ? [
+      ACTIVE_PROCEDURAL_TRACK.algorithm,
+      `terreno ${ACTIVE_PROCEDURAL_TRACK.terrainSeed}`,
+      `ruta ${ACTIVE_PROCEDURAL_TRACK.seed}`,
+    ] : []),
     `${ACTIVE_TRACK_SOURCE?.segments.length ?? 1} tramo${
       (ACTIVE_TRACK_SOURCE?.segments.length ?? 1) === 1 ? '' : 's'
     }`,
   ].join(' · ');
+  trackStudioTrackSelect.replaceChildren(...ACTIVE_TRACK_OPTIONS.map(track => (
+    new Option(
+      `${formatApexDriveTrackNumber(track.track.number)} · ${track.track.name}`,
+      track.track.id,
+    )
+  )));
+  trackStudioTrackSelect.value = ACTIVE_TRACK.track.id;
+  trackStudioLandscapeSelect.replaceChildren(...APEX_LANDSCAPE_PRESETS.map(
+    preset => new Option(preset.name, preset.id),
+  ));
+  trackCreateLandscape.replaceChildren(...APEX_LANDSCAPE_PRESETS.map(
+    preset => new Option(preset.name, preset.id),
+  ));
+  trackStudioLandscapeField.hidden = !activeLandscapePreset;
+  if (activeLandscapePreset) {
+    trackStudioLandscapeSelect.value = activeLandscapePreset.id;
+  }
+  trackStudioRegenerate.hidden = !activeLandscapePreset;
 }
 let startupPresentationComplete = false;
 let startupRevealFallback: number | undefined;
@@ -281,6 +420,14 @@ canvas.dataset.trackNumber = formatApexDriveTrackNumber(
   ACTIVE_TRACK.track.number,
 );
 canvas.dataset.trackId = ACTIVE_TRACK.track.id;
+canvas.dataset.trackInstanceId = ACTIVE_TRACK_INSTANCE_ID;
+canvas.dataset.trackRouteAlgorithm = (
+  ACTIVE_PROCEDURAL_TRACK?.algorithm ?? 'authored'
+);
+canvas.dataset.trackRouteSeed = String(ACTIVE_PROCEDURAL_TRACK?.seed ?? 0);
+canvas.dataset.trackTerrainSeed = String(
+  ACTIVE_PROCEDURAL_TRACK?.terrainSeed ?? 0,
+);
 canvas.dataset.trackName = ACTIVE_TRACK.track.name;
 canvas.dataset.trackVersion = ACTIVE_TRACK.track.version;
 canvas.dataset.trackSource = ACTIVE_TRACK_SOURCE
@@ -296,6 +443,7 @@ canvas.dataset.trackFormat = [
   ACTIVE_TRACK.format,
   ACTIVE_TRACK.formatVersion,
 ].join('@');
+canvas.dataset.trackLandscape = activeLandscapePreset?.id ?? 'flat';
 const importedTrackCollisionOnly = (
   ACTIVE_TRACK.track.id === CIRCUITO_CHALLHUACO_ID
 );
@@ -325,7 +473,7 @@ const assetLibraryStatus = document.querySelector<HTMLElement>(
 )!;
 const trackEditorVehicleEntryStorageKey = [
   'apex-run.v3.track-editor-vehicle-entry.v1',
-  ACTIVE_TRACK.track.id,
+  ACTIVE_TRACK_INSTANCE_ID,
   ACTIVE_TRACK.track.version,
 ].join('.');
 const vehicleKindSelect = document.querySelector<HTMLSelectElement>('#vehicle-kind')!;
@@ -470,6 +618,15 @@ const cameraHelp = document.querySelector<HTMLElement>('#camera-help')!;
 const autonomousDriveButton = document.querySelector<HTMLButtonElement>('#autonomous-drive')!;
 const autonomousDriveStatus = document.querySelector<HTMLElement>('#autonomous-drive-status')!;
 const controllerStatus = document.querySelector<HTMLElement>('#controller-status')!;
+const motionSteeringToggle = document.querySelector<HTMLButtonElement>(
+  '#motion-steering-toggle',
+)!;
+const motionSteeringCalibrate = document.querySelector<HTMLButtonElement>(
+  '#motion-steering-calibrate',
+)!;
+const motionSteeringStatus = document.querySelector<HTMLElement>(
+  '#motion-steering-status',
+)!;
 const audioControlRoot = document.querySelector<HTMLDetailsElement>('#audio-control')!;
 const engineVolumeInput = document.querySelector<HTMLInputElement>('#engine-volume')!;
 const engineVolumeOutput = document.querySelector<HTMLOutputElement>('#engine-volume-value')!;
@@ -589,107 +746,16 @@ const selectedCarStorageKey = 'apex-v3-selected-car.v2';
 const requestedVehicleKind = APEX_DRIVE_PUBLIC_DEMO
   ? 'car'
   : searchParams.get('vehicle');
-const configuredVehicleManifest = (
-  import.meta.env.VITE_APEX_DRIVE_VEHICLE_MANIFEST
-)?.trim();
-const configuredVehicleManifests = (() => {
-  const encodedManifests = (
-    import.meta.env.VITE_APEX_DRIVE_VEHICLE_MANIFESTS
-  )?.trim();
-  if (!encodedManifests) {
-    return configuredVehicleManifest ? [configuredVehicleManifest] : [];
-  }
-  const manifests = JSON.parse(encodedManifests) as unknown;
-  if (
-    !Array.isArray(manifests)
-    || manifests.some(manifest => typeof manifest !== 'string')
-  ) {
-    throw new Error(
-      'VITE_APEX_DRIVE_VEHICLE_MANIFESTS debe ser una lista de URLs.',
-    );
-  }
-  return manifests.map(manifest => manifest.trim()).filter(Boolean);
-})();
-const requestedVehicleManifest = APEX_DRIVE_PUBLIC_DEMO
-  ? undefined
-  : searchParams.get('vehicleManifest')?.trim();
-const studioVehicleId = APEX_DRIVE_PUBLIC_DEMO
-  ? undefined
-  : searchParams.get('studioVehicleId')?.trim();
-const studioVehicleRevision = APEX_DRIVE_PUBLIC_DEMO
-  ? undefined
-  : searchParams.get('studioVehicleRevision')?.trim();
-const loadStudioVehicle = async (): Promise<
-  ApexDriveCarSpecification | undefined
-> => {
-  if (!studioVehicleId || !studioVehicleRevision) return undefined;
-  const encodedId = encodeURIComponent(studioVehicleId);
-  const encodedRevision = encodeURIComponent(studioVehicleRevision);
-  const response = await fetch(
-    `http://127.0.0.1:5180/api/void/drive-cars/${encodedId}`
-    + `/revisions/${encodedRevision}/files/vehicle.json`,
-  );
-  if (!response.ok) {
-    throw new Error(
-      `APEX Void no pudo cargar ${studioVehicleId} (${response.status})`,
-    );
-  }
-  return parseApexDriveCarSpecification(await response.json());
-};
-const loadVehicleManifest = async (
-  configuredManifest: string,
-): Promise<ApexDriveCarSpecification> => {
-  const manifestUrl = (() => {
-    try {
-      return new URL(configuredManifest).toString();
-    } catch {
-      return new URL(
-        apexDrivePublicUrl(configuredManifest),
-        window.location.href,
-      ).toString();
-    }
-  })();
-  const response = await fetch(manifestUrl);
-  if (!response.ok) {
-    throw new Error(
-      `No se pudo cargar el manifiesto del vehículo (${response.status})`,
-    );
-  }
-  const document = await response.json() as {
-    asset?: { modelUrl?: string; revision?: string };
-  };
-  if (document.asset?.modelUrl) {
-    const configuredModelUrl = document.asset.modelUrl;
-    const modelUrl = (() => {
-      try {
-        return new URL(configuredModelUrl);
-      } catch {
-        const assetUrl = /^\/?assets\//.test(configuredModelUrl)
-          ? apexDrivePublicUrl(configuredModelUrl)
-          : configuredModelUrl;
-        return new URL(assetUrl, manifestUrl);
-      }
-    })();
-    if (document.asset.revision) {
-      modelUrl.searchParams.set('revision', document.asset.revision);
-    }
-    document.asset.modelUrl = modelUrl.toString();
-  }
-  return parseApexDriveCarSpecification(document);
-};
-const loadedVehicleSpecifications = await (async () => {
-  const studioVehicle = await loadStudioVehicle();
-  if (studioVehicle) return [studioVehicle];
-  const manifests = configuredVehicleManifests.length > 0
-    ? configuredVehicleManifests
-    : requestedVehicleManifest
-      ? [requestedVehicleManifest]
-      : [];
-  return Promise.all(manifests.map(loadVehicleManifest));
-})().catch(error => {
+const loadedVehicleSpecifications = await loadApexDriveVehicleSpecifications({
+  publicDemo: APEX_DRIVE_PUBLIC_DEMO,
+  searchParams,
+  voidBaseUrl: APEX_VOID_BASE_URL,
+  configuredManifest: import.meta.env.VITE_APEX_DRIVE_VEHICLE_MANIFEST,
+  configuredManifests: import.meta.env.VITE_APEX_DRIVE_VEHICLE_MANIFESTS,
+}).catch(error => {
   if (APEX_DRIVE_PUBLIC_DEMO) throw error;
   console.error(error);
-  return [] as ApexDriveCarSpecification[];
+  return [];
 });
 const configuredCars = loadedVehicleSpecifications.map(
   carFromVehicleSpecification,
@@ -756,66 +822,7 @@ const activeVehicleKind: ApexVehicleKind = isAuditRuntime
 const activeCar = requestedCar ?? savedCar ?? defaultCar;
 const activeVehicleSpecification = activeCar.vehicleSpecification;
 const activeMotorcycle = requestedMotorcycle ?? DEFAULT_APEX_MOTORCYCLE;
-const carPhysicsDefinitionFor = (
-  definition: ApexCarDefinition,
-): ApexCarPhysicsDefinition => {
-  const physicsDefinition = APEX_VEHICLE_DEFINITIONS.get(
-    definition.physicsDefinitionId,
-  );
-  if (!physicsDefinition || physicsDefinition.kind !== 'car') {
-    throw new Error(
-      `No existe la definición física de automóvil ${definition.physicsDefinitionId}`,
-    );
-  }
-  const specification = definition.vehicleSpecification;
-  if (!specification) return physicsDefinition;
-  const frontLeft = specification.wheels['front-left'];
-  const frontRight = specification.wheels['front-right'];
-  const rearLeft = specification.wheels['rear-left'];
-  const rearRight = specification.wheels['rear-right'];
-  const frontAxleZ = (frontLeft.positionM[2] + frontRight.positionM[2]) * 0.5;
-  const rearAxleZ = (rearLeft.positionM[2] + rearRight.positionM[2]) * 0.5;
-  const physicalWheels = [frontLeft, frontRight, rearLeft, rearRight];
-  const collision = specification.collision.chassisBox;
-  return Object.freeze({
-    ...physicsDefinition,
-    id: `${physicsDefinition.id}:${specification.id}@${specification.version}`,
-    dimensions: Object.freeze({
-      ...physicsDefinition.dimensions,
-      lengthM: specification.dimensions.lengthM,
-      widthM: specification.dimensions.widthM,
-      chassisHeightM: collision.heightM,
-      wheelbaseM: frontAxleZ - rearAxleZ,
-      frontTrackM: Math.abs(
-        frontRight.positionM[0] - frontLeft.positionM[0],
-      ),
-      rearTrackM: Math.abs(
-        rearRight.positionM[0] - rearLeft.positionM[0],
-      ),
-      axleCenterOffsetM: (frontAxleZ + rearAxleZ) * 0.5,
-      wheelRadiusM: physicalWheels.reduce(
-        (total, wheel) => total + wheel.radiusM,
-        0,
-      ) / physicalWheels.length,
-      wheelWidthM: physicalWheels.reduce(
-        (total, wheel) => total + wheel.widthM,
-        0,
-      ) / physicalWheels.length,
-      centerOfMassOffsetM: specification.dynamics.centerOfMassM[1],
-    }),
-    chassisBox: Object.freeze({
-      lengthM: collision.lengthM,
-      widthM: collision.widthM,
-      frontWidthM: collision.frontWidthM,
-      rearWidthM: collision.rearWidthM,
-      heightM: collision.heightM,
-      centerOffsetYM:
-        collision.centerM[1] - specification.dynamics.centerOfMassM[1],
-    }),
-    massKg: specification.dynamics.massKg,
-  });
-};
-const baseActiveCarPhysicsDefinition = carPhysicsDefinitionFor(activeCar);
+const baseActiveCarPhysicsDefinition = createApexCarPhysicsDefinition(activeCar);
 const chassisBoxCenterYStorageKey = 'apex-drive.car-chassis-box-center-y.v2';
 const minimumChassisBoxCenterYM = -0.2;
 const maximumChassisBoxCenterYM = 0.45;
@@ -939,6 +946,10 @@ trackSelect.replaceChildren(...ACTIVE_TRACK_OPTIONS.map(track => {
     formatApexDriveTrackNumber(track.track.number),
     track.track.name,
   ].join(' · ');
+  if (track.track.id === PROCEDURAL_LANDSCAPE_TRACK_ID) {
+    option.disabled = true;
+    option.textContent += ' · EN PAUSA';
+  }
   return option;
 }));
 trackSelect.value = ACTIVE_TRACK.track.id;
@@ -963,10 +974,13 @@ trackEditorToggle.textContent = trackEditorMode
 trackEditorToggle.dataset.active = String(trackEditorMode);
 trackEditorToggle.disabled = isAuditRuntime || APEX_DRIVE_PUBLIC_DEMO;
 trackEditorToggle.addEventListener('click', () => {
-  const nextUrl = new URL(window.location.href);
-  if (trackEditorMode) {
-    nextUrl.searchParams.delete('edit');
-  } else {
+  const leavingTrackEditor = trackEditorMode;
+  const nextUrl = new URL(
+    leavingTrackEditor
+      ? apexDriveApplicationUrl
+      : apexTrackStudioApplicationUrl,
+  );
+  if (!leavingTrackEditor) {
     const vehiclePosition = canvas.dataset.vehiclePosition
       ?.split(',')
       .map(Number);
@@ -992,6 +1006,11 @@ trackEditorToggle.addEventListener('click', () => {
     }
     nextUrl.searchParams.set('edit', 'track');
   }
+  nextUrl.searchParams.set('track', ACTIVE_TRACK.track.id);
+  for (const key of ['landscape', 'routeSeed', 'environment']) {
+    const value = searchParams.get(key);
+    if (value) nextUrl.searchParams.set(key, value);
+  }
   nextUrl.searchParams.set('vehicle', activeVehicleKind);
   if (activeVehicleKind === 'car') {
     nextUrl.searchParams.set('car', activeCar.id);
@@ -1001,9 +1020,109 @@ trackEditorToggle.addEventListener('click', () => {
     nextUrl.searchParams.set('motorcycle', activeMotorcycle.id);
   }
   nextUrl.searchParams.delete('drive');
+  nextUrl.searchParams.delete('play');
   window.location.href = nextUrl.toString();
 });
 trackStudioExit.addEventListener('click', () => trackEditorToggle.click());
+const closeTrackCreateDialog = () => trackCreateDialog.close();
+trackStudioCreate.addEventListener('click', () => {
+  trackCreateError.hidden = true;
+  trackCreateError.textContent = '';
+  trackCreateName.value = 'Nueva pista';
+  if (activeLandscapePreset) {
+    trackCreateLandscape.value = activeLandscapePreset.id;
+  }
+  trackCreateDialog.showModal();
+  trackCreateName.focus();
+  trackCreateName.select();
+});
+trackCreateClose.addEventListener('click', closeTrackCreateDialog);
+trackCreateCancel.addEventListener('click', closeTrackCreateDialog);
+trackCreateDialog.addEventListener('click', event => {
+  if (event.target === trackCreateDialog) closeTrackCreateDialog();
+});
+trackCreateForm.addEventListener('submit', event => {
+  event.preventDefault();
+  try {
+    const landscape = APEX_LANDSCAPE_PRESETS.find(
+      preset => preset.id === trackCreateLandscape.value,
+    ) ?? APEX_LANDSCAPE_PRESETS[0];
+    const definition = createApexTrackStudioLocalTrack(
+      trackCreateName.value,
+      ACTIVE_TRACK_OPTIONS,
+    );
+    writeActiveApexLandscapePreset(definition.track.id, landscape.id);
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set('track', definition.track.id);
+    nextUrl.searchParams.set('edit', 'track');
+    nextUrl.searchParams.delete('editSegment');
+    nextUrl.searchParams.delete('play');
+    nextUrl.searchParams.set('landscape', landscape.id);
+    nextUrl.searchParams.set(
+      'routeSeed',
+      String(createApexProceduralRouteSeed()),
+    );
+    nextUrl.searchParams.set('environment', landscape.environmentProfileId);
+    window.location.href = nextUrl.toString();
+  } catch (error) {
+    trackCreateError.textContent = error instanceof Error
+      ? error.message
+      : 'No se pudo crear la pista local';
+    trackCreateError.hidden = false;
+  }
+});
+trackPreviewClose.addEventListener('click', () => trackPreviewDialog.close());
+trackPreviewCancel.addEventListener('click', () => trackPreviewDialog.close());
+trackPreviewDialog.addEventListener('click', event => {
+  if (event.target === trackPreviewDialog) trackPreviewDialog.close();
+});
+trackStudioTrackSelect.addEventListener('change', () => {
+  const nextUrl = new URL(window.location.href);
+  nextUrl.searchParams.set('track', trackStudioTrackSelect.value);
+  nextUrl.searchParams.set('edit', 'track');
+  const nextTrack = ACTIVE_TRACK_OPTIONS.find(
+    definition => definition.track.id === trackStudioTrackSelect.value,
+  );
+  if (!isApexProceduralLandscapeDefinition(nextTrack)) {
+    nextUrl.searchParams.delete('landscape');
+    nextUrl.searchParams.delete('routeSeed');
+  } else {
+    const landscape = APEX_LANDSCAPE_PRESETS[0];
+    const routeSeed = createApexProceduralRouteSeed();
+    nextUrl.searchParams.set('landscape', landscape.id);
+    nextUrl.searchParams.set('routeSeed', String(routeSeed));
+    nextUrl.searchParams.set('environment', landscape.environmentProfileId);
+  }
+  window.location.href = nextUrl.toString();
+});
+trackStudioLandscapeSelect.addEventListener('change', () => {
+  const landscape = APEX_LANDSCAPE_PRESETS.find(
+    preset => preset.id === trackStudioLandscapeSelect.value,
+  );
+  if (!landscape) return;
+  writeActiveApexLandscapePreset(ACTIVE_TRACK.track.id, landscape.id);
+  const nextUrl = new URL(window.location.href);
+  nextUrl.searchParams.set('track', ACTIVE_TRACK.track.id);
+  nextUrl.searchParams.set('edit', 'track');
+  nextUrl.searchParams.set('landscape', landscape.id);
+  nextUrl.searchParams.set(
+    'routeSeed',
+    String(createApexProceduralRouteSeed()),
+  );
+  nextUrl.searchParams.set('environment', landscape.environmentProfileId);
+  window.location.href = nextUrl.toString();
+});
+trackStudioRegenerate.addEventListener('click', () => {
+  if (!activeLandscapePreset) return;
+  const nextUrl = new URL(window.location.href);
+  nextUrl.searchParams.delete('play');
+  nextUrl.searchParams.set('edit', 'track');
+  nextUrl.searchParams.set(
+    'routeSeed',
+    String(createApexProceduralRouteSeed()),
+  );
+  window.location.href = nextUrl.toString();
+});
 let runtimeCar = activeCar;
 const carColorStorageKey = (definition: ApexCarDefinition): string => (
   `apex-v3-car-paint.${definition.id}`
@@ -1013,9 +1132,17 @@ const storedCarColor = (definition: ApexCarDefinition): string => (
     ?? definition.visual.defaultPaintColor
 );
 const experienceMode = searchParams.get('drive');
+const embeddedTrackGarageEnabled = (
+  ACTIVE_TRACK.configuration.presentation?.garage ?? true
+);
+const embeddedTrackStartLineEnabled = (
+  ACTIVE_TRACK.configuration.presentation?.startLine ?? true
+);
+vehicleWorkshopToggle.hidden = !embeddedTrackGarageEnabled;
 const isParkingSelection = (
   !isAuditRuntime
   && !APEX_DRIVE_BARE_RUNTIME
+  && embeddedTrackGarageEnabled
   && activeVehicleKind === 'car'
   && (requestedVehicleKind === null || APEX_DRIVE_PUBLIC_DEMO)
   && (experienceMode === null || experienceMode === 'parking')
@@ -1023,6 +1150,7 @@ const isParkingSelection = (
 );
 const isParkingDrive = (
   !isAuditRuntime
+  && embeddedTrackGarageEnabled
   && activeVehicleKind === 'car'
   && experienceMode === 'parking-drive'
   && ACTIVE_TRACK.track.id !== CIRCUITO_CHALLHUACO_ID
@@ -2011,7 +2139,7 @@ const cameraModeLabels: Readonly<Record<CameraMode, string>> = {
 };
 const trackEditorCameraStorageKey = [
   'apex-run.v3.track-editor-camera.v1',
-  ACTIVE_TRACK.track.id,
+  ACTIVE_TRACK_INSTANCE_ID,
   ACTIVE_TRACK.track.version,
 ].join('.');
 const trackEditorVehicleEntryCamera = (():
@@ -2217,58 +2345,484 @@ const cycleCameraMode = () => {
 };
 applyCameraModeLabel();
 
-const grassTextureSizeM = 14;
+const adaptiveTerrainGroundCorridor = (
+  ACTIVE_TRACK.configuration.geometry.roadsideMode === 'adaptive-terrain'
+);
 const grassTextureLoader = new THREE.TextureLoader();
-const loadGrassTexture = (name: string, colorTexture = false) => {
-  const texture = grassTextureLoader.load(
-    apexDrivePublicUrl(
-      `assets/ground/grass001/Grass001_1K-JPG_${name}.jpg`,
-    ),
-  );
+const loadGroundTexture = (
+  uri: string,
+  colorTexture = false,
+  onLoad?: () => void,
+  onError?: () => void,
+) => {
+  const texture = grassTextureLoader.load(uri, onLoad, undefined, onError);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
   texture.anisotropy = 4;
   texture.colorSpace = colorTexture ? THREE.SRGBColorSpace : THREE.NoColorSpace;
   return texture;
 };
-const grassColorMap = loadGrassTexture('Color', true);
-const grassNormalMap = loadGrassTexture('NormalDX');
+const createSurfaceFallbackTexture = (
+  rgba: readonly [number, number, number, number],
+  colorSpace: THREE.ColorSpace,
+) => {
+  const texture = new THREE.DataTexture(
+    new Uint8Array(rgba),
+    1,
+    1,
+    THREE.RGBAFormat,
+    THREE.UnsignedByteType,
+  );
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.colorSpace = colorSpace;
+  texture.needsUpdate = true;
+  return texture;
+};
+// WebGPURenderer genera TextureNodes por layout de material. Sustituir un mapa
+// ya compilado por null durante un frame puede dejar al pase de sombras con un
+// nodo cuyo value es null. Estos texeles neutros mantienen estable el layout:
+// blanco deja pasar material.color y (128,128,255) no altera la normal.
+const surfaceFlatColorMap = createSurfaceFallbackTexture(
+  [255, 255, 255, 255],
+  THREE.SRGBColorSpace,
+);
+const surfaceFlatNormalMap = createSurfaceFallbackTexture(
+  [128, 128, 255, 255],
+  THREE.NoColorSpace,
+);
+type GrassMaterialProfileId = (
+  'grass001' | 'grass004' | 'ground003' | 'ground037'
+);
+type GrassMaterialProfile = Readonly<{
+  label: string;
+  assetId: string;
+  directory: string;
+}>;
+type GrassTextureSet = Readonly<{
+  color: THREE.Texture;
+  normal: THREE.Texture;
+  roughness: THREE.Texture;
+}>;
+const GRASS_MATERIAL_PROFILES: Readonly<
+  Record<GrassMaterialProfileId, GrassMaterialProfile>
+> = Object.freeze({
+  grass001: Object.freeze({
+    label: 'Natural corto',
+    assetId: 'Grass001',
+    directory: 'grass001',
+  }),
+  grass004: Object.freeze({
+    label: 'Denso de parque',
+    assetId: 'Grass004',
+    directory: 'grass004',
+  }),
+  ground003: Object.freeze({
+    label: 'Pasto con tierra',
+    assetId: 'Ground003',
+    directory: 'ground003',
+  }),
+  ground037: Object.freeze({
+    label: 'Bosque húmedo',
+    assetId: 'Ground037',
+    directory: 'ground037',
+  }),
+});
+const isGrassMaterialProfileId = (
+  value: string | null,
+): value is GrassMaterialProfileId => (
+  value !== null
+  && Object.prototype.hasOwnProperty.call(GRASS_MATERIAL_PROFILES, value)
+);
+type GrassMaterialLoadStatus = 'idle' | 'loading' | 'ready' | 'error';
+type SurfaceMaterialRuntimeSettings = Readonly<{
+  floorMaterialId: GrassMaterialProfileId;
+  roadsideMaterialId: GrassMaterialProfileId;
+  floorRoughness: number;
+  roadsideRoughness: number;
+  floorNormalStrength: number;
+  roadsideNormalStrength: number;
+  floorColor: string;
+  roadsideColor: string;
+  diagnosticFlatColor: boolean;
+  wireframe: boolean;
+}>;
+const grassMaterialStorageKey = 'apex-drive.grass-material.v1';
+const surfaceMaterialSettingsStorageKey = 'apex-drive.surface-materials.v2';
+const requestedGrassMaterialProfileId = searchParams.get('grass');
+const storedGrassMaterialProfileId = localStorage.getItem(grassMaterialStorageKey);
+const legacyGrassMaterialProfileId: GrassMaterialProfileId = (
+  isGrassMaterialProfileId(requestedGrassMaterialProfileId)
+    ? requestedGrassMaterialProfileId
+    : isGrassMaterialProfileId(storedGrassMaterialProfileId)
+      ? storedGrassMaterialProfileId
+      : 'grass001'
+);
+const clampUnit = (value: unknown, fallback: number) => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue)
+    ? THREE.MathUtils.clamp(numericValue, 0, 1)
+    : fallback;
+};
+const colorSetting = (value: unknown, fallback: string) => (
+  typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback
+);
+const readSurfaceMaterialSettings = (): SurfaceMaterialRuntimeSettings => {
+  let stored: Partial<SurfaceMaterialRuntimeSettings> = {};
+  try {
+    stored = JSON.parse(
+      localStorage.getItem(surfaceMaterialSettingsStorageKey) ?? '{}',
+    ) as Partial<SurfaceMaterialRuntimeSettings>;
+  } catch {
+    stored = {};
+  }
+  const storedFloorMaterialId = stored.floorMaterialId;
+  const storedRoadsideMaterialId = stored.roadsideMaterialId;
+  return Object.freeze({
+    floorMaterialId: typeof storedFloorMaterialId === 'string'
+      && isGrassMaterialProfileId(storedFloorMaterialId)
+      ? storedFloorMaterialId
+      : legacyGrassMaterialProfileId,
+    roadsideMaterialId: typeof storedRoadsideMaterialId === 'string'
+      && isGrassMaterialProfileId(storedRoadsideMaterialId)
+      ? storedRoadsideMaterialId
+      : legacyGrassMaterialProfileId,
+    floorRoughness: clampUnit(
+      stored.floorRoughness,
+      APEX_DRIVE_PUBLIC_DEMO ? 1 : 0.92,
+    ),
+    roadsideRoughness: clampUnit(
+      stored.roadsideRoughness,
+      APEX_DRIVE_PUBLIC_DEMO ? 1 : 0.96,
+    ),
+    floorNormalStrength: clampUnit(
+      stored.floorNormalStrength,
+      APEX_DRIVE_PUBLIC_DEMO ? 1 : 0.62,
+    ),
+    roadsideNormalStrength: clampUnit(
+      stored.roadsideNormalStrength,
+      APEX_DRIVE_PUBLIC_DEMO ? 1 : 0.62,
+    ),
+    floorColor: colorSetting(stored.floorColor, '#238dff'),
+    roadsideColor: colorSetting(stored.roadsideColor, '#ff3b5f'),
+    diagnosticFlatColor: stored.diagnosticFlatColor === true,
+    wireframe: stored.wireframe === true,
+  });
+};
+let surfaceMaterialSettings = readSurfaceMaterialSettings();
+const grassTextureSetCache = new Map<GrassMaterialProfileId, GrassTextureSet>();
+const grassTextureAssetRevision = 'ground-pbr-v2';
+const grassTextureLoadStatuses = new Map<
+  GrassMaterialProfileId,
+  GrassMaterialLoadStatus
+>();
+const grassTextureStatusListeners = new Set<(
+  id: GrassMaterialProfileId,
+  status: GrassMaterialLoadStatus,
+) => void>();
+const setGrassTextureLoadStatus = (
+  id: GrassMaterialProfileId,
+  status: GrassMaterialLoadStatus,
+) => {
+  grassTextureLoadStatuses.set(id, status);
+  grassTextureStatusListeners.forEach(listener => listener(id, status));
+};
+const loadGrassTextureSet = (
+  profileId: GrassMaterialProfileId,
+): GrassTextureSet => {
+  const cached = grassTextureSetCache.get(profileId);
+  if (cached) return cached;
+  setGrassTextureLoadStatus(profileId, 'loading');
+  const profile = GRASS_MATERIAL_PROFILES[profileId];
+  const textureUri = (map: 'Color' | 'NormalDX' | 'Roughness') => (
+    `${apexDrivePublicUrl(
+      `assets/ground/${profile.directory}/${profile.assetId}_1K-JPG_${map}.jpg`,
+    )}?v=${grassTextureAssetRevision}`
+  );
+  let pendingMaps = 3;
+  let loadFailed = false;
+  const completeMap = () => {
+    pendingMaps -= 1;
+    if (pendingMaps === 0) setGrassTextureLoadStatus(
+      profileId,
+      loadFailed ? 'error' : 'ready',
+    );
+  };
+  const failMap = (map: 'Color' | 'NormalDX' | 'Roughness', uri: string) => () => {
+    console.error(
+      `[APEX grass] No se pudo cargar ${profile.assetId}.${map}: ${uri}`,
+    );
+    loadFailed = true;
+    completeMap();
+  };
+  const colorUri = textureUri('Color');
+  const normalUri = textureUri('NormalDX');
+  const roughnessUri = textureUri('Roughness');
+  const textureSet = Object.freeze({
+    color: loadGroundTexture(
+      colorUri,
+      true,
+      completeMap,
+      failMap('Color', colorUri),
+    ),
+    normal: loadGroundTexture(
+      normalUri,
+      false,
+      completeMap,
+      failMap('NormalDX', normalUri),
+    ),
+    roughness: loadGroundTexture(
+      roughnessUri,
+      false,
+      completeMap,
+      failMap('Roughness', roughnessUri),
+    ),
+  });
+  grassTextureSetCache.set(profileId, textureSet);
+  return textureSet;
+};
+const groundMaterialPreset = activeLandscapePreset?.material;
+const grassTextureSizeM = groundMaterialPreset?.textureSizeM ?? 14;
+const selectedFloorGrassTextureSet = loadGrassTextureSet(
+  surfaceMaterialSettings.floorMaterialId,
+);
+const selectedRoadsideGrassTextureSet = loadGrassTextureSet(
+  surfaceMaterialSettings.roadsideMaterialId,
+);
+const grassColorMap = groundMaterialPreset?.colorMapUri
+  ? loadGroundTexture(groundMaterialPreset.colorMapUri, true)
+  : selectedFloorGrassTextureSet.color;
+const grassNormalMap = groundMaterialPreset?.normalMapUri
+  ? loadGroundTexture(groundMaterialPreset.normalMapUri)
+  : selectedFloorGrassTextureSet.normal;
+const grassRoughnessMap = groundMaterialPreset?.roughnessMapUri
+  ? loadGroundTexture(groundMaterialPreset.roughnessMapUri)
+  : selectedFloorGrassTextureSet.roughness;
 const grassMaterial = new THREE.MeshStandardMaterial({
   map: grassColorMap,
-  normalMap: grassNormalMap,
   normalScale: new THREE.Vector2(0.62, -0.62),
+  color: groundMaterialPreset?.tint ?? 0xffffff,
   roughness: 1,
   metalness: 0,
   side: THREE.DoubleSide,
 });
-
-// El mesh coincide con la cara superior (Y=0) del BoxShape estático. Sobre él
-// se conservan líneas muy tenues para supervisar escala, contacto y deriva.
-const groundGeometry = new THREE.PlaneGeometry(FLOOR_SIZE_M, FLOOR_SIZE_M);
-const groundPositions = groundGeometry.getAttribute('position');
-const groundUvs = groundGeometry.getAttribute('uv');
-for (let index = 0; index < groundPositions.count; index += 1) {
-  groundUvs.setXY(
-    index,
-    groundPositions.getX(index) / grassTextureSizeM,
-    groundPositions.getY(index) / grassTextureSizeM,
+if (grassNormalMap) grassMaterial.normalMap = grassNormalMap;
+if (grassRoughnessMap) grassMaterial.roughnessMap = grassRoughnessMap;
+grassMaterial.needsUpdate = Boolean(grassNormalMap || grassRoughnessMap);
+// Las UV del terreno usan una proyección mundial XZ compartida. Piso, talud y
+// fila de toe exponen ahora NormalDX con intensidad regulable desde Ether.
+const adaptiveFloorGrassMaterial = grassMaterial.clone();
+adaptiveFloorGrassMaterial.normalMap = selectedFloorGrassTextureSet.normal;
+adaptiveFloorGrassMaterial.needsUpdate = true;
+const roadsideBaseGrassMaterial = grassMaterial.clone();
+roadsideBaseGrassMaterial.map = selectedRoadsideGrassTextureSet.color;
+roadsideBaseGrassMaterial.normalMap = selectedRoadsideGrassTextureSet.normal;
+roadsideBaseGrassMaterial.roughnessMap = selectedRoadsideGrassTextureSet.roughness;
+roadsideBaseGrassMaterial.needsUpdate = true;
+const adaptiveRoadsideGrassMaterial = roadsideBaseGrassMaterial.clone();
+adaptiveRoadsideGrassMaterial.normalMap = selectedRoadsideGrassTextureSet.normal;
+adaptiveRoadsideGrassMaterial.needsUpdate = true;
+let shoulderGroundFeatherMaterial!: THREE.MeshStandardMaterial;
+const applySurfaceMaterial = (
+  material: THREE.MeshStandardMaterial,
+  textureSet: GrassTextureSet,
+  color: string,
+  roughness: number,
+  normalStrength: number,
+  protectNormalMap: boolean,
+  diagnosticFlatColor: boolean,
+  wireframe: boolean,
+) => {
+  const nextColorMap = diagnosticFlatColor
+    ? surfaceFlatColorMap
+    : textureSet.color;
+  const nextNormalMap = (
+    protectNormalMap
+      ? null
+      : diagnosticFlatColor || normalStrength <= 0
+        ? surfaceFlatNormalMap
+        : textureSet.normal
   );
+  const shaderLayoutChanged = (
+    material.map !== nextColorMap
+    || material.roughnessMap !== textureSet.roughness
+    || material.normalMap !== nextNormalMap
+    || material.wireframe !== wireframe
+  );
+  material.map = nextColorMap;
+  material.roughnessMap = textureSet.roughness;
+  material.normalMap = nextNormalMap;
+  material.normalScale.set(normalStrength, -normalStrength);
+  material.color.set(diagnosticFlatColor ? color : '#ffffff');
+  material.roughness = roughness;
+  material.wireframe = wireframe;
+  if (shaderLayoutChanged) material.needsUpdate = true;
+};
+const applySurfaceMaterialSettings = (settings: SurfaceMaterialRuntimeSettings) => {
+  surfaceMaterialSettings = settings;
+  const floorTextureSet = loadGrassTextureSet(settings.floorMaterialId);
+  const roadsideTextureSet = loadGrassTextureSet(settings.roadsideMaterialId);
+  applySurfaceMaterial(
+    grassMaterial,
+    floorTextureSet,
+    settings.floorColor,
+    settings.floorRoughness,
+    settings.floorNormalStrength,
+    false,
+    settings.diagnosticFlatColor,
+    settings.wireframe,
+  );
+  applySurfaceMaterial(
+    adaptiveFloorGrassMaterial,
+    floorTextureSet,
+    settings.floorColor,
+    settings.floorRoughness,
+    settings.floorNormalStrength,
+    false,
+    settings.diagnosticFlatColor,
+    settings.wireframe,
+  );
+  applySurfaceMaterial(
+    roadsideBaseGrassMaterial,
+    roadsideTextureSet,
+    settings.roadsideColor,
+    settings.roadsideRoughness,
+    settings.roadsideNormalStrength,
+    false,
+    settings.diagnosticFlatColor,
+    settings.wireframe,
+  );
+  applySurfaceMaterial(
+    adaptiveRoadsideGrassMaterial,
+    roadsideTextureSet,
+    settings.roadsideColor,
+    settings.roadsideRoughness,
+    settings.roadsideNormalStrength,
+    false,
+    settings.diagnosticFlatColor,
+    settings.wireframe,
+  );
+  if (shoulderGroundFeatherMaterial) applySurfaceMaterial(
+    shoulderGroundFeatherMaterial,
+    roadsideTextureSet,
+    settings.roadsideColor,
+    settings.roadsideRoughness,
+    settings.roadsideNormalStrength,
+    false,
+    settings.diagnosticFlatColor,
+    settings.wireframe,
+  );
+  canvas.dataset.floorGrassMaterial = settings.floorMaterialId;
+  canvas.dataset.roadsideGrassMaterial = settings.roadsideMaterialId;
+  canvas.dataset.surfaceMaterialDiagnostic = String(settings.diagnosticFlatColor);
+  localStorage.setItem(surfaceMaterialSettingsStorageKey, JSON.stringify(settings));
+};
+const reloadSelectedGrassTextureSets = () => {
+  const selectedIds = new Set<GrassMaterialProfileId>([
+    surfaceMaterialSettings.floorMaterialId,
+    surfaceMaterialSettings.roadsideMaterialId,
+  ]);
+  selectedIds.forEach(id => {
+    const cached = grassTextureSetCache.get(id);
+    cached?.color.dispose();
+    cached?.normal.dispose();
+    cached?.roughness.dispose();
+    grassTextureSetCache.delete(id);
+    setGrassTextureLoadStatus(id, 'idle');
+  });
+  applySurfaceMaterialSettings(surfaceMaterialSettings);
+};
+applySurfaceMaterialSettings(surfaceMaterialSettings);
+// Track Studio es una herramienta de geometría: el césped texturado oculta
+// exactamente los parches que hay que inspeccionar. El material de diagnóstico
+// conserva la superficie, pero deja ver la topología y el mapa térmico.
+const trackEditorTerrainDiagnosticMaterial = new THREE.MeshBasicMaterial({
+  color: 0x17313a,
+  transparent: true,
+  opacity: 0.16,
+  depthWrite: false,
+  side: THREE.DoubleSide,
+});
+
+const floorGrassMaterial = adaptiveTerrainGroundCorridor
+  ? adaptiveFloorGrassMaterial
+  : grassMaterial;
+const roadsideGrassMaterial = adaptiveTerrainGroundCorridor
+  ? adaptiveRoadsideGrassMaterial
+  : roadsideBaseGrassMaterial;
+const groundUsesTriangleMesh = Boolean(activeLandscapePreset)
+  || adaptiveTerrainGroundCorridor;
+// En adaptativo el suelo global se excava bajo la ruta. Banquina conserva su
+// PlaneGeometry y su collider histórico sin cambios.
+const groundGeometry = activeLandscapePreset
+  ? createApexProceduralLandscapeGeometry(
+    activeLandscapePreset,
+    FLOOR_SIZE_M,
+    TEST_TRACK_POINTS,
+  )
+  : adaptiveTerrainGroundCorridor
+    ? createApexAdaptiveTrackFloorGeometry(
+      FLOOR_SIZE_M,
+      TEST_TRACK_GROUND_HEIGHT_M,
+      TEST_TRACK_POINTS,
+      TEST_TRACK_WIDTH_M,
+      TEST_TRACK_SHOULDER_WIDTH_M,
+      TEST_TRACK_IS_CLOSED,
+      8,
+      grassTextureSizeM,
+    )
+    : new THREE.PlaneGeometry(FLOOR_SIZE_M, FLOOR_SIZE_M);
+if (!groundUsesTriangleMesh) {
+  const groundPositions = groundGeometry.getAttribute('position');
+  const groundUvs = groundGeometry.getAttribute('uv');
+  for (let index = 0; index < groundPositions.count; index += 1) {
+    groundUvs.setXY(
+      index,
+      groundPositions.getX(index) / grassTextureSizeM,
+      groundPositions.getY(index) / grassTextureSizeM,
+    );
+  }
+  groundGeometry.setAttribute('uv1', groundUvs.clone());
 }
-groundGeometry.setAttribute('uv1', groundUvs.clone());
 const groundMesh = new THREE.Mesh(
   groundGeometry,
-  grassMaterial,
+  floorGrassMaterial,
 );
-groundMesh.rotation.x = -Math.PI / 2;
-groundMesh.position.y = TEST_TRACK_GROUND_HEIGHT_M;
+groundMesh.rotation.x = groundUsesTriangleMesh ? 0 : -Math.PI / 2;
+groundMesh.position.y = groundUsesTriangleMesh ? 0 : TEST_TRACK_GROUND_HEIGHT_M;
 groundMesh.receiveShadow = true;
+groundMesh.visible = !trackEditorMode;
 scene.add(groundMesh);
+const createGroundCollisionTerrainMesh = (
+  geometry: THREE.BufferGeometry,
+) => {
+  const position = geometry.getAttribute('position');
+  const geometryIndices = geometry.getIndex();
+  if (!geometryIndices) return undefined;
+  const vertices = Object.freeze(Array.from(
+    { length: position.count },
+    (_, index): ApexVector3Tuple => Object.freeze([
+      position.getX(index),
+      position.getY(index),
+      position.getZ(index),
+    ]),
+  ));
+  const indices = Object.freeze(Array.from(
+    { length: geometryIndices.count },
+    (_, index) => geometryIndices.getX(index),
+  ));
+  return Object.freeze({ vertices, indices });
+};
+let groundCollisionTerrainMesh = groundUsesTriangleMesh
+  ? createGroundCollisionTerrainMesh(groundGeometry)
+  : undefined;
 
 const floorOutline = new THREE.LineSegments(
   new THREE.EdgesGeometry(new THREE.BoxGeometry(FLOOR_SIZE_M, 0.2, FLOOR_SIZE_M)),
   new THREE.LineBasicMaterial({ color: 0x245869, transparent: true, opacity: 0.35 }),
 );
 floorOutline.position.y = -0.1;
+floorOutline.visible = !activeLandscapePreset && !trackEditorMode;
 scene.add(floorOutline);
 
 // Circuito Bravo se dibuja como una cinta continua. La física conserva los
@@ -2296,6 +2850,13 @@ const sampledTrackHorizontalLaterals: THREE.Vector3[] = [];
 const sampledTrackLaterals: THREE.Vector3[] = [];
 const sampledTrackSurfaceUps: THREE.Vector3[] = [];
 const sampledTrackDistancesM: number[] = [];
+const sampledTrackRoadHalfWidthsM = adaptiveTerrainGroundCorridor
+  ? resolveTrackAdaptiveRoadHalfWidthsM(
+    sampledTrackPoints,
+    TEST_TRACK_WIDTH_M,
+    TEST_TRACK_IS_CLOSED,
+  )
+  : sampledTrackPoints.map(() => TEST_TRACK_WIDTH_M * 0.5);
 const roadTextureSizeM = 40;
 const asphaltGrassBlendWidthM = 0.75;
 let trackDistanceM = 0;
@@ -2317,7 +2878,8 @@ for (let index = 0; index < sampledTrackPoints.length; index += 1) {
   sampledTrackLaterals.push(lateral.clone());
   sampledTrackSurfaceUps.push(surfaceUp.clone());
   sampledTrackDistancesM.push(trackDistanceM);
-  const edgeOffset = lateral.clone().multiplyScalar(TEST_TRACK_WIDTH_M / 2);
+  const roadHalfWidthM = sampledTrackRoadHalfWidthsM[index];
+  const edgeOffset = lateral.clone().multiplyScalar(roadHalfWidthM);
   const leftEdge = point.clone().add(edgeOffset);
   const rightEdge = point.clone().sub(edgeOffset);
   trackVertices.push(
@@ -2350,10 +2912,13 @@ for (let index = 0; index < sampledTrackPoints.length; index += 1) {
     innerRight: rightEdge,
     horizontalLeftX: horizontalLateral.x,
     horizontalLeftZ: horizontalLateral.z,
-    roadWidthM: TEST_TRACK_WIDTH_M,
+    roadWidthM: roadHalfWidthM * 2,
     shoulderWidthM: TEST_TRACK_SHOULDER_WIDTH_M,
     groundHeightM: TEST_TRACK_GROUND_HEIGHT_M,
     progress: index / sampledTrackPoints.length,
+    adaptiveTerrain: (
+      ACTIVE_TRACK.configuration.geometry.roadsideMode === 'adaptive-terrain'
+    ),
   });
   sampledShoulderProfiles.push(shoulderProfile);
   const [
@@ -2456,9 +3021,12 @@ const shoulderConfluence = (
         left: [true, true, true, true, true],
         right: [true, true, true, true, true],
       })),
+      adaptivePatches: [],
       tunnels: [],
       conflictCount: 0,
       compatibleHeightCount: 0,
+      localOffsetClampCount: 0,
+      rejectedStripCount: 0,
     }
 );
 shoulderConfluence.profiles.forEach((profile, index) => {
@@ -2537,6 +3105,12 @@ canvas.dataset.trackShoulderConflictCount = String(
 );
 canvas.dataset.trackShoulderCompatibleHeightCount = String(
   shoulderConfluence.compatibleHeightCount,
+);
+canvas.dataset.trackShoulderLocalOffsetClampCount = String(
+  shoulderConfluence.localOffsetClampCount,
+);
+canvas.dataset.trackShoulderRejectedStripCount = String(
+  shoulderConfluence.rejectedStripCount,
 );
 
 // El orden de la spline define el sentido correcto de la vuelta: desde la
@@ -2672,7 +3246,11 @@ const createTrackMarking = (
   });
   const marking = new THREE.Mesh(geometry, material);
   marking.renderOrder = 4;
-  marking.visible = !importedTrackCollisionOnly && !trackEditorMode;
+  marking.visible = (
+    !importedTrackCollisionOnly
+    && !trackEditorMode
+    && !trackDraftPreviewMode
+  );
   scene.add(marking);
   return marking;
 };
@@ -2689,6 +3267,7 @@ guardrailGroup.visible = (
   ACTIVE_TRACK.configuration.geometry.boundaryMode === 'guardrails'
   && !importedTrackCollisionOnly
   && !trackEditorMode
+  && !trackDraftPreviewMode
 );
 const guardrailMaterial = createApexGalvanizedGuardrailMaterial();
 const guardrailPostMaterial = createApexGuardrailPostMaterial();
@@ -2767,6 +3346,15 @@ const trackIndices: number[] = [];
 const shoulderIndices: number[] = [];
 const shoulderGroundFeatherIndices: number[] = [];
 const trackGrassTransitionIndices: number[] = [];
+const legacyReplacedShoulderSegments = {
+  left: new Set<number>(),
+  right: new Set<number>(),
+};
+for (const patch of shoulderConfluence.adaptivePatches) {
+  patch.replacedSegmentIndices.forEach(index => (
+    legacyReplacedShoulderSegments[patch.side].add(index)
+  ));
+}
 for (let index = 0; index < sampledTrackPoints.length; index += 1) {
   const next = (index + 1) % sampledTrackPoints.length;
   const left = index * 2;
@@ -2777,6 +3365,7 @@ for (let index = 0; index < sampledTrackPoints.length; index += 1) {
   const shoulderRingStart = index * 12;
   const nextShoulderRingStart = next * 12;
   for (let strip = 1; strip <= 4; strip += 1) {
+    if (legacyReplacedShoulderSegments.left.has(index)) continue;
     const stage = 4 - strip;
     if (
       ACTIVE_TRACK.configuration.geometry.roadsideMode === 'shoulder'
@@ -2796,6 +3385,7 @@ for (let index = 0; index < sampledTrackPoints.length; index += 1) {
     );
   }
   for (let strip = 6; strip <= 9; strip += 1) {
+    if (legacyReplacedShoulderSegments.right.has(index)) continue;
     const stage = strip - 6;
     if (
       ACTIVE_TRACK.configuration.geometry.roadsideMode === 'shoulder'
@@ -2824,6 +3414,7 @@ for (let index = 0; index < sampledTrackPoints.length; index += 1) {
   const nextToeRight = nextLowerRight + 1;
   if (
     ACTIVE_TRACK.configuration.geometry.roadsideMode === 'adaptive-terrain'
+    && !legacyReplacedShoulderSegments.left.has(index)
     && shoulderConfluence.masks[index].left[4]
     && shoulderConfluence.masks[next].left[4]
   ) {
@@ -2834,6 +3425,7 @@ for (let index = 0; index < sampledTrackPoints.length; index += 1) {
   }
   if (
     ACTIVE_TRACK.configuration.geometry.roadsideMode === 'adaptive-terrain'
+    && !legacyReplacedShoulderSegments.right.has(index)
     && shoulderConfluence.masks[index].right[4]
     && shoulderConfluence.masks[next].right[4]
   ) {
@@ -2851,6 +3443,8 @@ for (let index = 0; index < sampledTrackPoints.length; index += 1) {
   const nextTransitionRightInner = nextTransitionLeftInner + 2;
   const nextTransitionRightOuter = nextTransitionLeftInner + 3;
   if (
+    !legacyReplacedShoulderSegments.left.has(index)
+    &&
     shoulderConfluence.masks[index].left[0]
     && shoulderConfluence.masks[next].left[0]
   ) {
@@ -2860,6 +3454,8 @@ for (let index = 0; index < sampledTrackPoints.length; index += 1) {
     );
   }
   if (
+    !legacyReplacedShoulderSegments.right.has(index)
+    &&
     shoulderConfluence.masks[index].right[0]
     && shoulderConfluence.masks[next].right[0]
   ) {
@@ -2867,6 +3463,20 @@ for (let index = 0; index < sampledTrackPoints.length; index += 1) {
       transitionRightInner, nextTransitionRightInner, transitionRightOuter,
       transitionRightOuter, nextTransitionRightInner, nextTransitionRightOuter,
     );
+  }
+}
+for (const patch of shoulderConfluence.adaptivePatches) {
+  for (const triangle of patch.triangles) {
+    const baseIndex = shoulderVertices.length / 3;
+    for (const point of triangle.points) {
+      shoulderVertices.push(point.x, point.y, point.z);
+      shoulderUvs.push(
+        point.x / grassTextureSizeM,
+        -point.z / grassTextureSizeM,
+      );
+      shoulderGroundFeatherFadeUvs.push(0, 0);
+    }
+    shoulderIndices.push(baseIndex, baseIndex + 1, baseIndex + 2);
   }
 }
 if (ACTIVE_TRACK.configuration.geometry.roadsideMode === 'none') {
@@ -2882,14 +3492,16 @@ trackGeometry.setIndex(trackIndices);
 const trackMinEdgeClearanceM = Math.min(
   ...trackVertices.filter((_, componentIndex) => componentIndex % 3 === 1),
 ) - TEST_TRACK_GROUND_HEIGHT_M;
-const shoulderGeometry = new THREE.BufferGeometry();
-shoulderGeometry.setAttribute(
+const rawShoulderGeometry = new THREE.BufferGeometry();
+rawShoulderGeometry.setAttribute(
   'position',
   new THREE.Float32BufferAttribute(shoulderVertices, 3),
 );
-shoulderGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(shoulderUvs, 2));
-shoulderGeometry.setAttribute('uv1', new THREE.Float32BufferAttribute(shoulderUvs, 2));
-shoulderGeometry.setIndex(shoulderIndices);
+rawShoulderGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(shoulderUvs, 2));
+rawShoulderGeometry.setAttribute('uv1', new THREE.Float32BufferAttribute(shoulderUvs, 2));
+rawShoulderGeometry.setIndex(shoulderIndices);
+const shoulderGeometry = mergeVertices(rawShoulderGeometry, 1e-4);
+rawShoulderGeometry.dispose();
 shoulderGeometry.computeVertexNormals();
 const shoulderGroundFeatherGeometry = new THREE.BufferGeometry();
 shoulderGroundFeatherGeometry.setAttribute(
@@ -2906,20 +3518,6 @@ shoulderGroundFeatherGeometry.setAttribute(
 );
 shoulderGroundFeatherGeometry.setIndex(shoulderGroundFeatherIndices);
 shoulderGroundFeatherGeometry.computeVertexNormals();
-const shoulderNormals = shoulderGeometry.getAttribute('normal');
-const shoulderFeatherNormals = shoulderGroundFeatherGeometry.getAttribute('normal');
-for (let sample = 0; sample < sampledTrackPoints.length; sample += 1) {
-  for (const ringOffset of [0, 1, 10, 11]) {
-    const vertexIndex = sample * 12 + ringOffset;
-    shoulderNormals.setXYZ(
-      vertexIndex,
-      shoulderFeatherNormals.getX(vertexIndex),
-      shoulderFeatherNormals.getY(vertexIndex),
-      shoulderFeatherNormals.getZ(vertexIndex),
-    );
-  }
-}
-shoulderNormals.needsUpdate = true;
 const trackGrassTransitionGeometry = new THREE.BufferGeometry();
 trackGrassTransitionGeometry.setAttribute(
   'position',
@@ -2958,26 +3556,124 @@ const roadTextureProfiles = Object.freeze({
     NormalDX: 'assets/road/asphalt-track/asphalt_track_nor_dx_1k.jpg',
     Roughness: 'assets/road/asphalt-track/asphalt_track_rough_1k.jpg',
   }),
+  asphalt031: Object.freeze({
+    Color: 'assets/road/ambientcg/Asphalt031/Asphalt031_1K-JPG_Color.jpg',
+    NormalDX: 'assets/road/ambientcg/Asphalt031/Asphalt031_1K-JPG_NormalDX.jpg',
+    Roughness: 'assets/road/ambientcg/Asphalt031/Asphalt031_1K-JPG_Roughness.jpg',
+  }),
+  asphalt027c: Object.freeze({
+    Color: 'assets/road/ambientcg/Asphalt027C/Asphalt027C_1K-JPG_Color.jpg',
+    NormalDX: 'assets/road/ambientcg/Asphalt027C/Asphalt027C_1K-JPG_NormalDX.jpg',
+    Roughness: 'assets/road/ambientcg/Asphalt027C/Asphalt027C_1K-JPG_Roughness.jpg',
+  }),
+  asphalt025c: Object.freeze({
+    Color: 'assets/road/ambientcg/Asphalt025C/Asphalt025C_1K-JPG_Color.jpg',
+    NormalDX: 'assets/road/ambientcg/Asphalt025C/Asphalt025C_1K-JPG_NormalDX.jpg',
+    Roughness: 'assets/road/ambientcg/Asphalt025C/Asphalt025C_1K-JPG_Roughness.jpg',
+  }),
 });
 type RoadTextureProfileId = keyof typeof roadTextureProfiles;
-const requestedRoadTexture = searchParams.get('road');
-const activeRoadTextureId: RoadTextureProfileId = (
-  requestedRoadTexture === 'clean-asphalt'
-    ? 'clean-asphalt'
-    : requestedRoadTexture === 'asphalt-track'
-      ? 'asphalt-track'
-      : requestedRoadTexture === 'road015a'
-        ? 'road015a'
-        : 'aerial-asphalt-01'
+type RoadTextureMapName = 'Color' | 'NormalDX' | 'Roughness';
+type RoadTextureSet = Readonly<{
+  color: THREE.Texture;
+  normal: THREE.Texture;
+  roughness: THREE.Texture;
+}>;
+const roadTextureProfileLabels: Readonly<Record<RoadTextureProfileId, string>> = (
+  Object.freeze({
+    road015a: 'Road015A · pista usada',
+    'aerial-asphalt-01': 'Aerial Asphalt · neutro',
+    'clean-asphalt': 'Clean Asphalt · limpio',
+    'asphalt-track': 'Asphalt Track · circuito',
+    asphalt031: 'ambientCG Asphalt031 · claro',
+    asphalt027c: 'ambientCG Asphalt027C · rugoso',
+    asphalt025c: 'ambientCG Asphalt025C · húmedo',
+  })
 );
-const roadTextureFiles = roadTextureProfiles[activeRoadTextureId];
-canvas.dataset.roadTexture = activeRoadTextureId;
-const loadRoadTexture = (
-  name: keyof typeof roadTextureFiles,
-  colorTexture = false,
+const isRoadTextureProfileId = (value: unknown): value is RoadTextureProfileId => (
+  typeof value === 'string'
+  && Object.prototype.hasOwnProperty.call(roadTextureProfiles, value)
+);
+type RoadMaterialRuntimeSettings = Readonly<{
+  profileId: RoadTextureProfileId;
+  roughness: number;
+  normalStrength: number;
+  environmentIntensity: number;
+  textureScale: number;
+  color: string;
+}>;
+const roadMaterialSettingsStorageKey = 'apex-drive.road-material.v2';
+const requestedRoadTexture = searchParams.get('road');
+const storedRoadMaterialSettings = (() => {
+  try {
+    return JSON.parse(
+      localStorage.getItem(roadMaterialSettingsStorageKey) ?? '{}',
+    ) as Partial<RoadMaterialRuntimeSettings>;
+  } catch {
+    return {} as Partial<RoadMaterialRuntimeSettings>;
+  }
+})();
+const activeRoadTextureId: RoadTextureProfileId = isRoadTextureProfileId(
+  requestedRoadTexture,
+)
+  ? requestedRoadTexture
+  : isRoadTextureProfileId(storedRoadMaterialSettings.profileId)
+    ? storedRoadMaterialSettings.profileId
+    : 'aerial-asphalt-01';
+const clampRoadSetting = (
+  value: unknown,
+  fallback: number,
+  minimum: number,
+  maximum: number,
 ) => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue)
+    ? THREE.MathUtils.clamp(numericValue, minimum, maximum)
+    : fallback;
+};
+let roadMaterialSettings: RoadMaterialRuntimeSettings = Object.freeze({
+  profileId: activeRoadTextureId,
+  roughness: clampRoadSetting(storedRoadMaterialSettings.roughness, 1, 0, 1),
+  normalStrength: clampRoadSetting(
+    storedRoadMaterialSettings.normalStrength,
+    1,
+    0,
+    2,
+  ),
+  environmentIntensity: clampRoadSetting(
+    storedRoadMaterialSettings.environmentIntensity,
+    1,
+    0,
+    3,
+  ),
+  textureScale: clampRoadSetting(
+    storedRoadMaterialSettings.textureScale,
+    1,
+    0.25,
+    4,
+  ),
+  color: colorSetting(storedRoadMaterialSettings.color, '#ffffff'),
+});
+canvas.dataset.roadTexture = roadMaterialSettings.profileId;
+const roadTextureSetCache = new Map<RoadTextureProfileId, RoadTextureSet>();
+const reportRoadTextureStatus = (message: string) => {
+  canvas.dataset.roadMaterialStatus = message;
+  const status = document.querySelector<HTMLOutputElement>('#scene-road-status');
+  if (status) status.value = message;
+};
+const loadRoadTexture = (
+  profileId: RoadTextureProfileId,
+  name: RoadTextureMapName,
+  colorTexture = false,
+  onLoad?: () => void,
+  onError?: () => void,
+) => {
+  const roadTextureFiles = roadTextureProfiles[profileId];
   const texture = roadTextureLoader.load(
-    apexDrivePublicUrl(roadTextureFiles[name]),
+    `${apexDrivePublicUrl(roadTextureFiles[name])}?v=road-pbr-v2`,
+    onLoad,
+    undefined,
+    onError,
   );
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
@@ -2985,25 +3681,93 @@ const loadRoadTexture = (
   texture.colorSpace = colorTexture ? THREE.SRGBColorSpace : THREE.NoColorSpace;
   return texture;
 };
-const roadColorMap = loadRoadTexture('Color', true);
-const roadNormalMap = loadRoadTexture('NormalDX');
-const roadRoughnessMap = loadRoadTexture('Roughness');
+const loadRoadTextureSet = (profileId: RoadTextureProfileId): RoadTextureSet => {
+  const cached = roadTextureSetCache.get(profileId);
+  if (cached) {
+    reportRoadTextureStatus(`Listo · ${roadTextureProfileLabels[profileId]}`);
+    return cached;
+  }
+  reportRoadTextureStatus(`Cargando · ${roadTextureProfileLabels[profileId]}`);
+  let pendingMaps = 3;
+  let failed = false;
+  const complete = () => {
+    pendingMaps -= 1;
+    if (pendingMaps > 0 || roadMaterialSettings.profileId !== profileId) return;
+    reportRoadTextureStatus(failed
+      ? `Error · ${roadTextureProfileLabels[profileId]}`
+      : `Listo · ${roadTextureProfileLabels[profileId]}`);
+  };
+  const fail = (name: RoadTextureMapName) => () => {
+    failed = true;
+    console.error(`[APEX road] No se pudo cargar ${profileId}.${name}`);
+    complete();
+  };
+  const textureSet = Object.freeze({
+    color: loadRoadTexture(profileId, 'Color', true, complete, fail('Color')),
+    normal: loadRoadTexture(
+      profileId,
+      'NormalDX',
+      false,
+      complete,
+      fail('NormalDX'),
+    ),
+    roughness: loadRoadTexture(
+      profileId,
+      'Roughness',
+      false,
+      complete,
+      fail('Roughness'),
+    ),
+  });
+  roadTextureSetCache.set(profileId, textureSet);
+  return textureSet;
+};
+const activeRoadTextureSet = loadRoadTextureSet(roadMaterialSettings.profileId);
 const roadMaterial = new THREE.MeshPhysicalMaterial({
-  map: roadColorMap,
-  normalMap: roadNormalMap,
-  normalScale: new THREE.Vector2(1, -1),
-  roughnessMap: roadRoughnessMap,
-  roughness: 1,
+  map: activeRoadTextureSet.color,
+  normalMap: activeRoadTextureSet.normal,
+  normalScale: new THREE.Vector2(
+    roadMaterialSettings.normalStrength,
+    -roadMaterialSettings.normalStrength,
+  ),
+  roughnessMap: activeRoadTextureSet.roughness,
+  roughness: roadMaterialSettings.roughness,
   metalness: 0,
+  color: roadMaterialSettings.color,
   // El collider de pista es plano. El relieve queda en la normal para que el
   // material conserve detalle sin levantar geometría visual sobre la rueda.
-  envMapIntensity: 1,
+  envMapIntensity: roadMaterialSettings.environmentIntensity,
   side: THREE.DoubleSide,
   polygonOffset: true,
   polygonOffsetFactor: -1,
   polygonOffsetUnits: -1,
 });
+const roadVisualMaterials: THREE.MeshStandardMaterial[] = [roadMaterial];
+const applyRoadMaterialSettings = (settings: RoadMaterialRuntimeSettings) => {
+  roadMaterialSettings = settings;
+  const textureSet = loadRoadTextureSet(settings.profileId);
+  for (const texture of [textureSet.color, textureSet.normal, textureSet.roughness]) {
+    texture.repeat.set(settings.textureScale, settings.textureScale);
+  }
+  for (const material of roadVisualMaterials) {
+    const shaderLayoutChanged = material.map !== textureSet.color
+      || material.normalMap !== textureSet.normal
+      || material.roughnessMap !== textureSet.roughness;
+    material.map = textureSet.color;
+    material.normalMap = textureSet.normal;
+    material.roughnessMap = textureSet.roughness;
+    material.normalScale.set(settings.normalStrength, -settings.normalStrength);
+    material.roughness = settings.roughness;
+    material.envMapIntensity = settings.environmentIntensity;
+    material.color.set(settings.color);
+    if (shaderLayoutChanged) material.needsUpdate = true;
+  }
+  canvas.dataset.roadTexture = settings.profileId;
+  localStorage.setItem(roadMaterialSettingsStorageKey, JSON.stringify(settings));
+};
+applyRoadMaterialSettings(roadMaterialSettings);
 const parkingLotVisual = APEX_DRIVE_BARE_RUNTIME
+  || !embeddedTrackGarageEnabled
   ? undefined
   : createApexParkingLotVisual({
     bayCount: parkingCarCatalog.length,
@@ -3122,7 +3886,8 @@ if (trackEditorMode) {
   scene.add(trackCollisionDebugVisual.group);
   trackEditDerivedVisual = createApexTrackEditDerivedVisual({
     roadMaterial,
-    roadsideMaterial: grassMaterial,
+    roadsideMaterial: trackEditorTerrainDiagnosticMaterial,
+    roadsideTextureSizeM: grassTextureSizeM,
     showProceduralSurface: (
       !importedTrackCollisionOnly
       || (
@@ -3159,31 +3924,52 @@ transitionAlphaMap.wrapS = THREE.ClampToEdgeWrapping;
 transitionAlphaMap.wrapT = THREE.ClampToEdgeWrapping;
 transitionAlphaMap.channel = 1;
 const trackGrassTransitionMaterial = roadMaterial.clone();
+roadVisualMaterials.push(trackGrassTransitionMaterial);
 trackGrassTransitionMaterial.alphaMap = transitionAlphaMap;
 trackGrassTransitionMaterial.transparent = true;
 trackGrassTransitionMaterial.depthWrite = false;
 trackGrassTransitionMaterial.polygonOffset = true;
 trackGrassTransitionMaterial.polygonOffsetFactor = -2;
 trackGrassTransitionMaterial.polygonOffsetUnits = -2;
-const shoulderGroundFeatherMaterial = grassMaterial.clone();
-shoulderGroundFeatherMaterial.alphaMap = transitionAlphaMap;
-shoulderGroundFeatherMaterial.transparent = true;
-shoulderGroundFeatherMaterial.depthWrite = false;
+shoulderGroundFeatherMaterial = roadsideGrassMaterial.clone();
+// El piso adaptativo se recorta en el toe y ya no existe debajo de esta fila.
+// Un alpha fade aqui revelaria el vacio como una cuña oscura. La unica fila de
+// transicion es opaca, escribe profundidad y comparte UV mundial con ambos lados.
+shoulderGroundFeatherMaterial.alphaMap = null;
+shoulderGroundFeatherMaterial.transparent = false;
+shoulderGroundFeatherMaterial.depthWrite = true;
 const trackVisualLodEnabled = (
   !importedTrackCollisionOnly
   && !trackEditorMode
+  && !trackDraftPreviewMode
   && ACTIVE_TRACK.assets.visual.format === 'procedural'
+  // El talud adaptativo no es una grilla de cardinalidad fija: contiene
+  // patches zipper y vertices fusionados. TrackVisualLodSystem reconstruye
+  // strips suponiendo 12 vertices estables por anillo y, al aplicarlo aqui,
+  // termina uniendo indices de patches distintos (triangulos gigantes,
+  // winding incorrecto y huecos). Hasta que el LOD acepte topologia libre,
+  // la malla adaptativa se renderiza completa.
+  && ACTIVE_TRACK.configuration.geometry.roadsideMode !== 'adaptive-terrain'
   && (trackLengthM >= 1_400 || sampledTrackPoints.length >= 700)
 );
 let trackLodRuntime: ReturnType<typeof createTrackVisualLodSystem> | undefined;
 let lastTrackLodMetricsUpdateMs = 0;
 if (trackVisualLodEnabled) {
   const roadMediumMaterial = new THREE.MeshStandardMaterial({
-    map: roadColorMap,
-    roughness: 1,
+    map: activeRoadTextureSet.color,
+    normalMap: activeRoadTextureSet.normal,
+    normalScale: new THREE.Vector2(
+      roadMaterialSettings.normalStrength,
+      -roadMaterialSettings.normalStrength,
+    ),
+    roughnessMap: activeRoadTextureSet.roughness,
+    roughness: roadMaterialSettings.roughness,
     metalness: 0,
+    color: roadMaterialSettings.color,
+    envMapIntensity: roadMaterialSettings.environmentIntensity,
     side: THREE.DoubleSide,
   });
+  roadVisualMaterials.push(roadMediumMaterial);
   const averageSampleSpacingM = (
     trackCurve.getLength() / sampledTrackPoints.length
   );
@@ -3256,9 +4042,9 @@ if (trackVisualLodEnabled) {
         name: 'shoulder',
         geometry: shoulderGeometry,
         materials: [
-          grassMaterial,
-          grassMaterial,
-          grassMaterial,
+          roadsideGrassMaterial,
+          roadsideGrassMaterial,
+          roadsideGrassMaterial,
         ],
         ringVertexCount: 12,
         strips: [
@@ -3296,8 +4082,8 @@ if (trackVisualLodEnabled) {
         geometry: shoulderGroundFeatherGeometry,
         materials: [
           shoulderGroundFeatherMaterial,
-          grassMaterial,
-          grassMaterial,
+          roadsideGrassMaterial,
+          roadsideGrassMaterial,
         ],
         ringVertexCount: 12,
         strips: [[0, 1], [10, 11]],
@@ -3321,7 +4107,11 @@ if (trackVisualLodEnabled) {
 } else {
   const trackRoad = new THREE.Mesh(trackGeometry, roadMaterial);
   trackRoad.receiveShadow = true;
-  trackRoad.visible = !importedTrackCollisionOnly && !trackEditorMode;
+  trackRoad.visible = (
+    !importedTrackCollisionOnly
+    && !trackEditorMode
+    && !trackDraftPreviewMode
+  );
   scene.add(trackRoad);
 
   const trackGrassTransition = new THREE.Mesh(
@@ -3330,13 +4120,21 @@ if (trackVisualLodEnabled) {
   );
   trackGrassTransition.receiveShadow = true;
   trackGrassTransition.renderOrder = 1;
-  trackGrassTransition.visible = !importedTrackCollisionOnly && !trackEditorMode;
+  trackGrassTransition.visible = (
+    !importedTrackCollisionOnly
+    && !trackEditorMode
+    && !trackDraftPreviewMode
+  );
   scene.add(trackGrassTransition);
 
-  const trackShoulders = new THREE.Mesh(shoulderGeometry, grassMaterial);
+  const trackShoulders = new THREE.Mesh(shoulderGeometry, roadsideGrassMaterial);
   trackShoulders.receiveShadow = true;
   trackShoulders.userData.surface = 'grass';
-  trackShoulders.visible = !importedTrackCollisionOnly && !trackEditorMode;
+  trackShoulders.visible = (
+    !importedTrackCollisionOnly
+    && !trackEditorMode
+    && !trackDraftPreviewMode
+  );
   scene.add(trackShoulders);
 
   const shoulderGroundFeather = new THREE.Mesh(
@@ -3345,7 +4143,11 @@ if (trackVisualLodEnabled) {
   );
   shoulderGroundFeather.receiveShadow = true;
   shoulderGroundFeather.renderOrder = 1;
-  shoulderGroundFeather.visible = !importedTrackCollisionOnly && !trackEditorMode;
+  shoulderGroundFeather.visible = (
+    !importedTrackCollisionOnly
+    && !trackEditorMode
+    && !trackDraftPreviewMode
+  );
   scene.add(shoulderGroundFeather);
   canvas.dataset.trackLod = 'disabled-baseline-track';
   const triangleCount = (geometry: THREE.BufferGeometry): number => (
@@ -3362,7 +4164,11 @@ if (trackVisualLodEnabled) {
 canvas.dataset.trackHorizonMounds = '0';
 canvas.dataset.trackHorizonOcclusion = 'removed';
 const trackTunnels = createTrackTunnelSystem(shoulderConfluence.tunnels);
-trackTunnels.group.visible = !importedTrackCollisionOnly && !trackEditorMode;
+trackTunnels.group.visible = (
+  !importedTrackCollisionOnly
+  && !trackEditorMode
+  && !trackDraftPreviewMode
+);
 scene.add(trackTunnels.group);
 canvas.dataset.trackTunnelCount = String(
   importedTrackCollisionOnly ? 0 : trackTunnels.count,
@@ -3375,7 +4181,7 @@ const racingLineStorageKey = [
   'apex-drive',
   'track',
   formatApexDriveTrackNumber(ACTIVE_TRACK.track.number),
-  ACTIVE_TRACK.track.id,
+  ACTIVE_TRACK_INSTANCE_ID,
   ACTIVE_TRACK.track.version,
   'racing-line-points.v2-clean-incidents',
 ].join('.');
@@ -3465,7 +4271,7 @@ const autonomousMemoryStorageKey = (definition: ApexCarDefinition) => [
   'apex-drive',
   'autonomous-memory',
   formatApexDriveTrackNumber(ACTIVE_TRACK.track.number),
-  ACTIVE_TRACK.track.id,
+  ACTIVE_TRACK_INSTANCE_ID,
   ACTIVE_TRACK.track.version,
   definition.id,
   'v8-driver-baseline-local-retry-10m',
@@ -3474,7 +4280,7 @@ const segmentTimingStorageKey = (definition: ApexCarDefinition) => [
   'apex-drive',
   'rally-segments',
   formatApexDriveTrackNumber(ACTIVE_TRACK.track.number),
-  ACTIVE_TRACK.track.id,
+  ACTIVE_TRACK_INSTANCE_ID,
   ACTIVE_TRACK.track.version,
   definition.id,
   'v1-10-segments',
@@ -3584,6 +4390,7 @@ const blendAutonomousAssistance = (
     throttle,
     brake,
     steering,
+    directSteering: steeringOverride && manual.directSteering === true,
   };
 };
 let autonomousDriveEnabled = false;
@@ -3795,7 +4602,10 @@ physicalStartLightMaterials.forEach((material, index) => {
   timingGantry.add(lamp);
 });
 startFinishAnchor.add(timingGantry);
+startFinishAnchor.visible = embeddedTrackStartLineEnabled;
 scene.add(startFinishAnchor);
+canvas.dataset.trackEmbeddedGarage = String(embeddedTrackGarageEnabled);
+canvas.dataset.trackEmbeddedStartLine = String(embeddedTrackStartLineEnabled);
 const raceTrackMarkers = APEX_DRIVE_BARE_RUNTIME
   ? undefined
   : createApexRaceTrackMarkers({
@@ -3804,7 +4614,9 @@ const raceTrackMarkers = APEX_DRIVE_BARE_RUNTIME
     checkpoints: lapTimingCheckpoints,
   });
 if (raceTrackMarkers) {
-  raceTrackMarkers.group.visible = !isParkingSelection && !trackEditorMode;
+  raceTrackMarkers.group.visible = embeddedTrackStartLineEnabled
+    && !isParkingSelection
+    && !trackEditorMode;
 }
 canvas.dataset.lapTimingCheckpointCount = String(lapTimingCheckpoints.length);
 canvas.dataset.lapTimingStart = [
@@ -3834,12 +4646,114 @@ const trackSunOffset = new THREE.Vector3(0, 50, 50);
 const renderingPanelRoot = document.querySelector<HTMLDetailsElement>(
   '#rendering-panel',
 )!;
-renderingPanelRoot.hidden = (
-  isAuditRuntime
-  || APEX_DRIVE_PUBLIC_DEMO
-  || trackEditorMode
-);
-renderingPanelRoot.open = false;
+const environmentPanelClose = document.querySelector<HTMLButtonElement>(
+  '#environment-panel-close',
+)!;
+const setRenderingPanelVisible = (visible: boolean) => {
+  renderingPanelRoot.open = visible;
+  renderingPanelRoot.hidden = !visible;
+  renderingPanelRoot.toggleAttribute('data-scene-panel-visible', visible);
+  canvas.dataset.scenePanelVisible = String(visible);
+  if (visible) {
+    requestAnimationFrame(() => {
+      renderingPanelRoot.querySelector<HTMLElement>(
+        '.environment-controls__section > summary',
+      )?.focus({ preventScroll: true });
+    });
+  }
+};
+setRenderingPanelVisible(false);
+const roadMaterialSelect = document.querySelector<HTMLSelectElement>(
+  '#scene-road-material',
+)!;
+const roadRoughnessInput = document.querySelector<HTMLInputElement>(
+  '#scene-road-roughness',
+)!;
+const roadNormalInput = document.querySelector<HTMLInputElement>(
+  '#scene-road-normal',
+)!;
+const roadEnvironmentInput = document.querySelector<HTMLInputElement>(
+  '#scene-road-environment',
+)!;
+const roadScaleInput = document.querySelector<HTMLInputElement>(
+  '#scene-road-scale',
+)!;
+const roadColorInput = document.querySelector<HTMLInputElement>(
+  '#scene-road-color',
+)!;
+const roadRoughnessOutput = document.querySelector<HTMLOutputElement>(
+  '#scene-road-roughness-value',
+)!;
+const roadNormalOutput = document.querySelector<HTMLOutputElement>(
+  '#scene-road-normal-value',
+)!;
+const roadEnvironmentOutput = document.querySelector<HTMLOutputElement>(
+  '#scene-road-environment-value',
+)!;
+const roadScaleOutput = document.querySelector<HTMLOutputElement>(
+  '#scene-road-scale-value',
+)!;
+Object.entries(roadTextureProfileLabels).forEach(([id, label]) => {
+  roadMaterialSelect.add(new Option(label, id));
+});
+const writeRoadMaterialControls = (settings: RoadMaterialRuntimeSettings) => {
+  roadMaterialSelect.value = settings.profileId;
+  roadRoughnessInput.value = String(settings.roughness);
+  roadNormalInput.value = String(settings.normalStrength);
+  roadEnvironmentInput.value = String(settings.environmentIntensity);
+  roadScaleInput.value = String(settings.textureScale);
+  roadColorInput.value = settings.color;
+  roadRoughnessOutput.value = settings.roughness.toFixed(2);
+  roadNormalOutput.value = settings.normalStrength.toFixed(2);
+  roadEnvironmentOutput.value = settings.environmentIntensity.toFixed(2);
+  roadScaleOutput.value = `${settings.textureScale.toFixed(2)}×`;
+};
+const applyRoadMaterialControls = () => {
+  const profileId = roadMaterialSelect.value;
+  if (!isRoadTextureProfileId(profileId)) return;
+  const settings: RoadMaterialRuntimeSettings = Object.freeze({
+    profileId,
+    roughness: clampRoadSetting(roadRoughnessInput.value, 1, 0, 1),
+    normalStrength: clampRoadSetting(roadNormalInput.value, 1, 0, 2),
+    environmentIntensity: clampRoadSetting(
+      roadEnvironmentInput.value,
+      1,
+      0,
+      3,
+    ),
+    textureScale: clampRoadSetting(roadScaleInput.value, 1, 0.25, 4),
+    color: colorSetting(roadColorInput.value, '#ffffff'),
+  });
+  writeRoadMaterialControls(settings);
+  applyRoadMaterialSettings(settings);
+};
+writeRoadMaterialControls(roadMaterialSettings);
+[
+  roadMaterialSelect,
+  roadRoughnessInput,
+  roadNormalInput,
+  roadEnvironmentInput,
+  roadScaleInput,
+  roadColorInput,
+].forEach(input => {
+  input.addEventListener('input', applyRoadMaterialControls);
+  input.addEventListener('change', applyRoadMaterialControls);
+});
+trackStudioEnvironment.hidden = !trackEditorMode;
+trackStudioEnvironment.addEventListener('click', () => {
+  setRenderingPanelVisible(true);
+});
+environmentPanelClose.addEventListener('click', () => {
+  setRenderingPanelVisible(false);
+});
+renderingPanelRoot.addEventListener('pointerdown', event => {
+  if (event.target === renderingPanelRoot) setRenderingPanelVisible(false);
+});
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && renderingPanelRoot.open) {
+    setRenderingPanelVisible(false);
+  }
+});
 if (!isAuditRuntime) {
   const publicDemoEnvironmentStorageKey = 'apex-demo.environment-profile.v1';
   const isPublicDemoEnvironmentProfile = (
@@ -3853,6 +4767,9 @@ if (!isAuditRuntime) {
     if (isPublicDemoEnvironmentProfile(requested)) {
       return requested;
     }
+    if (activeLandscapePreset) {
+      return activeLandscapePreset.environmentProfileId;
+    }
     const stored = localStorage.getItem(publicDemoEnvironmentStorageKey);
     if (isPublicDemoEnvironmentProfile(stored)) {
       return stored;
@@ -3865,6 +4782,14 @@ if (!isAuditRuntime) {
     localStorage.setItem(alternationStorageKey, next);
     return next;
   })();
+  const trackEnvironmentStorageKey = [
+    'apex-drive.track-environment.v1',
+    ACTIVE_TRACK_INSTANCE_ID,
+  ].join('.');
+  const storedTrackEnvironmentSettings = readApexEnvironmentSettings(
+    trackEnvironmentStorageKey,
+  );
+  let trackEnvironmentPersistenceArmed = false;
   const applyEnvironmentSettings = (settings: ApexEnvironmentSettings) => {
     renderer.toneMappingExposure = settings.exposure;
     scene.environmentIntensity = settings.hdriIntensity;
@@ -3889,6 +4814,13 @@ if (!isAuditRuntime) {
     );
     renderer.shadowMap.enabled = shadowsEnabled;
     trackSunLight.castShadow = shadowsEnabled;
+    scene.fog = settings.fogEnabled
+      ? new THREE.Fog(
+        settings.fogColor,
+        settings.fogNearM,
+        Math.max(settings.fogNearM + 1, settings.fogFarM),
+      )
+      : null;
     useEnvironmentAsset(settings.environmentId);
     canvas.dataset.environmentProfile = settings.environmentId;
     canvas.dataset.environmentExposure = settings.exposure.toFixed(2);
@@ -3897,12 +4829,20 @@ if (!isAuditRuntime) {
     canvas.dataset.environmentRotationDeg = settings.rotationDegrees.toFixed(0);
     canvas.dataset.environmentSunIntensity = settings.sunIntensity.toFixed(2);
     canvas.dataset.environmentShadows = String(settings.softShadows);
+    canvas.dataset.environmentFog = String(settings.fogEnabled);
+    canvas.dataset.environmentFogNearM = settings.fogNearM.toFixed(0);
+    canvas.dataset.environmentFogFarM = settings.fogFarM.toFixed(0);
+    if (trackEnvironmentPersistenceArmed) {
+      writeApexEnvironmentSettings(trackEnvironmentStorageKey, settings);
+    }
   };
   environmentProfilePanel = new ApexEnvironmentProfilePanel(
     renderingPanelRoot,
     applyEnvironmentSettings,
     publicDemoEnvironmentProfile,
+    storedTrackEnvironmentSettings,
   );
+  trackEnvironmentPersistenceArmed = true;
   if (APEX_DRIVE_PUBLIC_DEMO) {
     const activeEnvironmentId = (
       publicDemoEnvironmentProfile ?? DEFAULT_ENVIRONMENT_PROFILES[0].id
@@ -4149,7 +5089,9 @@ const loadParkingPreview = (definition: ApexCarDefinition, index: number) => {
   parkingPreviewLoader.load(
     definition.assetUri,
     gltf => {
-      const previewPhysicsDefinition = carPhysicsDefinitionFor(definition);
+      const previewPhysicsDefinition = createApexCarPhysicsDefinition(
+        definition,
+      );
       const previewDimensions = previewPhysicsDefinition.dimensions;
       const model = gltf.scene;
       model.rotation.y = THREE.MathUtils.degToRad(definition.visual.yawDegrees);
@@ -4375,6 +5317,14 @@ parkingCarColorInput.addEventListener('input', () => {
 });
 if (parkingSelectionActive) refreshParkingSelection();
 selectCarInParkingHook = carId => {
+  if (!embeddedTrackGarageEnabled) {
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set('vehicle', 'car');
+    nextUrl.searchParams.set('car', carId);
+    nextUrl.searchParams.set('drive', 'circuit');
+    window.location.href = nextUrl.toString();
+    return true;
+  }
   const nextIndex = parkingCarCatalog.findIndex(
     definition => definition.id === carId,
   );
@@ -4461,13 +5411,180 @@ tireMarks.instanceMatrix.needsUpdate = true;
 tireMarks.count = 0;
 scene.add(tireMarks);
 
-let tireMarkCursor = 0;
-let tireMarkCount = 0;
-const previousTireMarkContacts = Array.from(
-  { length: 4 },
-  () => new THREE.Vector3(),
+const createGrassRutTexture = (): THREE.CanvasTexture => {
+  const width = 128;
+  const height = 512;
+  const textureCanvas = document.createElement('canvas');
+  textureCanvas.width = width;
+  textureCanvas.height = height;
+  const context = textureCanvas.getContext('2d');
+  if (!context) throw new Error('Unable to create grass rut texture');
+  const pixels = context.createImageData(width, height);
+  const hash = (x: number, y: number): number => {
+    const value = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+    return value - Math.floor(value);
+  };
+  for (let y = 0; y < height; y += 1) {
+    const along = (y + 0.5) / height;
+    const center = 0.5
+      + Math.sin(along * Math.PI * 11.3) * 0.018
+      + Math.sin(along * Math.PI * 31.7) * 0.008;
+    const widthNoise = (
+      Math.sin(along * Math.PI * 17.1) * 0.028
+      + Math.sin(along * Math.PI * 43.7) * 0.014
+    );
+    for (let x = 0; x < width; x += 1) {
+      const across = (x + 0.5) / width;
+      const distance = Math.abs(across - center);
+      const tornEdge = 0.34 + widthNoise
+        + (hash(Math.floor(x / 3), Math.floor(y / 5)) - 0.5) * 0.055;
+      const edge = THREE.MathUtils.clamp(
+        (tornEdge - distance) / 0.085,
+        0,
+        1,
+      );
+      const clodNoise = hash(x, y);
+      const longitudinalTear = 0.82
+        + 0.18 * Math.sin(along * Math.PI * 77 + across * 13);
+      const centerExposure = THREE.MathUtils.clamp(
+        1 - distance / Math.max(0.001, tornEdge),
+        0,
+        1,
+      );
+      const alpha = edge
+        * longitudinalTear
+        * (clodNoise > 0.965 ? 0.28 : 1);
+      const mud = 0.72 + clodNoise * 0.28;
+      const pixel = (y * width + x) * 4;
+      pixels.data[pixel] = Math.round((66 + centerExposure * 15) * mud);
+      pixels.data[pixel + 1] = Math.round((42 + centerExposure * 8) * mud);
+      pixels.data[pixel + 2] = Math.round((22 + centerExposure * 4) * mud);
+      pixels.data[pixel + 3] = Math.round(alpha * 255);
+    }
+  }
+  context.putImageData(pixels, 0, 0);
+  const texture = new THREE.CanvasTexture(textureCanvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = 4;
+  texture.needsUpdate = true;
+  return texture;
+};
+
+const createGrassRutGeometry = (): THREE.BufferGeometry => {
+  const geometry = new THREE.BufferGeometry();
+  const columns = [-0.5, -0.34, 0, 0.34, 0.5] as const;
+  const depths = [0, -0.002, -0.008, -0.002, 0] as const;
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  for (let row = 0; row < 2; row += 1) {
+    for (let column = 0; column < columns.length; column += 1) {
+      positions.push(columns[column], depths[column], row - 0.5);
+      uvs.push(columns[column] + 0.5, row);
+    }
+  }
+  for (let column = 0; column < columns.length - 1; column += 1) {
+    const nearLeft = column;
+    const nearRight = column + 1;
+    const farLeft = columns.length + column;
+    const farRight = farLeft + 1;
+    indices.push(
+      nearLeft, farLeft, nearRight,
+      nearRight, farLeft, farRight,
+    );
+  }
+  geometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(positions, 3),
+  );
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+};
+
+const MAX_GRASS_RUT_SEGMENTS = 4096;
+const grassRutMaterial = new THREE.MeshStandardMaterial({
+  map: createGrassRutTexture(),
+  color: 0xffffff,
+  roughness: 1,
+  metalness: 0,
+  transparent: true,
+  opacity: 0.96,
+  alphaTest: 0.035,
+  depthWrite: false,
+  polygonOffset: true,
+  polygonOffsetFactor: -3,
+  polygonOffsetUnits: -3,
+  side: THREE.DoubleSide,
+});
+const grassRuts = new THREE.InstancedMesh(
+  createGrassRutGeometry(),
+  grassRutMaterial,
+  MAX_GRASS_RUT_SEGMENTS,
 );
-const tireMarkActive = [false, false, false, false];
+grassRuts.name = 'grass-tire-ruts';
+grassRuts.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+grassRuts.frustumCulled = false;
+grassRuts.renderOrder = 3;
+for (let index = 0; index < MAX_GRASS_RUT_SEGMENTS; index += 1) {
+  grassRuts.setMatrixAt(index, hiddenTireMarkMatrix);
+}
+grassRuts.instanceMatrix.needsUpdate = true;
+grassRuts.count = 0;
+scene.add(grassRuts);
+
+interface TireSurfaceMarkRuntime {
+  readonly mesh: THREE.InstancedMesh;
+  readonly maximumSegments: number;
+  readonly previousContacts: THREE.Vector3[];
+  readonly active: boolean[];
+  readonly minimumWidthM: number;
+  readonly maximumWidthM: number;
+  readonly segmentOverlapM: number;
+  readonly surfaceLiftM: number;
+  cursor: number;
+  count: number;
+}
+
+const createTireSurfaceMarkRuntime = (
+  mesh: THREE.InstancedMesh,
+  maximumSegments: number,
+  minimumWidthM: number,
+  maximumWidthM: number,
+  segmentOverlapM: number,
+  surfaceLiftM: number,
+): TireSurfaceMarkRuntime => ({
+  mesh,
+  maximumSegments,
+  previousContacts: Array.from({ length: 4 }, () => new THREE.Vector3()),
+  active: [false, false, false, false],
+  minimumWidthM,
+  maximumWidthM,
+  segmentOverlapM,
+  surfaceLiftM,
+  cursor: 0,
+  count: 0,
+});
+
+const asphaltMarkRuntime = createTireSurfaceMarkRuntime(
+  tireMarks,
+  MAX_TIRE_MARK_SEGMENTS,
+  0.13,
+  0.18,
+  0.035,
+  0.012,
+);
+const grassRutRuntime = createTireSurfaceMarkRuntime(
+  grassRuts,
+  MAX_GRASS_RUT_SEGMENTS,
+  0.24,
+  0.4,
+  0.12,
+  0.018,
+);
 const tireMarkDelta = new THREE.Vector3();
 const tireMarkDirection = new THREE.Vector3();
 const tireMarkLateral = new THREE.Vector3();
@@ -4476,6 +5593,58 @@ const tireMarkScale = new THREE.Vector3();
 const tireMarkQuaternion = new THREE.Quaternion();
 const tireMarkBasis = new THREE.Matrix4();
 const tireMarkMatrix = new THREE.Matrix4();
+const updateTireSurfaceMark = (
+  runtime: TireSurfaceMarkRuntime,
+  wheelIndex: number,
+  active: boolean,
+  contact: THREE.Vector3,
+  normal: THREE.Vector3,
+  slipIntensity: number,
+): void => {
+  if (!active || !Number.isFinite(contact.x) || !Number.isFinite(normal.x)) {
+    runtime.active[wheelIndex] = false;
+    return;
+  }
+  if (!runtime.active[wheelIndex]) {
+    runtime.previousContacts[wheelIndex].copy(contact);
+    runtime.active[wheelIndex] = true;
+    return;
+  }
+  tireMarkDelta.subVectors(contact, runtime.previousContacts[wheelIndex]);
+  tireMarkDirection.copy(tireMarkDelta)
+    .addScaledVector(normal, -tireMarkDelta.dot(normal));
+  const segmentLength = tireMarkDirection.length();
+  if (segmentLength < 0.08) return;
+  if (segmentLength > 1.6) {
+    runtime.previousContacts[wheelIndex].copy(contact);
+    return;
+  }
+  tireMarkDirection.multiplyScalar(1 / segmentLength);
+  tireMarkLateral.crossVectors(normal, tireMarkDirection).normalize();
+  tireMarkCenter.addVectors(runtime.previousContacts[wheelIndex], contact)
+    .multiplyScalar(0.5)
+    .addScaledVector(normal, runtime.surfaceLiftM);
+  tireMarkBasis.makeBasis(tireMarkLateral, normal, tireMarkDirection);
+  tireMarkQuaternion.setFromRotationMatrix(tireMarkBasis);
+  tireMarkScale.set(
+    THREE.MathUtils.lerp(
+      runtime.minimumWidthM,
+      runtime.maximumWidthM,
+      slipIntensity,
+    ),
+    1,
+    segmentLength + runtime.segmentOverlapM,
+  );
+  tireMarkMatrix.compose(tireMarkCenter, tireMarkQuaternion, tireMarkScale);
+  runtime.mesh.setMatrixAt(runtime.cursor, tireMarkMatrix);
+  runtime.mesh.instanceMatrix.addUpdateRange(runtime.cursor * 16, 16);
+  runtime.cursor = (runtime.cursor + 1) % runtime.maximumSegments;
+  runtime.count = Math.min(runtime.count + 1, runtime.maximumSegments);
+  runtime.mesh.count = runtime.count;
+  runtime.mesh.instanceMatrix.needsUpdate = true;
+  runtime.previousContacts[wheelIndex].copy(contact);
+};
+
 const updateTireMarks = (pose: VehiclePose) => {
   for (let index = 0; index < pose.wheelGrounded.length; index += 1) {
     const surface = pose.wheelSurfaces[index];
@@ -4483,45 +5652,25 @@ const updateTireMarks = (pose: VehiclePose) => {
       || surface === 'asphalt-low-grip'
       || surface === 'asphalt-high-grip'
       || surface === 'wet-asphalt';
+    const grass = surface === 'grass';
     const lateralSlip = Math.abs(pose.wheelLateralSlipRadians[index]);
     const longitudinalSlip = Math.abs(pose.wheelLongitudinalSlips[index]);
-    const skidding = pose.wheelGrounded[index]
+    const asphaltSkidding = pose.wheelGrounded[index]
       && asphalt
       && pose.speedKmh > 10
       && (
         lateralSlip > THREE.MathUtils.degToRad(7.5)
         || longitudinalSlip > 0.16
       );
+    const grassTearing = pose.wheelGrounded[index]
+      && grass
+      && pose.speedKmh > 5
+      && (
+        lateralSlip > THREE.MathUtils.degToRad(4)
+        || longitudinalSlip > 0.08
+      );
     const contact = pose.wheelContactPositions[index];
-
-    if (!skidding || !Number.isFinite(contact.x)) {
-      tireMarkActive[index] = false;
-      continue;
-    }
-    if (!tireMarkActive[index]) {
-      previousTireMarkContacts[index].copy(contact);
-      tireMarkActive[index] = true;
-      continue;
-    }
-
     const normal = pose.wheelContactNormals[index];
-    tireMarkDelta.subVectors(contact, previousTireMarkContacts[index]);
-    tireMarkDirection.copy(tireMarkDelta)
-      .addScaledVector(normal, -tireMarkDelta.dot(normal));
-    const segmentLength = tireMarkDirection.length();
-    if (segmentLength < 0.08) continue;
-    if (segmentLength > 1.6) {
-      previousTireMarkContacts[index].copy(contact);
-      continue;
-    }
-
-    tireMarkDirection.multiplyScalar(1 / segmentLength);
-    tireMarkLateral.crossVectors(normal, tireMarkDirection).normalize();
-    tireMarkCenter.addVectors(previousTireMarkContacts[index], contact)
-      .multiplyScalar(0.5)
-      .addScaledVector(normal, 0.012);
-    tireMarkBasis.makeBasis(tireMarkLateral, normal, tireMarkDirection);
-    tireMarkQuaternion.setFromRotationMatrix(tireMarkBasis);
     const slipIntensity = THREE.MathUtils.clamp(
       Math.max(
         lateralSlip / THREE.MathUtils.degToRad(18),
@@ -4530,26 +5679,25 @@ const updateTireMarks = (pose: VehiclePose) => {
       0,
       1,
     );
-    tireMarkScale.set(
-      THREE.MathUtils.lerp(0.13, 0.18, slipIntensity),
-      1,
-      segmentLength + 0.035,
+    updateTireSurfaceMark(
+      asphaltMarkRuntime,
+      index,
+      asphaltSkidding,
+      contact,
+      normal,
+      slipIntensity,
     );
-    tireMarkMatrix.compose(
-      tireMarkCenter,
-      tireMarkQuaternion,
-      tireMarkScale,
+    updateTireSurfaceMark(
+      grassRutRuntime,
+      index,
+      grassTearing,
+      contact,
+      normal,
+      slipIntensity,
     );
-    tireMarks.setMatrixAt(tireMarkCursor, tireMarkMatrix);
-    tireMarks.instanceMatrix.addUpdateRange(tireMarkCursor * 16, 16);
-    tireMarkCursor = (tireMarkCursor + 1) % MAX_TIRE_MARK_SEGMENTS;
-    tireMarkCount = Math.min(tireMarkCount + 1, MAX_TIRE_MARK_SEGMENTS);
-    tireMarks.count = tireMarkCount;
-    tireMarks.instanceMatrix.needsUpdate = true;
-    previousTireMarkContacts[index].copy(contact);
   }
 };
-canvas.dataset.tireMarks = 'jolt-contact-instanced';
+canvas.dataset.tireMarks = 'jolt-contact-instanced-asphalt-and-grass-ruts';
 
 let vehicleColorStorageKey = carColorStorageKey(activeCar);
 const savedVehicleColor = storedCarColor(activeCar);
@@ -5146,7 +6294,7 @@ const mountActiveVehicleModel = (
       brakePointLights.forEach(light => light.removeFromParent());
       brakePointLights.clear();
     }
-    const presentationPhysicsDefinition = carPhysicsDefinitionFor(
+    const presentationPhysicsDefinition = createApexCarPhysicsDefinition(
       visualDefinition,
     );
     const presentationDimensions = presentationPhysicsDefinition.dimensions;
@@ -5578,7 +6726,83 @@ let previousParkingGamepadDirection: ParkingSelectionDirection | undefined;
 let previousParkingGamepadConfirm = false;
 let reportedControllerId = '';
 let driverBrakeDemand = 0;
+const motionSteering = new ApexDualShockMotionSteering();
+const motionSteeringStorageKey = 'apex-drive.motion-steering.enabled.v1';
+let previousMotionSteeringStatus = '';
+const updateMotionSteeringUi = (
+  snapshot: ApexMotionSteeringSnapshot,
+  overrideMessage?: string,
+): void => {
+  motionSteeringToggle.hidden = !motionSteering.supported;
+  motionSteeringCalibrate.hidden = !snapshot.connected;
+  motionSteeringToggle.setAttribute('aria-pressed', String(snapshot.active));
+  motionSteeringToggle.textContent = snapshot.active
+    ? 'Volante DualShock · desactivar'
+    : snapshot.connected
+      ? 'Volante DualShock · activar'
+      : 'Volante DualShock · conectar';
+  const message = overrideMessage ?? (snapshot.active
+    ? `Directo · mando ${snapshot.tiltDegrees.toFixed(1)}° · ruedas ${(
+      snapshot.steering * APEX_MOTION_STEERING_FULL_TILT_DEGREES
+    ).toFixed(1)}°`
+    : snapshot.connected
+      ? 'DualShock conectado · dirección directa apagada'
+      : motionSteering.supported
+        ? 'Inclinación ±45° · dirección directa'
+        : 'WebHID no disponible · usá Chrome o Edge en localhost/HTTPS');
+  if (message !== previousMotionSteeringStatus) {
+    motionSteeringStatus.textContent = message;
+    previousMotionSteeringStatus = message;
+  }
+  canvas.dataset.motionSteering = snapshot.active ? 'direct' : 'off';
+  canvas.dataset.motionSteeringTiltDegrees = snapshot.tiltDegrees.toFixed(2);
+};
+motionSteeringToggle.addEventListener('click', async () => {
+  const before = motionSteering.snapshot();
+  if (before.active) {
+    motionSteering.disable();
+    localStorage.setItem(motionSteeringStorageKey, 'false');
+    updateMotionSteeringUi(motionSteering.snapshot());
+    return;
+  }
+  try {
+    if (before.connected) motionSteering.enable();
+    else if (!await motionSteering.connect()) return;
+    motionSteering.calibrate();
+    localStorage.setItem(motionSteeringStorageKey, 'true');
+    updateMotionSteeringUi(motionSteering.snapshot());
+  } catch (error) {
+    updateMotionSteeringUi(
+      motionSteering.snapshot(),
+      error instanceof Error ? error.message : 'No se pudo abrir el DualShock',
+    );
+  }
+});
+motionSteeringCalibrate.addEventListener('click', () => {
+  motionSteering.calibrate();
+  updateMotionSteeringUi(
+    motionSteering.snapshot(),
+    'Centro guardado · mantené el mando horizontal',
+  );
+});
+updateMotionSteeringUi(motionSteering.snapshot());
+if (localStorage.getItem(motionSteeringStorageKey) === 'true') {
+  void motionSteering.restoreGrantedDevice().then(restored => {
+    if (restored) updateMotionSteeringUi(motionSteering.snapshot());
+  }).catch(() => {
+    updateMotionSteeringUi(motionSteering.snapshot());
+  });
+}
 const readRuntimeDriverInput = (): DriverInput => {
+  const motionSnapshot = motionSteering.snapshot();
+  updateMotionSteeringUi(motionSnapshot);
+  const motionDriverInput: DriverInput = motionSnapshot.active
+    ? {
+      ...input,
+      steering: motionSnapshot.steering,
+      directSteering: true,
+    }
+    : input;
   const gamepad = Array.from(navigator.getGamepads()).find(
     (candidate): candidate is Gamepad => candidate !== null && candidate.connected,
   );
@@ -5598,7 +6822,7 @@ const readRuntimeDriverInput = (): DriverInput => {
       || isExplorationCameraMode()
     )
       ? neutralDriverInput
-      : input;
+      : motionDriverInput;
   }
   if (reportedControllerId !== gamepad.id) {
     controllerStatus.textContent = `Joystick · ${gamepad.id}`;
@@ -5675,7 +6899,10 @@ const readRuntimeDriverInput = (): DriverInput => {
     throttle: hasDigitalDirection || gamepadDirection === 0
       ? undefined
       : Math.max(accelerator, brakeOrReverse),
-    steering: hasKeyboardSteering ? undefined : steering,
+    steering: hasKeyboardSteering
+      ? undefined
+      : motionSnapshot.active ? motionSnapshot.steering : steering,
+    directSteering: motionSnapshot.active && !hasKeyboardSteering,
     handbrake: input.handbrake || Boolean(gamepad.buttons[4]?.pressed),
   };
 };
@@ -5721,6 +6948,7 @@ try {
   createApexWorldStaticCollisionGroups({
     floorSizeM: FLOOR_SIZE_M,
     grassFriction: grassSurface.lateralMu,
+    terrainMesh: groundCollisionTerrainMesh,
   }).forEach(group => physicsWorld.replaceStaticColliderGroup(group));
   const trackCollisionRegistry = new ApexTrackSegmentCollisionRegistry({
     staticWorld: physicsWorld,
@@ -5748,7 +6976,7 @@ try {
   canvas.dataset.tireExecutionBackend = physics.getState().tireExecutionBackend;
   let trackEditorRevision = 0;
   const trackDraftIdentity = Object.freeze({
-    trackId: ACTIVE_TRACK.track.id,
+    trackId: ACTIVE_TRACK_INSTANCE_ID,
     trackVersion: ACTIVE_TRACK.track.version,
     defaultBoundaryMode: ACTIVE_TRACK.configuration.geometry.boundaryMode,
     defaultRoadsideMode: ACTIVE_TRACK.configuration.geometry.roadsideMode,
@@ -5762,14 +6990,61 @@ try {
         : 'inherit' as const)
     ),
   });
-  // El draft también es una fuente de presentación fuera del editor: de otro
-  // modo los tramos nuevos desaparecen al cerrar el modo de edición.
-  const loadedTrackDraft = loadApexTrackDraft(trackDraftIdentity);
+  // Un borrador sólo puede reemplazar la pista publicada dentro del editor o
+  // en un preview explícito. Cargarlo siempre hacía que Drive dibujara la
+  // fuente publicada pero colisionara contra una revisión local diferente.
+  const shouldLoadTrackDraft = trackEditorMode || trackDraftPreviewMode;
+  const loadedTrackDraft = !shouldLoadTrackDraft
+    ? undefined
+    : (apexTrackStudioApplication || trackDraftPreviewMode)
+      ? await loadApexMapDraftFromVoid(trackDraftIdentity)
+      : loadApexTrackDraft(trackDraftIdentity);
   const availableTrackSegments = (
     loadedTrackDraft?.segments
     ?? ACTIVE_TRACK_SOURCE?.segments
     ?? Object.freeze([])
   );
+  if (trackDraftPreviewMode && loadedTrackDraft && groundUsesTriangleMesh) {
+    const terrainSegmentId = ACTIVE_TRACK_PRIMARY_SEGMENT?.id ?? 'main';
+    const terrainSegment = (
+      availableTrackSegments.find(segment => segment.id === terrainSegmentId)
+      ?? availableTrackSegments[0]
+    );
+    if (terrainSegment && terrainSegment.evaluatedPoints.length >= 2) {
+      const nextGroundGeometry = activeLandscapePreset
+        ? createApexProceduralLandscapeGeometry(
+          activeLandscapePreset,
+          FLOOR_SIZE_M,
+          terrainSegment.evaluatedPoints,
+        )
+        : createApexAdaptiveTrackFloorGeometry(
+          FLOOR_SIZE_M,
+          TEST_TRACK_GROUND_HEIGHT_M,
+          terrainSegment.evaluatedPoints,
+          terrainSegment.geometry.roadWidthM,
+          resolveTrackRoadsideWidthM(
+            terrainSegment.geometry.roadsideMode,
+            TEST_TRACK_SHOULDER_WIDTH_M,
+            terrainSegment.geometry.roadWidthM,
+          ),
+          terrainSegment.editor.closed,
+          8,
+          grassTextureSizeM,
+        );
+      const previousGroundGeometry = groundMesh.geometry;
+      groundMesh.geometry = nextGroundGeometry;
+      previousGroundGeometry.dispose();
+      groundCollisionTerrainMesh = createGroundCollisionTerrainMesh(
+        nextGroundGeometry,
+      );
+      createApexWorldStaticCollisionGroups({
+        floorSizeM: FLOOR_SIZE_M,
+        grassFriction: grassSurface.lateralMu,
+        terrainMesh: groundCollisionTerrainMesh,
+      }).forEach(group => physicsWorld.replaceStaticColliderGroup(group));
+      canvas.dataset.trackTerrainSource = 'loaded-draft';
+    }
+  }
   let workingTrackSegments = [...availableTrackSegments];
   const preferredTrackSegmentId = (
     requestedTrackEditorSegmentId
@@ -5817,7 +7092,10 @@ try {
   );
   const primaryTrackSegmentId = ACTIVE_TRACK_PRIMARY_SEGMENT?.id ?? 'main';
   const networkVisualExcludedSegmentIds = new Set<string>();
-  if (!trackEditorMode || importedTrackCollisionOnly) {
+  if (
+    (!trackEditorMode && !trackDraftPreviewMode)
+    || importedTrackCollisionOnly
+  ) {
     // Fuera del editor lo presenta el runtime legado. En una pista importada,
     // el asset también permanece como autoridad visual durante la edición.
     networkVisualExcludedSegmentIds.add(primaryTrackSegmentId);
@@ -5860,7 +7138,9 @@ try {
       ),
     },
     roadMaterial,
-    roadsideMaterial: grassMaterial,
+    roadsideMaterial: trackEditorMode
+      ? trackEditorTerrainDiagnosticMaterial
+      : roadsideGrassMaterial,
     collisionRegistry: trackCollisionRegistry,
   });
   trackRuntimeCoordinator.group.visible = !isParkingSelection;
@@ -6014,6 +7294,7 @@ try {
     ?? ACTIVE_TRACK_SOURCE?.junctions
     ?? Object.freeze([])
   );
+  let latestSavedTrackDraft: ApexTrackDraft | undefined;
   const saveActiveTrackDraft = (
     controlPoints: readonly TrackPoint[],
     evaluatedPoints: readonly TrackPoint[],
@@ -6031,7 +7312,7 @@ try {
       roadsideMode,
       simplificationToleranceM,
     );
-    const saved = saveApexTrackDraft(Object.freeze({
+    const draft = Object.freeze({
       format: APEX_TRACK_DRAFT_FORMAT,
       formatVersion: APEX_TRACK_DRAFT_FORMAT_VERSION,
       trackId: trackDraftIdentity.trackId,
@@ -6051,12 +7332,14 @@ try {
       simplificationToleranceM,
       controlPoints,
       evaluatedPoints,
-    }));
+    });
+    latestSavedTrackDraft = draft;
+    const saved = saveApexTrackDraft(draft);
     canvas.dataset.trackEditorDraft = saved ? 'saved' : 'save-error';
     canvas.dataset.trackEditorDraftSavedAt = saved ? savedAtIso : 'none';
     setTrackStudioSaveStatus(
       saved
-        ? `Guardado local · ${new Intl.DateTimeFormat('es-AR', {
+        ? `Borrador guardado · ${new Intl.DateTimeFormat('es-AR', {
           hour: '2-digit',
           minute: '2-digit',
           second: '2-digit',
@@ -6065,7 +7348,50 @@ try {
         : 'No se pudo guardar el borrador local',
       saved ? 'saved' : 'error',
     );
+    if (saved && apexTrackStudioApplication) {
+      scheduleApexMapDraftSave(draft);
+    }
     return saved;
+  };
+  let proceduralTerrainUpdateFrame: number | undefined;
+  let pendingProceduralTerrainPoints: readonly TrackPoint[] | undefined;
+  let appliedProceduralTerrainSignature = '';
+  const proceduralTerrainSignature = (
+    points: readonly TrackPoint[],
+  ): string => {
+    let checksum = 0;
+    points.forEach((point, index) => {
+      checksum += point.x * (index % 7 + 1);
+      checksum += point.y * (index % 5 + 1);
+      checksum += point.z * (index % 11 + 1);
+    });
+    return `${points.length}:${checksum.toFixed(3)}`;
+  };
+  const scheduleProceduralTerrainCorridorUpdate = (
+    points: readonly TrackPoint[],
+  ): void => {
+    if (!activeLandscapePreset) return;
+    const signature = proceduralTerrainSignature(points);
+    if (signature === appliedProceduralTerrainSignature) return;
+    pendingProceduralTerrainPoints = points;
+    if (proceduralTerrainUpdateFrame !== undefined) return;
+    proceduralTerrainUpdateFrame = window.requestAnimationFrame(() => {
+      proceduralTerrainUpdateFrame = undefined;
+      const routePoints = pendingProceduralTerrainPoints;
+      pendingProceduralTerrainPoints = undefined;
+      if (!routePoints) return;
+      const nextSignature = proceduralTerrainSignature(routePoints);
+      const nextGeometry = createApexProceduralLandscapeGeometry(
+        activeLandscapePreset,
+        FLOOR_SIZE_M,
+        routePoints,
+      );
+      const previousGeometry = groundMesh.geometry;
+      groundMesh.geometry = nextGeometry;
+      previousGeometry.dispose();
+      appliedProceduralTerrainSignature = nextSignature;
+      canvas.dataset.trackEditorTerrainCorridor = 'synchronized';
+    });
   };
   const applyEditedTrackDerivedRuntime = (
     evaluatedPoints: readonly TrackPoint[],
@@ -6083,6 +7409,10 @@ try {
       activeEditorCollisionSpacingM,
     );
     trackEditDerivedVisual?.update(editedTrackDerivedState);
+    if (activeLandscapePreset) {
+      trackEditDerivedVisual?.setProceduralSurfaceVisible(true);
+      scheduleProceduralTerrainCorridorUpdate(evaluatedPoints);
+    }
     trackCollisionDebugVisual?.update(
       evaluatedPoints,
       roadWidthM,
@@ -6195,6 +7525,25 @@ try {
         }
       },
       snapToRoad: trackEditorSnapToRoad,
+      onPreview: (
+        evaluatedPoints,
+        roadWidthM,
+        boundaryMode,
+        roadsideMode,
+      ) => {
+        const previewState = createEditedTrackDerivedState(
+          evaluatedPoints,
+          roadWidthM,
+          boundaryMode,
+          roadsideMode,
+          activeEditorClosed,
+          activeEditorLaneCount,
+          activeEditorCollisionSpacingM,
+        );
+        trackEditDerivedVisual?.setProceduralSurfaceVisible(true);
+        trackEditDerivedVisual?.updateRoadSurface(previewState);
+        canvas.dataset.trackEditorAsphaltPreview = 'live';
+      },
       onCommit: (
         evaluatedPoints,
         controlPoints,
@@ -6259,59 +7608,150 @@ try {
         const persistedSegments = replacePersistedTrackSegment(
           persistedSegment,
         );
-        const response = await fetch(
-          `${APEX_TRACK_AUTHORING_SERVER_ORIGIN}/api/tracks/save`,
+        const payload = await apexVoidClient.publishMap<
+          Record<string, unknown>,
           {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+            readonly ok?: boolean;
+            readonly relativePath?: string;
+            readonly documentUri?: string;
+            readonly revision?: string;
+            readonly error?: string;
+          }
+        >({
               format: 'apex-track-save-request',
               formatVersion: 2,
               trackId: ACTIVE_TRACK.track.id,
               trackVersion: ACTIVE_TRACK.track.version,
+              definition: ACTIVE_TRACK,
               primaryRouteId: persistedPrimaryRouteId,
               segments: persistedSegments,
               junctions: persistedJunctions,
               routes: persistedRoutes,
-            }),
-          },
-        );
-        const payload = await response.json().catch(() => undefined) as
-          | {
-            readonly ok?: boolean;
-            readonly relativePath?: string;
-            readonly error?: string;
-          }
-          | undefined;
+        });
+        const savedLocation = payload.relativePath ?? payload.documentUri;
         if (
-          !response.ok
-          || payload?.ok !== true
-          || typeof payload.relativePath !== 'string'
+          payload.ok !== true
+          || typeof savedLocation !== 'string'
         ) {
           throw new Error(
             payload?.error
-            ?? `servidor local no disponible (${response.status})`,
+            ?? 'APEX Void no pudo publicar la fuente de pista',
           );
         }
         canvas.dataset.trackEditorFileSave = 'saved';
-        canvas.dataset.trackEditorFilePath = payload.relativePath;
-        return { relativePath: payload.relativePath };
+        canvas.dataset.trackEditorFilePath = savedLocation;
+        if (payload.revision) {
+          canvas.dataset.trackEditorVoidRevision = payload.revision;
+        }
+        return {
+          relativePath: savedLocation,
+          revision: payload.revision,
+        };
       },
     })
     : undefined;
   let trackSegmentDrawTool: ApexTrackSegmentDrawTool | undefined;
   if (trackEditor) {
+    trackStudioPlay.disabled = false;
+    const updateTrackPreviewReadout = (): void => {
+      const previewPoints = trackEditor.evaluatedPoints;
+      const maximumGrade = previewPoints.reduce((maximum, point, index) => {
+        const next = previewPoints[(index + 1) % previewPoints.length];
+        if (!next || (!activeEditorClosed && index === previewPoints.length - 1)) {
+          return maximum;
+        }
+        const horizontalDistanceM = Math.hypot(
+          next.x - point.x,
+          next.z - point.z,
+        );
+        return Math.max(
+          maximum,
+          horizontalDistanceM > 0.01
+            ? Math.abs(next.y - point.y) / horizontalDistanceM
+            : 0,
+        );
+      }, 0);
+      const surface = (
+        previewPoints[0]?.surface
+        ?? ACTIVE_TRACK.configuration.surfaces.road
+      );
+      trackPreviewName.value = ACTIVE_TRACK.track.name;
+      trackPreviewLength.value = editedTrackDerivedState.lengthM >= 1_000
+        ? `${(editedTrackDerivedState.lengthM / 1_000).toFixed(2)} km`
+        : `${editedTrackDerivedState.lengthM.toFixed(0)} m`;
+      trackPreviewGrade.value = `${(maximumGrade * 100).toFixed(1)}%`;
+      trackPreviewSurface.value = surface === 'asphalt'
+        ? 'Asfalto'
+        : surface === 'gravel' ? 'Ripio' : surface;
+    };
+    trackStudioPlay.addEventListener('click', () => {
+      updateTrackPreviewReadout();
+      if (!trackPreviewDialog.open) trackPreviewDialog.showModal();
+    });
+    trackPreviewLaunch.addEventListener('click', async () => {
+      trackPreviewLaunch.disabled = true;
+      const saved = saveActiveTrackDraft(
+        trackEditor.controlPoints,
+        trackEditor.evaluatedPoints,
+        trackEditor.roadWidthM,
+        trackEditor.boundaryMode,
+        trackEditor.roadsideMode,
+        trackEditor.simplificationToleranceM,
+      );
+      if (!saved) {
+        trackPreviewLaunch.disabled = false;
+        return;
+      }
+      if (apexTrackStudioApplication && latestSavedTrackDraft) {
+        try {
+          setTrackStudioSaveStatus('Guardando preview en APEX Void…');
+          await saveApexMapDraftToVoid(latestSavedTrackDraft);
+        } catch (error) {
+          setTrackStudioSaveStatus(
+            error instanceof Error ? error.message : 'No se pudo guardar el preview',
+            'error',
+          );
+          trackPreviewLaunch.disabled = false;
+          return;
+        }
+      }
+      const previewUrl = new URL(
+        apexTrackStudioApplication
+          ? apexDriveApplicationUrl
+          : window.location.href,
+      );
+      previewUrl.searchParams.set('track', ACTIVE_TRACK.track.id);
+      previewUrl.searchParams.set('vehicle', activeVehicleKind);
+      if (activeVehicleKind === 'car') {
+        previewUrl.searchParams.set('car', activeCar.id);
+      } else {
+        previewUrl.searchParams.set('motorcycle', activeMotorcycle.id);
+      }
+      for (const key of ['landscape', 'routeSeed', 'environment']) {
+        const value = searchParams.get(key);
+        if (value) previewUrl.searchParams.set(key, value);
+      }
+      previewUrl.searchParams.delete('edit');
+      previewUrl.searchParams.delete('editSegment');
+      previewUrl.searchParams.delete('drive');
+      previewUrl.searchParams.set('play', 'draft');
+      window.location.href = previewUrl.toString();
+    });
+    if (activeLandscapePreset) {
+      trackEditDerivedVisual?.setProceduralSurfaceVisible(true);
+      canvas.dataset.trackEditorAsphalt = 'visible-procedural-surface';
+    }
+    applyEditedTrackDerivedRuntime(
+      trackEditor.evaluatedPoints,
+      trackEditor.roadWidthM,
+      trackEditor.boundaryMode,
+      trackEditor.roadsideMode,
+    );
     const editingNonPrimarySegment = (
       editableTrackSegmentId
       !== (ACTIVE_TRACK_PRIMARY_SEGMENT?.id ?? 'main')
     );
     if (compatibleTrackDraft || editingNonPrimarySegment) {
-      applyEditedTrackDerivedRuntime(
-        trackEditor.evaluatedPoints,
-        trackEditor.roadWidthM,
-        trackEditor.boundaryMode,
-        trackEditor.roadsideMode,
-      );
       canvas.dataset.trackEditorDraft = compatibleTrackDraft
         ? 'loaded'
         : 'source-segment';
@@ -6336,6 +7776,19 @@ try {
         : 'empty';
       canvas.dataset.trackEditorDraftSavedAt = 'none';
       setTrackStudioSaveStatus('Borrador local listo');
+    }
+    if (
+      ACTIVE_TRACK.track.id.startsWith('local-')
+      && !loadedTrackDraft
+    ) {
+      saveActiveTrackDraft(
+        trackEditor.controlPoints,
+        trackEditor.evaluatedPoints,
+        trackEditor.roadWidthM,
+        trackEditor.boundaryMode,
+        trackEditor.roadsideMode,
+        trackEditor.simplificationToleranceM,
+      );
     }
     sportHudContainer.hidden = true;
     lapTimerRoot.hidden = true;
@@ -7168,10 +8621,143 @@ try {
             canvas.dataset.tireVisualDeformationMode = 'applying';
             window.location.reload();
           },
+          adaptiveTerrain: adaptiveTerrainGroundCorridor,
+          surfaceMaterialSettings,
+          grassMaterialOptions: Object.entries(GRASS_MATERIAL_PROFILES).map(
+            ([id, profile]) => Object.freeze({ id, name: profile.label }),
+          ),
+          requestSurfaceMaterialSettings: settings => {
+            if (
+              !isGrassMaterialProfileId(settings.floorMaterialId)
+              || !isGrassMaterialProfileId(settings.roadsideMaterialId)
+            ) return;
+            applySurfaceMaterialSettings(Object.freeze({
+              floorMaterialId: settings.floorMaterialId,
+              roadsideMaterialId: settings.roadsideMaterialId,
+              floorRoughness: clampUnit(
+                settings.floorRoughness,
+                APEX_DRIVE_PUBLIC_DEMO ? 1 : 0.92,
+              ),
+              roadsideRoughness: clampUnit(
+                settings.roadsideRoughness,
+                APEX_DRIVE_PUBLIC_DEMO ? 1 : 0.96,
+              ),
+              floorNormalStrength: clampUnit(
+                settings.floorNormalStrength,
+                APEX_DRIVE_PUBLIC_DEMO ? 1 : 0.62,
+              ),
+              roadsideNormalStrength: clampUnit(
+                settings.roadsideNormalStrength,
+                APEX_DRIVE_PUBLIC_DEMO ? 1 : 0.62,
+              ),
+              floorColor: colorSetting(settings.floorColor, '#238dff'),
+              roadsideColor: colorSetting(settings.roadsideColor, '#ff3b5f'),
+              diagnosticFlatColor: settings.diagnosticFlatColor === true,
+              wireframe: settings.wireframe === true,
+            }));
+          },
+          readGrassMaterialStatus: id => (
+            isGrassMaterialProfileId(id)
+              ? grassTextureLoadStatuses.get(id) ?? 'idle'
+              : 'error'
+          ),
+          subscribeGrassMaterialStatus: listener => {
+            const wrapped = (
+              id: GrassMaterialProfileId,
+              status: GrassMaterialLoadStatus,
+            ) => listener(id, status);
+            grassTextureStatusListeners.add(wrapped);
+            return () => grassTextureStatusListeners.delete(wrapped);
+          },
+          reloadGrassMaterials: reloadSelectedGrassTextureSets,
+          openScenePanel: () => {
+            setRenderingPanelVisible(true);
+          },
           repositoryUrl: 'https://github.com/jvsysarch/apex',
           linkedinUrl: 'https://ar.linkedin.com/in/jonathanvillaverde',
           documentationUrl: 'https://jvsysarch.github.io/apex-showroom/docs.html',
           showcaseUrl: 'https://jvsysarch.github.io/apex-showroom/',
+          activeTrackId: ACTIVE_TRACK.track.id,
+          trackToolsLocked: APEX_DRIVE_PUBLIC_DEMO,
+          proceduralTrackId: PROCEDURAL_LANDSCAPE_TRACK_ID,
+          activeEnvironmentProfileId: (
+            searchParams.get('environment')
+            ?? activeLandscapePreset?.environmentProfileId
+            ?? DEFAULT_ENVIRONMENT_PROFILES[0].id
+          ),
+          trackOptions: ACTIVE_TRACK_OPTIONS.map(track => Object.freeze({
+            id: track.track.id,
+            number: track.track.number,
+            name: track.track.name,
+          })),
+          environmentOptions: DEFAULT_ENVIRONMENT_PROFILES.map(
+            profile => Object.freeze({ id: profile.id, name: profile.name }),
+          ),
+          landscapeOptions: APEX_LANDSCAPE_PRESETS.map(preset => Object.freeze({
+            id: preset.id,
+            name: preset.name,
+            region: preset.region,
+            description: preset.description,
+            materialName: preset.material.sourceName,
+            routeDataSummary: [
+              `${preset.route.reference.observedLengthKm} km`,
+              `pendiente ≤ ${(preset.route.maximumGrade * 100).toFixed(1)}%`,
+              preset.route.algorithm,
+            ].join(' · '),
+            routeSourceUrl: preset.route.reference.sourceUrl,
+            environmentProfileId: preset.environmentProfileId,
+            environmentName: DEFAULT_ENVIRONMENT_PROFILES.find(
+              profile => profile.id === preset.environmentProfileId,
+            )?.name ?? preset.environmentProfileId,
+          })),
+          openTrackStudio: request => {
+            if (APEX_DRIVE_PUBLIC_DEMO) return;
+            const nextUrl = new URL(window.location.href);
+            nextUrl.searchParams.set('track', request.trackId);
+            nextUrl.searchParams.delete('play');
+            if (request.edit) nextUrl.searchParams.set('edit', 'track');
+            else nextUrl.searchParams.delete('edit');
+            if (request.environmentProfileId) {
+              nextUrl.searchParams.set(
+                'environment',
+                request.environmentProfileId,
+              );
+            }
+            const landscape = APEX_LANDSCAPE_PRESETS.find(
+              preset => preset.id === request.landscapeId,
+            );
+            if (landscape) {
+              writeActiveApexLandscapePreset(request.trackId, landscape.id);
+              nextUrl.searchParams.set('landscape', landscape.id);
+              nextUrl.searchParams.set(
+                'routeSeed',
+                String(createApexProceduralRouteSeed()),
+              );
+            } else if (
+              request.trackId === PROCEDURAL_LANDSCAPE_TRACK_ID
+              && ACTIVE_TRACK.track.id !== PROCEDURAL_LANDSCAPE_TRACK_ID
+            ) {
+              const defaultLandscape = APEX_LANDSCAPE_PRESETS[0];
+              writeActiveApexLandscapePreset(
+                request.trackId,
+                defaultLandscape.id,
+              );
+              nextUrl.searchParams.set('landscape', defaultLandscape.id);
+              nextUrl.searchParams.set(
+                'routeSeed',
+                String(createApexProceduralRouteSeed()),
+              );
+              nextUrl.searchParams.set(
+                'environment',
+                defaultLandscape.environmentProfileId,
+              );
+            } else if (request.trackId !== PROCEDURAL_LANDSCAPE_TRACK_ID) {
+              nextUrl.searchParams.delete('landscape');
+              nextUrl.searchParams.delete('routeSeed');
+            }
+            nextUrl.searchParams.delete('drive');
+            window.location.href = nextUrl.toString();
+          },
         },
       );
       const etherHudStartedAt = performance.now();
@@ -8171,7 +9757,9 @@ try {
     lapTimingHud?.update(lapTimingState);
     if (raceTrackMarkers) {
       raceTrackMarkers.group.visible = (
-        !parkingSelectionActive && !trackEditorMode
+        embeddedTrackStartLineEnabled
+        && !parkingSelectionActive
+        && !trackEditorMode
       );
       raceTrackMarkers.update(lapTimingState);
     }
@@ -8472,7 +10060,7 @@ try {
       updateTrackCollisionMetrics();
     }
     const renderPerformanceStartedAt = performance.now();
-    await renderer.renderAsync(scene, camera);
+    renderer.render(scene, camera);
     if (canvas.dataset.vehicleModel !== 'loading') {
       revealApexDrive();
     }

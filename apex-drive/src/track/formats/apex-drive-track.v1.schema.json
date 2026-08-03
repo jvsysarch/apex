@@ -105,6 +105,15 @@
             "yawRadians": { "type": "number" }
           }
         },
+        "presentation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["garage", "startLine"],
+          "properties": {
+            "garage": { "type": "boolean" },
+            "startLine": { "type": "boolean" }
+          }
+        },
         "geometry": {
           "type": "object",
           "additionalProperties": false,

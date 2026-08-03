@@ -1,4 +1,5 @@
 import type { ApexDriveTrackDefinition } from './formats/ApexDriveTrack';
+import { APEX_DRIVE_PUBLIC_DEMO } from '../runtime/ApexDriveRuntimeProfile';
 import {
   loadGeneratedApexTrackSource,
   type ApexTrackSource,
@@ -16,18 +17,34 @@ import {
   CIRCUITO_VECTOR_WORLD_SIZE_M,
 } from './CircuitoVectorTrack';
 import {
+  CIRCUITO_VECTOR_EVOLUCION_ID,
+  CIRCUITO_VECTOR_EVOLUCION_POINTS,
+  CIRCUITO_VECTOR_EVOLUCION_WORLD_SIZE_M,
+  createCircuitoVectorEvolucionSource,
+} from './CircuitoVectorEvolucionTrack';
+import {
   CIRCUITO_CHALLHUACO_ID,
   CIRCUITO_CHALLHUACO_POINTS,
   CIRCUITO_CHALLHUACO_WORLD_SIZE_M,
 } from './ChallhuacoTrack';
 import {
+  generateApexProceduralLandscapeTrack,
+  resolveApexProceduralRouteSeed,
+} from './ProceduralLandscapeTrack';
+import {
+  readActiveApexLandscapePreset,
+} from './landscape/ApexLandscapePresets';
+import {
   APEX_DRIVE_TRACKS,
   findApexDriveTrack,
 } from './catalog/ApexDriveTrackCatalog';
+import {
+  isApexProceduralLandscapeDefinition,
+} from './catalog/ApexTrackStudioLocalCatalog';
 import { CIRCUITO_BRAVO_TRACK } from './catalog/CircuitoBravoDefinition';
 import {
-  APEX_DRIVE_PUBLIC_DEMO,
-} from '../runtime/ApexDriveRuntimeProfile';
+  loadApexMapDraftFromVoid,
+} from './editor/ApexVoidMapDraftRepository';
 
 export interface ActiveTrackPoint {
   readonly x: number;
@@ -38,6 +55,9 @@ export interface ActiveTrackPoint {
 }
 
 const requestedTrackIdentifier = (): number | string | undefined => {
+  // La distribución pública es una experiencia cerrada de Circuito Vector.
+  // Ignorar también ?track= evita saltar el bloqueo desde una URL manual.
+  if (APEX_DRIVE_PUBLIC_DEMO) return CIRCUITO_VECTOR_ID;
   if (typeof window === 'undefined') return undefined;
   const value = new URLSearchParams(window.location.search).get('track')?.trim();
   if (!value) return undefined;
@@ -46,23 +66,63 @@ const requestedTrackIdentifier = (): number | string | undefined => {
 };
 
 const selectedCatalogTrack = findApexDriveTrack(
-  APEX_DRIVE_PUBLIC_DEMO
-    ? CIRCUITO_VECTOR_ID
-    : requestedTrackIdentifier() ?? CIRCUITO_BRAVO_TRACK.track.id,
+  requestedTrackIdentifier()
+    ?? CIRCUITO_VECTOR_ID,
 );
 
-const fallbackTrack = selectedCatalogTrack ?? CIRCUITO_BRAVO_TRACK;
+const fallbackTrack = selectedCatalogTrack
+  ?? findApexDriveTrack(CIRCUITO_VECTOR_ID)
+  ?? CIRCUITO_BRAVO_TRACK;
+const bundledOrStoredTrackSource = await loadGeneratedApexTrackSource(
+  fallbackTrack.track.id,
+  fallbackTrack.track.version,
+);
 export const ACTIVE_TRACK_SOURCE: ApexTrackSource | undefined = (
-  await loadGeneratedApexTrackSource(
-    fallbackTrack.track.id,
-    fallbackTrack.track.version,
-  )
+  bundledOrStoredTrackSource
+  ?? (fallbackTrack.track.id === CIRCUITO_VECTOR_EVOLUCION_ID
+    ? createCircuitoVectorEvolucionSource(fallbackTrack)
+    : undefined)
 );
 export const ACTIVE_TRACK: ApexDriveTrackDefinition = (
   ACTIVE_TRACK_SOURCE?.definition ?? fallbackTrack
 );
+const proceduralLandscapePreset = readActiveApexLandscapePreset(
+  ACTIVE_TRACK.track.id,
+  isApexProceduralLandscapeDefinition(ACTIVE_TRACK),
+);
+export const ACTIVE_PROCEDURAL_TRACK = proceduralLandscapePreset
+  ? generateApexProceduralLandscapeTrack(
+    proceduralLandscapePreset,
+    resolveApexProceduralRouteSeed(proceduralLandscapePreset),
+  )
+  : undefined;
+export const ACTIVE_TRACK_INSTANCE_ID = (
+  ACTIVE_TRACK.track.id.startsWith('local-')
+    ? ACTIVE_TRACK.track.id
+    : ACTIVE_PROCEDURAL_TRACK?.instanceId ?? ACTIVE_TRACK.track.id
+);
+const requestedDraftPreview = typeof window !== 'undefined'
+  && new URLSearchParams(window.location.search).get('play') === 'draft';
+const activeTrackDraft = requestedDraftPreview
+  ? await loadApexMapDraftFromVoid({
+    trackId: ACTIVE_TRACK_INSTANCE_ID,
+    trackVersion: ACTIVE_TRACK.track.version,
+    defaultBoundaryMode: ACTIVE_TRACK.configuration.geometry.boundaryMode,
+    defaultRoadsideMode: ACTIVE_TRACK.configuration.geometry.roadsideMode,
+    defaultRoadWidthM: ACTIVE_TRACK.configuration.geometry.roadWidthM,
+    defaultLaneCount: 1,
+    defaultSurface: ACTIVE_TRACK.configuration.surfaces.road,
+    defaultVisualMode: 'inherit',
+  })
+  : undefined;
+const draftPrimarySegmentId = activeTrackDraft?.routes.find(
+  route => route.id === activeTrackDraft.primaryRouteId,
+)?.segments[0]?.segmentId;
+const draftPrimarySegment = activeTrackDraft?.segments.find(
+  segment => segment.id === draftPrimarySegmentId,
+);
 export const ACTIVE_TRACK_PRIMARY_SEGMENT = (
-  ACTIVE_TRACK_SOURCE?.primarySegment
+  draftPrimarySegment ?? ACTIVE_TRACK_SOURCE?.primarySegment
 );
 
 const fallbackTrackPoints: readonly ActiveTrackPoint[] = (
@@ -72,6 +132,10 @@ const fallbackTrackPoints: readonly ActiveTrackPoint[] = (
       ? CIRCUITO_CHALLHUACO_POINTS
     : fallbackTrack.track.id === CIRCUITO_VECTOR_ID
       ? CIRCUITO_VECTOR_POINTS
+    : fallbackTrack.track.id === CIRCUITO_VECTOR_EVOLUCION_ID
+      ? CIRCUITO_VECTOR_EVOLUCION_POINTS
+    : ACTIVE_PROCEDURAL_TRACK
+      ? ACTIVE_PROCEDURAL_TRACK?.points ?? CIRCUIT_BRAVO_POINTS
     : CIRCUIT_BRAVO_POINTS
 );
 
@@ -101,6 +165,10 @@ const fallbackWorldSizeM = (
       ? CIRCUITO_CHALLHUACO_WORLD_SIZE_M
     : ACTIVE_TRACK.track.id === CIRCUITO_VECTOR_ID
       ? CIRCUITO_VECTOR_WORLD_SIZE_M
+    : ACTIVE_TRACK.track.id === CIRCUITO_VECTOR_EVOLUCION_ID
+      ? CIRCUITO_VECTOR_EVOLUCION_WORLD_SIZE_M
+    : ACTIVE_PROCEDURAL_TRACK
+      ? ACTIVE_PROCEDURAL_TRACK?.worldSizeM ?? 1_600
     : 2000
 );
 const generatedWorldSizeM = generatedUniquePoints
@@ -121,4 +189,8 @@ export const ACTIVE_TRACK_LANE_COUNT = (
   ?? (ACTIVE_TRACK.track.id === 'autopista-cumbre' ? 3 : 1)
 );
 
-export const ACTIVE_TRACK_OPTIONS = APEX_DRIVE_TRACKS;
+export const ACTIVE_TRACK_OPTIONS = APEX_DRIVE_PUBLIC_DEMO
+  ? Object.freeze(APEX_DRIVE_TRACKS.filter(
+    track => track.track.id === CIRCUITO_VECTOR_ID,
+  ))
+  : APEX_DRIVE_TRACKS;

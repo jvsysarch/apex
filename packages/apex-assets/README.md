@@ -11,8 +11,9 @@ Paquete real utilizado como `publicDir` del producto.
 | Activo | Licencia | Estado |
 | --- | --- | --- |
 | EV Sport Car | CC-BY-4.0 | requiere atribución |
-| Mall Parking Lot HDRI | CC0 | publicable |
-| Grass001 | CC0 | publicable |
+| HDRI ambientCG y Poly Haven | CC0 | publicables |
+| Grass001, Grass004, Ground003 y Ground037 | CC0 | publicables |
+| Asphalt031, Asphalt027C y Asphalt025C | CC0 | publicables |
 | Chevron ámbar | propio | publicable |
 | Car Covers | CC-BY-4.0 | atribución y revisión final |
 
@@ -30,4 +31,3 @@ permiso de publicación.
 
 Todo activo nuevo necesita origen, autor, licencia, atribución y estado de
 publicación antes de formar parte de una distribución pública.
-

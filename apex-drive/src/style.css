@@ -1475,6 +1475,8 @@ html[data-apex-drive-profile="public-demo"] #lap-timer {
 
 #copy-racing-line,
 #autonomous-drive,
+#motion-steering-toggle,
+#motion-steering-calibrate,
 #track-editor-toggle,
 #asset-library-load,
 #asset-library-refresh,
@@ -1488,6 +1490,22 @@ html[data-apex-drive-profile="public-demo"] #lap-timer {
   font-size: 8px;
   letter-spacing: .04em;
   cursor: pointer;
+}
+
+.motion-steering-controls {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px;
+}
+
+.motion-steering-controls small {
+  grid-column: 1 / -1;
+}
+
+#motion-steering-toggle[aria-pressed="true"] {
+  border-color: rgba(164, 229, 100, .72);
+  color: #eaffbd;
+  background: rgba(40, 65, 17, .92);
 }
 
 .asset-library-actions {
@@ -1532,10 +1550,12 @@ html[data-apex-drive-profile="public-demo"] #lap-timer {
 
 #rendering-panel {
   position: fixed;
-  z-index: 6;
+  /* Debe quedar por encima del HUD Ether (z-index 16) para que sliders,
+     selects y color pickers reciban el puntero cuando se abre desde Visual. */
+  z-index: 70;
   top: 14px;
   right: 210px;
-  width: 266px;
+  width: 330px;
   border: 1px solid #7fc6db77;
   border-radius: 8px;
   color: #e8fbff;
@@ -1887,6 +1907,49 @@ html[data-apex-drive-profile="public-demo"] #lap-timer {
   max-height: calc(100vh - 62px);
   padding: 2px 11px 11px;
   overflow: auto;
+}
+
+.environment-controls__section {
+  overflow: hidden;
+  border: 1px solid rgba(127, 198, 219, .24);
+  border-radius: 7px;
+  background: rgba(7, 24, 32, .62);
+}
+
+.environment-controls__section > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 9px;
+  color: #d9f7fc;
+  background: rgba(25, 65, 78, .42);
+  cursor: pointer;
+  font-weight: 800;
+  list-style: none;
+}
+
+.environment-controls__section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.environment-controls__section > summary::after {
+  color: #75d7ec;
+  content: '+';
+}
+
+.environment-controls__section[open] > summary::after {
+  content: '−';
+}
+
+.environment-controls__section > div {
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+}
+
+#scene-road-status {
+  color: #93dbe9;
+  font-size: 8px;
 }
 
 .environment-controls label {
@@ -3024,19 +3087,17 @@ kbd {
   right: 0;
   left: 0;
   display: grid;
-  grid-template-columns: auto minmax(260px, 1fr) auto auto;
+  grid-template-columns: auto minmax(220px, .7fr) minmax(360px, 1fr) auto auto;
   align-items: center;
   min-height: 62px;
   padding: 0 16px;
-  border-bottom: 1px solid rgba(93, 220, 240, .3);
-  color: #e8fbff;
-  background:
-    linear-gradient(90deg, rgba(6, 21, 29, .98), rgba(4, 12, 18, .94)),
-    #061018;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .38);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  border-bottom: 1px solid rgb(23 34 31 / 14%);
+  color: #17221f;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 14%);
+  font-family: Manrope, Inter, sans-serif;
   pointer-events: auto;
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(8px);
 }
 
 .track-studio-header[hidden] {
@@ -3049,18 +3110,18 @@ kbd {
   gap: 11px;
   min-width: 220px;
   padding-right: 22px;
-  border-right: 1px solid rgba(109, 219, 236, .2);
+  border-right: 1px solid rgb(23 34 31 / 14%);
 }
 
 .track-studio-header__brand strong {
-  color: #f2fbfd;
+  color: #17221f;
   font-size: 20px;
   letter-spacing: .18em;
 }
 
 .track-studio-header__brand span {
-  color: #63def1;
-  font-size: 10px;
+  color: #ff941a;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: .16em;
 }
@@ -3073,16 +3134,16 @@ kbd {
 }
 
 .track-studio-header__document small {
-  color: #628a94;
-  font-size: 8px;
+  color: #6c7974;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: .16em;
 }
 
 .track-studio-header__document output {
   overflow: hidden;
-  color: #f4fcfd;
-  font-size: 12px;
+  color: #17221f;
+  font-size: 14px;
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3090,8 +3151,8 @@ kbd {
 
 .track-studio-header__document span {
   overflow: hidden;
-  color: #759ba4;
-  font-size: 9px;
+  color: #6c7974;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -3101,8 +3162,8 @@ kbd {
   align-items: center;
   gap: 8px;
   margin-right: 14px;
-  color: #91b7bf;
-  font-size: 9px;
+  color: #52615b;
+  font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -3111,48 +3172,494 @@ kbd {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #6e9ca5;
-  box-shadow: 0 0 10px rgba(110, 156, 165, .35);
+  background: #707070;
 }
 
 .track-studio-header__status[data-state='saved'] i {
   background: #61e58c;
-  box-shadow: 0 0 10px rgba(97, 229, 140, .58);
+  box-shadow: none;
 }
 
 .track-studio-header__status[data-state='error'] {
-  color: #ff9b98;
+  color: #ff0033;
 }
 
 .track-studio-header__status[data-state='error'] i {
-  background: #ff615d;
-  box-shadow: 0 0 10px rgba(255, 97, 93, .58);
+  background: #ff0033;
+  box-shadow: none;
 }
 
+.track-studio-header__selectors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  gap: 8px;
+  padding: 0 16px 0 0;
+}
+
+.track-studio-header__selectors label {
+  display: grid;
+  gap: 3px;
+}
+
+.track-studio-header__selectors label[hidden] {
+  display: none;
+}
+
+.track-studio-header__selectors span {
+  color: #6c7974;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.track-studio-header__selectors select {
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgb(23 34 31 / 18%);
+  border-radius: 8px;
+  color: #17221f;
+  background: #f4f6f5;
+  font: 700 12px/1 Manrope, Inter, sans-serif;
+}
+
+.track-studio-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#track-studio-create,
+#track-studio-regenerate,
+#track-studio-environment,
+#track-studio-play,
 #track-studio-exit {
   min-height: 34px;
   padding: 0 14px;
-  border: 1px solid rgba(98, 218, 238, .48);
-  border-radius: 5px;
-  color: #bceff7;
-  background: rgba(10, 38, 48, .8);
-  font: 800 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  border: 1px solid #ff941a;
+  border-radius: 9px;
+  color: #fff;
+  background: #ff941a;
+  font: 800 11px/1 Manrope, Inter, sans-serif;
   letter-spacing: .07em;
   cursor: pointer;
 }
 
+#track-studio-play:disabled {
+  opacity: .45;
+  cursor: wait;
+}
+
+#track-studio-create,
+#track-studio-regenerate,
+#track-studio-environment,
+#track-studio-exit {
+  color: #17221f;
+  border-color: rgb(23 34 31 / 18%);
+  background: #f4f6f5;
+}
+
+#track-studio-create:hover,
+#track-studio-regenerate:hover,
+#track-studio-environment:hover,
+#track-studio-play:hover:not(:disabled),
 #track-studio-exit:hover {
-  border-color: #70e6f7;
-  color: #effdff;
-  background: rgba(15, 57, 70, .92);
+  border-color: #17221f;
+  color: #17221f;
+  background: #fff;
 }
 
 html[data-apex-track-studio='true'] #visual-controls,
 html[data-apex-track-studio='true'] #vehicle-workshop,
 html[data-apex-track-studio='true'] #environment-quick-menu,
-html[data-apex-track-studio='true'] #rendering-panel,
 html[data-apex-track-studio='true'] #telemetry-root {
   display: none !important;
+}
+
+.track-preview-dialog {
+  width: min(720px, calc(100vw - 40px));
+  max-width: none;
+  padding: 0;
+  border: 0;
+  color: #17221f;
+  background: transparent;
+  font-family: Manrope, Inter, sans-serif;
+}
+
+.track-preview-dialog::backdrop {
+  background: rgb(0 0 0 / 28%);
+  backdrop-filter: blur(3px);
+}
+
+.track-preview-dialog__surface {
+  display: grid;
+  gap: 22px;
+  padding: 28px;
+  border: 1px solid rgb(23 34 31 / 16%);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 24%);
+}
+
+.track-preview-dialog__surface > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.track-preview-dialog__surface header small {
+  color: #707070;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .11em;
+}
+
+.track-preview-dialog__surface header h2 {
+  margin: 5px 0 3px;
+  color: #17221f;
+  font: 700 28px/1.08 Manrope, Inter, sans-serif;
+}
+
+.track-preview-dialog__surface header p,
+.track-preview-dialog__note {
+  margin: 0;
+  color: #5d6965;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+#track-create-close,
+#track-preview-close {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid rgb(23 34 31 / 18%);
+  border-radius: 50%;
+  color: #17221f;
+  background: #f4f6f5;
+  font: 500 25px/1 Manrope, Inter, sans-serif;
+  cursor: pointer;
+}
+
+.track-create-dialog__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(220px, .65fr);
+  gap: 12px;
+}
+
+.track-create-dialog__fields label {
+  display: grid;
+  gap: 7px;
+  color: #5d6965;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.track-create-dialog__fields input,
+.track-create-dialog__fields select {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 13px;
+  border: 1px solid rgb(23 34 31 / 22%);
+  border-radius: 10px;
+  color: #17221f;
+  background: #fff;
+  font: 600 16px/1.2 Manrope, Inter, sans-serif;
+}
+
+.track-create-dialog__fields input:focus,
+.track-create-dialog__fields select:focus {
+  border-color: #ff941a;
+  outline: 3px solid rgb(255 148 26 / 18%);
+}
+
+.track-create-dialog__error {
+  margin: -8px 0 0;
+  color: #ff0033;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.track-preview-dialog__metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.track-preview-dialog__metrics div {
+  display: grid;
+  gap: 5px;
+  min-height: 84px;
+  padding: 15px;
+  border: 1px solid rgb(23 34 31 / 13%);
+  border-radius: 12px;
+  background: #f7f8f7;
+}
+
+.track-preview-dialog__metrics dt {
+  color: #707070;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.track-preview-dialog__metrics dd {
+  margin: 0;
+  color: #17221f;
+  font: 700 20px/1.18 Manrope, Inter, sans-serif;
+}
+
+.track-preview-dialog__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.track-preview-dialog__actions button {
+  min-height: 44px;
+  border: 1px solid rgb(23 34 31 / 18%);
+  border-radius: 10px;
+  color: #17221f;
+  background: #f4f6f5;
+  font: 800 12px/1 Manrope, Inter, sans-serif;
+  cursor: pointer;
+}
+
+#track-create-confirm,
+#track-preview-launch {
+  border-color: #ff941a;
+  color: #fff;
+  background: #ff941a;
+}
+
+#track-create-close:hover,
+#track-preview-close:hover,
+.track-preview-dialog__actions button:hover {
+  border-color: #17221f;
+}
+
+#track-create-confirm:hover,
+#track-preview-launch:hover {
+  color: #17221f;
+  background: #fff;
+}
+
+html[data-apex-track-studio='true'] #rendering-panel:not([open]) {
+  display: none !important;
+}
+
+html[data-apex-track-studio='true'] #rendering-panel[open] {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: grid !important;
+  place-items: center;
+  width: auto;
+  padding: 24px;
+  border: 0;
+  border-radius: 0;
+  color: #17221f;
+  background: rgb(0 0 0 / 28%);
+  box-shadow: none;
+  font: 500 14px/1.35 Manrope, Inter, sans-serif;
+  backdrop-filter: blur(3px);
+}
+
+html[data-apex-track-studio='true'] #rendering-panel > summary {
+  display: none;
+}
+
+html[data-apex-track-studio='true'] .environment-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(210px, 1fr));
+  gap: 17px 20px;
+  width: min(1040px, calc(100vw - 48px));
+  max-height: min(780px, calc(100vh - 48px));
+  padding: 26px;
+  overflow: auto;
+  border: 1px solid rgb(23 34 31 / 16%);
+  border-radius: 22px;
+  color: #17221f;
+  background: #fff;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 24%);
+}
+
+html[data-apex-track-studio='true'] .environment-controls__header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgb(23 34 31 / 12%);
+}
+
+html[data-apex-track-studio='true'] .environment-controls__section {
+  align-self: start;
+  border-color: rgb(23 34 31 / 14%);
+  background: #f7f8f7;
+}
+
+html[data-apex-track-studio='true'] .environment-controls__section > summary {
+  color: #17221f;
+  background: #eef1ef;
+  font-size: 13px;
+}
+
+html[data-apex-track-studio='true'] .environment-controls__section > summary::after {
+  color: #ff941a;
+}
+
+html[data-apex-track-studio='true'] .environment-controls__header small {
+  color: #707070;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .11em;
+}
+
+html[data-apex-track-studio='true'] .environment-controls__header h2 {
+  margin: 4px 0 2px;
+  color: #17221f;
+  font: 700 28px/1.08 Manrope, Inter, sans-serif;
+}
+
+html[data-apex-track-studio='true'] .environment-controls__header p {
+  margin: 0;
+  color: #5d6965;
+  font-size: 14px;
+}
+
+html[data-apex-track-studio='true'] #environment-panel-close {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid rgb(23 34 31 / 18%);
+  border-radius: 50%;
+  color: #17221f;
+  background: #f4f6f5;
+  font: 500 25px/1 Manrope, Inter, sans-serif;
+  cursor: pointer;
+}
+
+html[data-apex-track-studio='true'] #environment-panel-close:hover {
+  border-color: #ff941a;
+  background: #fff;
+}
+
+html[data-apex-track-studio='true'] .environment-controls label {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  color: #43504c;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+html[data-apex-track-studio='true'] .environment-controls input,
+html[data-apex-track-studio='true'] .environment-controls select {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: #ff941a;
+}
+
+html[data-apex-track-studio='true'] .environment-controls input[type='text'],
+html[data-apex-track-studio='true'] .environment-controls select {
+  min-height: 40px;
+  padding: 0 11px;
+  border: 1px solid rgb(23 34 31 / 22%);
+  border-radius: 9px;
+  color: #17221f;
+  background: #f7f8f7;
+  font: 600 14px/1 Manrope, Inter, sans-serif;
+}
+
+html[data-apex-track-studio='true'] .environment-controls input[type='range'] {
+  min-height: 22px;
+  margin: 0;
+  cursor: pointer;
+}
+
+html[data-apex-track-studio='true'] .environment-controls input[type='color'] {
+  grid-column: auto;
+  width: 50px;
+  height: 34px;
+  border: 1px solid rgb(23 34 31 / 18%);
+  border-radius: 8px;
+  background: #fff;
+}
+
+html[data-apex-track-studio='true'] .environment-controls output {
+  color: #17221f;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+html[data-apex-track-studio='true'] .environment-controls label.environment-checkbox {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  gap: 9px;
+  padding: 0 11px;
+  border: 1px solid rgb(23 34 31 / 14%);
+  border-radius: 9px;
+  background: #f7f8f7;
+}
+
+html[data-apex-track-studio='true'] .environment-controls label.environment-checkbox input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+html[data-apex-track-studio='true'] .environment-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  padding-top: 4px;
+}
+
+html[data-apex-track-studio='true'] .environment-actions button {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid rgb(23 34 31 / 18%);
+  border-radius: 9px;
+  color: #17221f;
+  background: #f4f6f5;
+  font: 700 12px/1 Manrope, Inter, sans-serif;
+  cursor: pointer;
+}
+
+html[data-apex-track-studio='true'] .environment-actions button:first-child {
+  border-color: #ff941a;
+  color: #fff;
+  background: #ff941a;
+}
+
+html[data-apex-track-studio='true'] .environment-actions button:hover {
+  border-color: #17221f;
+  color: #17221f;
+  background: #fff;
+}
+
+html[data-apex-track-studio='true'] #environment-profile-status {
+  grid-column: 1 / -1;
+  min-height: 18px;
+  color: #707070;
+  font-size: 12px;
+  text-align: left;
 }
 
 .track-editor-panel {
@@ -3507,6 +4014,20 @@ html[data-apex-track-studio='true'] #telemetry-root {
   .track-studio-header__status {
     display: none;
   }
+
+  .track-studio-header__document {
+    display: none;
+  }
+
+  .track-studio-header__selectors {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+    padding-left: 14px;
+  }
+
+  html[data-apex-track-studio='true'] .environment-controls {
+    grid-template-columns: repeat(2, minmax(190px, 1fr));
+  }
+
 }
 
 @media (max-width: 620px) {
@@ -3533,13 +4054,55 @@ html[data-apex-track-studio='true'] #telemetry-root {
     padding: 0 10px;
   }
 
+  .track-studio-header__selectors {
+    grid-template-columns: minmax(130px, 1fr);
+    padding: 0 8px;
+  }
+
+  .track-studio-header__selectors label:not(:first-child) {
+    display: none;
+  }
+
   .track-studio-header__document output {
     font-size: 10px;
   }
 
+  #track-studio-create,
+  #track-studio-regenerate,
+  #track-studio-environment,
+  #track-studio-play,
   #track-studio-exit {
     padding: 0 9px;
     font-size: 8px;
+  }
+
+  #track-studio-exit {
+    display: none;
+  }
+
+  html[data-apex-track-studio='true'] #rendering-panel[open] {
+    padding: 10px;
+  }
+
+  html[data-apex-track-studio='true'] .environment-controls {
+    grid-template-columns: 1fr;
+    width: calc(100vw - 20px);
+    max-height: calc(100vh - 20px);
+    padding: 18px;
+  }
+
+  html[data-apex-track-studio='true'] .environment-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .track-preview-dialog__surface {
+    padding: 18px;
+  }
+
+  .track-create-dialog__fields,
+  .track-preview-dialog__metrics,
+  .track-preview-dialog__actions {
+    grid-template-columns: 1fr;
   }
 
   .track-editor-panel {

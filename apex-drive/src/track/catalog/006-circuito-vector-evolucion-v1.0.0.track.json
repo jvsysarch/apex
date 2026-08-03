@@ -1,0 +1,64 @@
+{
+  "$schema": "../formats/apex-drive-track.v1.schema.json",
+  "format": "apex-drive-track",
+  "formatVersion": 1,
+  "track": {
+    "number": 6,
+    "id": "circuito-vector-evolucion",
+    "name": "Circuito Vector Evolución",
+    "version": "1.0.0"
+  },
+  "assets": {
+    "visual": {
+      "format": "procedural",
+      "generator": "circuito-vector-evolucion-v1.0.0-adaptive-floor-loop",
+      "uri": null
+    },
+    "collision": {
+      "format": "generated",
+      "uri": null
+    }
+  },
+  "configuration": {
+    "profile": "apex-drive",
+    "profileVersion": 1,
+    "coordinateSystem": {
+      "unit": "meter",
+      "upAxis": "Y",
+      "handedness": "right"
+    },
+    "start": {
+      "position": {
+        "x": -80,
+        "y": 0.85,
+        "z": -220
+      },
+      "yawRadians": 0
+    },
+    "presentation": {
+      "garage": false,
+      "startLine": false
+    },
+    "geometry": {
+      "roadWidthM": 14,
+      "shoulderWidthM": 8,
+      "groundHeightM": 0,
+      "roadThicknessM": 0.08,
+      "boundaryMode": "guardrails",
+      "roadsideMode": "adaptive-terrain"
+    },
+    "timing": {
+      "startRadiusM": 8,
+      "checkpointRadiusM": 12,
+      "checkpointIntervalPoints": 14,
+      "ignoredTailPoints": 5,
+      "sectorCount": 6,
+      "storageKey": "apex-drive.circuito-vector-evolucion.lap-timing.v1"
+    },
+    "surfaces": {
+      "road": "asphalt",
+      "shoulder": "grass",
+      "ground": "grass"
+    }
+  }
+}

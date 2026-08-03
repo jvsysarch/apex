@@ -47,9 +47,12 @@ export const APEX_ROAD_CAR: ApexCarPhysicsDefinition = Object.freeze({
   maximumPitchRollDegrees: 60,
   collisionTesterRadiusM: 0.05,
   suspension: Object.freeze({
-    wheelMountHeightM: 0.08,
-    minimumLengthM: 0.2,
-    maximumLengthM: 0.4,
+    // More bump and, especially, droop travel lets the wheels follow crests
+    // without introducing an artificial force that glues the chassis down.
+    // Raising the mount by the added droop preserves the previous ride height.
+    wheelMountHeightM: 0.16,
+    minimumLengthM: 0.18,
+    maximumLengthM: 0.48,
     baseline: Object.freeze({
       front: Object.freeze({
         springFrequencyHz: 1.5,
@@ -65,12 +68,12 @@ export const APEX_ROAD_CAR: ApexCarPhysicsDefinition = Object.freeze({
     tuned: Object.freeze({
       front: Object.freeze({
         springFrequencyHz: 1.8,
-        damping: 0.65,
+        damping: 0.56,
         antiRollStiffness: 1500,
       }),
       rear: Object.freeze({
         springFrequencyHz: 1.65,
-        damping: 0.6,
+        damping: 0.54,
         antiRollStiffness: 1150,
       }),
     }),
@@ -78,7 +81,7 @@ export const APEX_ROAD_CAR: ApexCarPhysicsDefinition = Object.freeze({
   wheels: Object.freeze({
     inertiaKgM2: 0.9,
     angularDamping: 0.2,
-    maximumSteerAngleDegrees: 32,
+    maximumSteerAngleDegrees: 38,
     frontBrakeTorqueNm: 3600,
     rearBrakeTorqueNm: 2800,
     handBrakeTorqueNm: 5000,
@@ -130,10 +133,10 @@ export const APEX_ROAD_CAR: ApexCarPhysicsDefinition = Object.freeze({
   steering: Object.freeze({
     blendStartKmh: 20,
     blendEndKmh: 120,
-    baselineLowSpeedDegrees: 32,
-    baselineHighSpeedDegrees: 14,
-    lowSlipLowSpeedDegrees: 30,
-    lowSlipHighSpeedDegrees: 10,
+    baselineLowSpeedDegrees: 36,
+    baselineHighSpeedDegrees: 16,
+    lowSlipLowSpeedDegrees: 36,
+    lowSlipHighSpeedDegrees: 14,
   }),
   launch: Object.freeze({
     boostDurationSeconds: 0.9,

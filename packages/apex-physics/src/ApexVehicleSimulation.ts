@@ -73,6 +73,7 @@ import {
   ApexAssists,
   type ApexHandlingSample,
 } from './dynamics/ApexAssists.ts';
+import { resolveApexSteeringGeometry } from './dynamics/ApexSteeringGeometry.ts';
 import { ApexTorqueDistributor } from './dynamics/ApexTorqueDistributor.ts';
 import { ApexInputFilter } from './input/ApexInputFilter.ts';
 import {
@@ -90,9 +91,6 @@ const STANDARD_GRAVITY_MPS2 = 9.80665;
 const DEGREES_TO_RADIANS = Math.PI / 180;
 const clamp = (value: number, minimum: number, maximum: number): number => (
   Math.max(minimum, Math.min(maximum, value))
-);
-const lerp = (first: number, second: number, blend: number): number => (
-  first + (second - first) * blend
 );
 const vector3Tuple = (
   x: number,
@@ -1613,9 +1611,20 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
     this.carBody.AddForce(this.aeroForce, this.rearAeroPoint);
   }
 
-  private applySteeringGeometry(steering: number, speedKmh: number): void {
+  private applySteeringGeometry(
+    steering: number,
+    speedKmh: number,
+    yawRateRadiansPerSecond: number,
+    directSteering = false,
+  ): void {
     const definition = this.carPhysicsDefinition!;
     const steeringDefinition = definition.steering;
+    if (directSteering) {
+      const directMaximumAngle = 45 * DEGREES_TO_RADIANS;
+      this.wheelSettings[0].mMaxSteerAngle = directMaximumAngle;
+      this.wheelSettings[1].mMaxSteerAngle = directMaximumAngle;
+      return;
+    }
     const lowSlipTMeasy = (
       this.tireModel === 'apex-tmeasy-v1'
       || this.tireModel === TMEASY_NINE_POINT_MODEL
@@ -1631,49 +1640,27 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
       return;
     }
 
-    const speedBlend = clamp(
-      (Math.abs(speedKmh) - steeringDefinition.blendStartKmh)
-        / (
-          steeringDefinition.blendEndKmh
-          - steeringDefinition.blendStartKmh
-        ),
-      0,
-      1,
-    );
-    const innerAngle = (
-      lowSlipTMeasy
-        ? lerp(
-          steeringDefinition.lowSlipLowSpeedDegrees,
-          steeringDefinition.lowSlipHighSpeedDegrees,
-          speedBlend,
-        )
-        : lerp(
-          steeringDefinition.baselineLowSpeedDegrees,
-          steeringDefinition.baselineHighSpeedDegrees,
-          speedBlend,
-        )
-    ) * DEGREES_TO_RADIANS;
-    const turnRadius = (
-      definition.dimensions.wheelbaseM
-      / Math.max(Math.tan(innerAngle), 1e-4)
-    );
-    const outerAngle = Math.atan(
-      definition.dimensions.wheelbaseM
-        / (
-          turnRadius
-          + (definition.dimensions.frontTrackM + definition.dimensions.rearTrackM) * 0.5
-        ),
-    );
-    if (steering > 0.001) {
-      this.wheelSettings[0].mMaxSteerAngle = outerAngle;
-      this.wheelSettings[1].mMaxSteerAngle = innerAngle;
-    } else if (steering < -0.001) {
-      this.wheelSettings[0].mMaxSteerAngle = innerAngle;
-      this.wheelSettings[1].mMaxSteerAngle = outerAngle;
-    } else {
-      this.wheelSettings[0].mMaxSteerAngle = innerAngle;
-      this.wheelSettings[1].mMaxSteerAngle = innerAngle;
-    }
+    const geometry = resolveApexSteeringGeometry({
+      steering,
+      speedKmh,
+      yawRateRadiansPerSecond,
+      wheelbaseM: definition.dimensions.wheelbaseM,
+      averageTrackM: (
+        definition.dimensions.frontTrackM
+        + definition.dimensions.rearTrackM
+      ) * 0.5,
+      blendStartKmh: steeringDefinition.blendStartKmh,
+      blendEndKmh: steeringDefinition.blendEndKmh,
+      lowSpeedDegrees: lowSlipTMeasy
+        ? steeringDefinition.lowSlipLowSpeedDegrees
+        : steeringDefinition.baselineLowSpeedDegrees,
+      highSpeedDegrees: lowSlipTMeasy
+        ? steeringDefinition.lowSlipHighSpeedDegrees
+        : steeringDefinition.baselineHighSpeedDegrees,
+      mechanicalLimitDegrees: definition.wheels.maximumSteerAngleDegrees,
+    });
+    this.wheelSettings[0].mMaxSteerAngle = geometry.frontLeftMaximumRadians;
+    this.wheelSettings[1].mMaxSteerAngle = geometry.frontRightMaximumRadians;
   }
 
   private updateWheelStateAfterStep(): void {
@@ -1847,6 +1834,9 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
         : lowSlipTMeasy ? 'low-slip'
         : selectiveTorqueControl ? 'fast-recovery'
         : this.tireModel === 'apex-v1.1' ? 'circuit-recovery' : 'baseline');
+    const commandedSteering = input.directSteering === true
+      ? filtered.steering
+      : assisted.steering;
     this.updateLaunchTorqueBoost(
       Math.abs(assisted.throttle),
       sample.speedMps,
@@ -1874,7 +1864,12 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
     this.deliveredEngineTorqueNm = torqueDistribution.deliveredEngineTorqueNm;
     this.deliveredAxleTorqueNm = torqueDistribution.deliveredAxleTorqueNm;
     this.deliveredWheelTorqueNm = torqueDistribution.deliveredWheelTorqueNm;
-    this.applySteeringGeometry(assisted.steering, sample.speedMps * 3.6);
+    this.applySteeringGeometry(
+      commandedSteering,
+      sample.speedMps * 3.6,
+      sample.yawRate,
+      input.directSteering === true,
+    );
     const liftOffFrontBlend = this.updateLiftOffFrontAerodynamics(
       Math.abs(assisted.throttle),
       sample.speedMps,
@@ -1886,13 +1881,13 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
       : direction * assisted.throttle * torqueDistribution.throttleScale;
     this.controller.SetDriverInput(
       forwardInput,
-      assisted.steering,
+      commandedSteering,
       assisted.brake,
       assisted.handbrake,
     );
-    this.currentSteeringInput = assisted.steering;
+    this.currentSteeringInput = commandedSteering;
     this.applyAerodynamics(liftOffFrontBlend);
-    if (forwardInput || assisted.steering || assisted.brake || assisted.handbrake) {
+    if (forwardInput || commandedSteering || assisted.brake || assisted.handbrake) {
       this.bodyInterface.ActivateBody(this.carBody.GetID());
     }
     this.currentStepTireContactCount = 0;

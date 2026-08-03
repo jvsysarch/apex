@@ -13,3 +13,11 @@ https://ambientcg.com/a/DayEnvironmentHDRI108
 Day Sky HDRI 065 A
 https://ambientcg.com/a/DaySkyHDRI065A
 - DaySkyHDRI065A_1K_HDR.exr
+
+Day Environment HDRI 040
+https://ambientcg.com/a/DayEnvironmentHDRI040
+- DayEnvironmentHDRI040_1K_HDR.exr
+
+Day Environment HDRI 077
+https://ambientcg.com/a/DayEnvironmentHDRI077
+- DayEnvironmentHDRI077_1K_HDR.exr

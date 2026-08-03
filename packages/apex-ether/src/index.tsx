@@ -288,6 +288,8 @@ export interface ApexEtherMovableProps {
   readonly className?: string;
   readonly ariaLabel?: string;
   readonly initialPosition?: Readonly<{ x: number; y: number }>;
+  /** Limits pointer dragging to descendants matching this selector. */
+  readonly dragHandleSelector?: string;
 }
 
 const readMovablePosition = (
@@ -317,6 +319,7 @@ export const ApexEtherMovable = memo(({
   className = '',
   ariaLabel,
   initialPosition = { x: 0, y: 0 },
+  dragHandleSelector,
 }: ApexEtherMovableProps) => {
   const locale = useApexEtherLocale();
   const [position, setPosition] = useState(() => readMovablePosition(storageKey, initialPosition));
@@ -357,6 +360,7 @@ export const ApexEtherMovable = memo(({
     if (event.button !== 0) return;
     const target = event.target as Element;
     if (target.closest('button, a, input, select, textarea')) return;
+    if (dragHandleSelector && !target.closest(dragHandleSelector)) return;
     const element = rootRef.current;
     if (!element) return;
     const rect = element.getBoundingClientRect();
@@ -375,7 +379,7 @@ export const ApexEtherMovable = memo(({
     element.dataset.dragging = 'true';
     element.setPointerCapture(event.pointerId);
     event.preventDefault();
-  }, []);
+  }, [dragHandleSelector]);
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
@@ -387,6 +391,9 @@ export const ApexEtherMovable = memo(({
   }, [applyPosition]);
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    // Nested controls own their keyboard input; only the movable root responds
+    // to arrow-key repositioning.
+    if (event.target !== event.currentTarget) return;
     const step = event.shiftKey ? 24 : 8;
     let deltaX = 0;
     let deltaY = 0;
@@ -421,7 +428,12 @@ export const ApexEtherMovable = memo(({
     onPointerUp={event => finishDrag(event.pointerId)}
     onPointerCancel={event => finishDrag(event.pointerId)}
     onKeyDown={handleKeyDown}
-    onDoubleClick={resetPosition}
+    onDoubleClick={event => {
+      const target = event.target as Element;
+      if (target.closest('button, a, input, select, textarea')) return;
+      if (dragHandleSelector && !target.closest(dragHandleSelector)) return;
+      resetPosition();
+    }}
   >{children}</div>;
 });
 

@@ -438,18 +438,13 @@ const migrateLegacyDraft = (
   );
 };
 
-export const loadApexTrackDraft = (
+export const parseApexTrackDraft = (
   identity: ApexTrackDraftIdentity,
+  input: unknown,
 ): ApexTrackDraft | undefined => {
-  let raw: string | null;
+  if (!isRecord(input)) return undefined;
+  const value = input;
   try {
-    raw = localStorage.getItem(apexTrackDraftStorageKey(identity));
-  } catch {
-    return undefined;
-  }
-  if (!raw) return undefined;
-  try {
-    const value = JSON.parse(raw) as Record<string, unknown>;
     if (
       value.format !== APEX_TRACK_DRAFT_FORMAT
       || value.trackId !== identity.trackId
@@ -483,6 +478,23 @@ export const loadApexTrackDraft = (
       junctions,
       routes,
     );
+  } catch {
+    return undefined;
+  }
+};
+
+export const loadApexTrackDraft = (
+  identity: ApexTrackDraftIdentity,
+): ApexTrackDraft | undefined => {
+  let raw: string | null;
+  try {
+    raw = localStorage.getItem(apexTrackDraftStorageKey(identity));
+  } catch {
+    return undefined;
+  }
+  if (!raw) return undefined;
+  try {
+    return parseApexTrackDraft(identity, JSON.parse(raw));
   } catch {
     return undefined;
   }
