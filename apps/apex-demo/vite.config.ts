@@ -241,6 +241,7 @@ export default defineConfig(environment => mergeConfig(resolveDriveConfig(enviro
         ? [
           'assets/vehicles/apex-demo-car-001/vehicle.json',
           'assets/vehicles/ford-mustang-shelby-gt500/vehicle.json',
+          'assets/vehicles/vertex-arcade/vehicle.json',
         ]
         : [
           'assets/vehicles/apex-demo-car-001/vehicle.json',

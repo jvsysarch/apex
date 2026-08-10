@@ -10,6 +10,10 @@ const manifest = parseApexDriveCarSpecification(JSON.parse(readFileSync(
   ),
   'utf8',
 )));
+const publicDemoViteConfig = readFileSync(
+  new URL('../../apps/apex-demo/vite.config.ts', import.meta.url),
+  'utf8',
+);
 
 test('VERTEX-ARCADE reuses the Shelby asset with a distinct identity', () => {
   assert.equal(manifest.id, 'vertex-arcade');
@@ -18,4 +22,16 @@ test('VERTEX-ARCADE reuses the Shelby asset with a distinct identity', () => {
   assert.equal(manifest.visual.defaultPaintColor, '#020304');
   assert.equal(manifest.dynamics.physicsDefinitionId, 'vertex-arcade');
   assert.equal(manifest.dynamics.massKg, 1325);
+});
+
+test('the public Time Trial runtime loads VERTEX-ARCADE', () => {
+  const bareRuntimeManifestList = publicDemoViteConfig.match(
+    /PUBLIC_DEMO_BARE_RUNTIME\s*\?\s*\[(?<manifests>[\s\S]*?)\]\s*:\s*\[/,
+  )?.groups?.manifests;
+
+  assert.ok(bareRuntimeManifestList, 'public demo manifest list was not found');
+  assert.match(
+    bareRuntimeManifestList,
+    /assets\/vehicles\/vertex-arcade\/vehicle\.json/,
+  );
 });
