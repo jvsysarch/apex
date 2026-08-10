@@ -454,7 +454,7 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
       profile.lateralGripMultiplier
         * (aerodynamics?.dynamicsLateralGripCalibration ?? 1),
       0.85,
-      1.65,
+      2.2,
     );
     this.aerodynamicDownforceMultiplier = clamp(
       profile.aerodynamicDownforceMultiplier
@@ -1686,6 +1686,28 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
     this.J.destroy(stabilizedAngularVelocity);
   }
 
+  private applyArcadeDriveForce(throttle: number): void {
+    const forceN = clamp(
+      this.carPhysicsDefinition?.arcadeDriveForceN ?? 0,
+      0,
+      60_000,
+    ) * clamp(throttle, 0, 1);
+    if (forceN <= 0) return;
+    const rotation = this.carBody.GetRotation();
+    const forward = rotateVectorByQuaternion([0, 0, 1], [
+      rotation.GetX(),
+      rotation.GetY(),
+      rotation.GetZ(),
+      rotation.GetW(),
+    ]);
+    this.aeroForce.Set(
+      forward[0] * forceN,
+      forward[1] * forceN,
+      forward[2] * forceN,
+    );
+    this.carBody.AddForce(this.aeroForce);
+  }
+
   private applySteeringGeometry(
     steering: number,
     speedKmh: number,
@@ -1963,6 +1985,7 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
     );
     this.currentSteeringInput = commandedSteering;
     this.applyAerodynamics(liftOffFrontBlend);
+    this.applyArcadeDriveForce(Math.max(0, forwardInput));
     if (forwardInput || commandedSteering || assisted.brake || assisted.handbrake) {
       this.bodyInterface.ActivateBody(this.carBody.GetID());
     }

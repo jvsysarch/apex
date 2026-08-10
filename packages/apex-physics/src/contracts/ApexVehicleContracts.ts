@@ -202,6 +202,8 @@ export interface ApexCarPhysicsDefinition {
   readonly steering: ApexSteeringDefinition;
   readonly launch: ApexLaunchDefinition;
   readonly pulseBoost?: ApexPulseBoostDefinition;
+  /** Extra forward force applied while accelerating in arcade vehicles. */
+  readonly arcadeDriveForceN?: number;
   /** Arcade assistance that damps pitch and roll while the car is grounded. */
   readonly rollStabilityDampingPerSecond?: number;
   readonly aerodynamics: ApexVehicleAerodynamicsDefinition;

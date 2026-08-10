@@ -19,8 +19,8 @@ test('VERTEX tuning applies every player-facing physics control', () => {
 
   assert.equal(definition.engine.maximumTorqueNm, 2100);
   assert.equal(definition.massKg, 1325);
-  approximately(definition.wheels.frontBrakeTorqueNm, 7290);
-  approximately(definition.wheels.rearBrakeTorqueNm, 5670);
+  approximately(definition.wheels.frontBrakeTorqueNm, 11_880);
+  approximately(definition.wheels.rearBrakeTorqueNm, 9240);
   assert.equal(definition.wheels.maximumSteerAngleDegrees, 40);
   assert.equal(definition.suspension.tuned.front.antiRollStiffness, 3800);
   assert.equal(definition.suspension.tuned.rear.antiRollStiffness, 3300);
@@ -29,6 +29,7 @@ test('VERTEX tuning applies every player-facing physics control', () => {
   assert.equal(definition.pulseBoost?.maximumBoostRatio, 0.42);
   assert.equal(definition.pulseBoost?.durationSeconds, 1.1);
   assert.equal(definition.pulseBoost?.rechargeSeconds, 4.5);
+  assert.equal(definition.arcadeDriveForceN, 14_000);
   approximately(definition.rollStabilityDampingPerSecond ?? 0, 1.76);
   assert.equal(definition.aerodynamics.dynamicsLateralGripCalibration, 1.35);
 });
@@ -57,12 +58,14 @@ test('VERTEX tuning rejects values outside safe slider limits', () => {
     massKg: 1,
     brakeMultiplier: 10,
     gripMultiplier: 5,
+    continuousBoostForceN: 1_000_000,
     rolloverStability: -4,
   });
 
-  assert.equal(tuning.torqueNm, 3200);
-  assert.equal(tuning.massKg, 950);
-  assert.equal(tuning.brakeMultiplier, 2);
-  assert.equal(tuning.gripMultiplier, 1.2);
+  assert.equal(tuning.torqueNm, 8000);
+  assert.equal(tuning.massKg, 700);
+  assert.equal(tuning.brakeMultiplier, 6);
+  assert.equal(tuning.gripMultiplier, 1.6);
+  assert.equal(tuning.continuousBoostForceN, 50_000);
   assert.equal(tuning.rolloverStability, 0);
 });

@@ -10,6 +10,7 @@ export interface ApexVertexTuning {
   readonly frontDamping: number;
   readonly rearDamping: number;
   readonly gripMultiplier: number;
+  readonly continuousBoostForceN: number;
   readonly pulseBoostRatio: number;
   readonly pulseDurationSeconds: number;
   readonly pulseRechargeSeconds: number;
@@ -21,13 +22,14 @@ export const APEX_VERTEX_TUNING_STORAGE_KEY = 'apex-drive.vertex-arcade.tuning.v
 export const DEFAULT_APEX_VERTEX_TUNING: ApexVertexTuning = Object.freeze({
   torqueNm: 2100,
   massKg: 1325,
-  brakeMultiplier: 1.35,
+  brakeMultiplier: 2.2,
   steeringAngleDegrees: 40,
   frontAntiRollStiffness: 3800,
   rearAntiRollStiffness: 3300,
   frontDamping: 0.78,
   rearDamping: 0.76,
   gripMultiplier: 1,
+  continuousBoostForceN: 14_000,
   pulseBoostRatio: 0.42,
   pulseDurationSeconds: 1.1,
   pulseRechargeSeconds: 4.5,
@@ -42,18 +44,19 @@ const clamp = (value: unknown, minimum: number, maximum: number): number => {
 export const normalizeApexVertexTuning = (
   value: Partial<ApexVertexTuning> | undefined,
 ): ApexVertexTuning => Object.freeze({
-  torqueNm: clamp(value?.torqueNm ?? DEFAULT_APEX_VERTEX_TUNING.torqueNm, 900, 3200),
-  massKg: clamp(value?.massKg ?? DEFAULT_APEX_VERTEX_TUNING.massKg, 950, 1800),
-  brakeMultiplier: clamp(value?.brakeMultiplier ?? DEFAULT_APEX_VERTEX_TUNING.brakeMultiplier, 0.8, 2),
-  steeringAngleDegrees: clamp(value?.steeringAngleDegrees ?? DEFAULT_APEX_VERTEX_TUNING.steeringAngleDegrees, 24, 45),
-  frontAntiRollStiffness: clamp(value?.frontAntiRollStiffness ?? DEFAULT_APEX_VERTEX_TUNING.frontAntiRollStiffness, 1200, 7000),
-  rearAntiRollStiffness: clamp(value?.rearAntiRollStiffness ?? DEFAULT_APEX_VERTEX_TUNING.rearAntiRollStiffness, 1200, 7000),
-  frontDamping: clamp(value?.frontDamping ?? DEFAULT_APEX_VERTEX_TUNING.frontDamping, 0.45, 0.95),
-  rearDamping: clamp(value?.rearDamping ?? DEFAULT_APEX_VERTEX_TUNING.rearDamping, 0.45, 0.95),
-  gripMultiplier: clamp(value?.gripMultiplier ?? DEFAULT_APEX_VERTEX_TUNING.gripMultiplier, 0.75, 1.2),
-  pulseBoostRatio: clamp(value?.pulseBoostRatio ?? DEFAULT_APEX_VERTEX_TUNING.pulseBoostRatio, 0.15, 0.85),
-  pulseDurationSeconds: clamp(value?.pulseDurationSeconds ?? DEFAULT_APEX_VERTEX_TUNING.pulseDurationSeconds, 0.5, 2),
-  pulseRechargeSeconds: clamp(value?.pulseRechargeSeconds ?? DEFAULT_APEX_VERTEX_TUNING.pulseRechargeSeconds, 1.5, 8),
+  torqueNm: clamp(value?.torqueNm ?? DEFAULT_APEX_VERTEX_TUNING.torqueNm, 600, 8000),
+  massKg: clamp(value?.massKg ?? DEFAULT_APEX_VERTEX_TUNING.massKg, 700, 2000),
+  brakeMultiplier: clamp(value?.brakeMultiplier ?? DEFAULT_APEX_VERTEX_TUNING.brakeMultiplier, 0.8, 6),
+  steeringAngleDegrees: clamp(value?.steeringAngleDegrees ?? DEFAULT_APEX_VERTEX_TUNING.steeringAngleDegrees, 20, 55),
+  frontAntiRollStiffness: clamp(value?.frontAntiRollStiffness ?? DEFAULT_APEX_VERTEX_TUNING.frontAntiRollStiffness, 800, 12_000),
+  rearAntiRollStiffness: clamp(value?.rearAntiRollStiffness ?? DEFAULT_APEX_VERTEX_TUNING.rearAntiRollStiffness, 800, 12_000),
+  frontDamping: clamp(value?.frontDamping ?? DEFAULT_APEX_VERTEX_TUNING.frontDamping, 0.3, 1.5),
+  rearDamping: clamp(value?.rearDamping ?? DEFAULT_APEX_VERTEX_TUNING.rearDamping, 0.3, 1.5),
+  gripMultiplier: clamp(value?.gripMultiplier ?? DEFAULT_APEX_VERTEX_TUNING.gripMultiplier, 0.65, 1.6),
+  continuousBoostForceN: clamp(value?.continuousBoostForceN ?? DEFAULT_APEX_VERTEX_TUNING.continuousBoostForceN, 0, 50_000),
+  pulseBoostRatio: clamp(value?.pulseBoostRatio ?? DEFAULT_APEX_VERTEX_TUNING.pulseBoostRatio, 0, 2.5),
+  pulseDurationSeconds: clamp(value?.pulseDurationSeconds ?? DEFAULT_APEX_VERTEX_TUNING.pulseDurationSeconds, 0.25, 3),
+  pulseRechargeSeconds: clamp(value?.pulseRechargeSeconds ?? DEFAULT_APEX_VERTEX_TUNING.pulseRechargeSeconds, 0.5, 10),
   rolloverStability: clamp(value?.rolloverStability ?? DEFAULT_APEX_VERTEX_TUNING.rolloverStability, 0, 1),
 });
 
@@ -166,6 +169,7 @@ export const applyApexVertexTuning = (
       rechargeSeconds: tuning.pulseRechargeSeconds,
       maximumBoostRatio: tuning.pulseBoostRatio,
     }),
+    arcadeDriveForceN: tuning.continuousBoostForceN,
     rollStabilityDampingPerSecond: stability * 2.2,
     aerodynamics: Object.freeze({
       ...definition.aerodynamics,
