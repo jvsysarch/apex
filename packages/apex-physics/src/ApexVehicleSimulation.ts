@@ -454,7 +454,7 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
       profile.lateralGripMultiplier
         * (aerodynamics?.dynamicsLateralGripCalibration ?? 1),
       0.85,
-      2.2,
+      6,
     );
     this.aerodynamicDownforceMultiplier = clamp(
       profile.aerodynamicDownforceMultiplier
@@ -1690,7 +1690,7 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
     const forceN = clamp(
       this.carPhysicsDefinition?.arcadeDriveForceN ?? 0,
       0,
-      60_000,
+      600_000,
     ) * clamp(throttle, 0, 1);
     if (forceN <= 0) return;
     const rotation = this.carBody.GetRotation();

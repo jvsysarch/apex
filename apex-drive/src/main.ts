@@ -225,8 +225,11 @@ import {
 } from './vehicle/ApexVehicleManifestLoader';
 import {
   applyApexVertexTuning,
-  readApexVertexTuning,
-  writeApexVertexTuning,
+  DEFAULT_APEX_VERTEX_HYPER_TUNING,
+  DEFAULT_APEX_VERTEX_TUNING,
+  readApexArcadeTuning,
+  writeApexArcadeTuning,
+  type ApexTunableArcadeVehicleId,
 } from './vehicle/ApexVertexTuning';
 import {
   ApexAutonomousDriver,
@@ -244,6 +247,12 @@ import {
 import './style.css';
 
 type UiMode = 'off' | 'read' | 'tuning';
+
+const isTunableArcadeCarId = (
+  vehicleId: string,
+): vehicleId is ApexTunableArcadeVehicleId => (
+  vehicleId === 'vertex-arcade' || vehicleId === 'vertex-hyper'
+);
 
 document.documentElement.dataset.apexDriveProfile = APEX_DRIVE_RUNTIME_PROFILE;
 const {
@@ -734,8 +743,9 @@ const lapTimer = new ApexLapTimer(
   lapTimingStartGate,
   Object.freeze(lapTimingCheckpoints),
   trackTiming.sectorCount,
-  timeTrialCarStorageIdentity === 'vertex-arcade'
-    ? `${trackTiming.storageKey}.vertex-arcade`
+  timeTrialCarStorageIdentity !== null
+    && isTunableArcadeCarId(timeTrialCarStorageIdentity)
+    ? `${trackTiming.storageKey}.${timeTrialCarStorageIdentity}`
     : trackTiming.storageKey,
 );
 let activeTimeTrialCircuit: ApexDriveCircuitIdentity = Object.freeze({
@@ -937,6 +947,7 @@ const publicDemoPrimaryCar = (
 const publicTimeTrialCarIds = Object.freeze([
   'ford-mustang-shelby-gt500',
   'vertex-arcade',
+  'vertex-hyper',
 ]);
 const publicGarageCarIds = Object.freeze([
   'ford-mustang-shelby-gt500',
@@ -986,19 +997,27 @@ const activeVehicleKind: ApexVehicleKind = isAuditRuntime
       ? 'car'
       : 'car';
 const activeCar = requestedCar ?? savedCar ?? defaultCar;
-if (activeCar.id === 'vertex-arcade') {
+if (isTunableArcadeCarId(activeCar.id)) {
   activeTimeTrialCircuit = Object.freeze({
-    id: `${ACTIVE_TRACK.track.id}--vertex-arcade`,
+    id: `${ACTIVE_TRACK.track.id}--${activeCar.id}`,
     version: ACTIVE_TRACK.track.version,
-    name: `${ACTIVE_TRACK.track.name} · VERTEX-ARCADE`,
+    name: `${ACTIVE_TRACK.track.name} · ${activeCar.name}`,
   });
 }
 const activeVehicleSpecification = activeCar.vehicleSpecification;
 const activeMotorcycle = requestedMotorcycle ?? DEFAULT_APEX_MOTORCYCLE;
 const baseActiveCarPhysicsDefinition = createApexCarPhysicsDefinition(activeCar);
-const activeVertexTuning = activeCar.id === 'vertex-arcade'
-  ? readApexVertexTuning()
+const activeArcadeTuningId = isTunableArcadeCarId(activeCar.id)
+  ? activeCar.id
   : undefined;
+const activeVertexTuning = activeArcadeTuningId
+  ? readApexArcadeTuning(activeArcadeTuningId)
+  : undefined;
+const activeVertexTuningDefaults = activeArcadeTuningId === 'vertex-hyper'
+  ? DEFAULT_APEX_VERTEX_HYPER_TUNING
+  : activeArcadeTuningId === 'vertex-arcade'
+    ? DEFAULT_APEX_VERTEX_TUNING
+    : undefined;
 const chassisBoxCenterYStorageKey = 'apex-drive.car-chassis-box-center-y.v2';
 const minimumChassisBoxCenterYM = -0.2;
 const maximumChassisBoxCenterYM = 0.45;
@@ -1310,7 +1329,7 @@ const carColorStorageKey = (definition: ApexCarDefinition): string => (
   `apex-v3-car-paint.${definition.id}`
 );
 const storedCarColor = (definition: ApexCarDefinition): string => (
-  definition.id === 'vertex-arcade'
+  isTunableArcadeCarId(definition.id)
     ? definition.visual.defaultPaintColor
     : localStorage.getItem(carColorStorageKey(definition))
     ?? definition.visual.defaultPaintColor
@@ -1385,7 +1404,7 @@ vehicleKindSelect.addEventListener('change', () => {
   window.location.href = nextUrl.toString();
 });
 vehicleColorLabel.hidden =
-  activeVehicleKind === 'motorcycle' || activeCar.id === 'vertex-arcade';
+  activeVehicleKind === 'motorcycle' || isTunableArcadeCarId(activeCar.id);
 if (APEX_DRIVE_PUBLIC_DEMO && activeVehicleKind === 'car') {
   vehicleWorkshopCarSelect.replaceChildren(
     ...runtimeCarCatalog.map(definition => {
@@ -5932,7 +5951,7 @@ const chassisMaterial = new THREE.LineBasicMaterial({
   color: activeVehicleKind === 'motorcycle' ? 0x4de7ff : savedVehicleColor,
 });
 const applyVehicleColor = (color: string, persist = false) => {
-  const effectiveColor = runtimeCar.id === 'vertex-arcade'
+  const effectiveColor = isTunableArcadeCarId(runtimeCar.id)
     ? runtimeCar.visual.defaultPaintColor
     : color;
   chassisMaterial.color.set(effectiveColor);
@@ -5949,7 +5968,7 @@ const applyVehicleColor = (color: string, persist = false) => {
 };
 vehicleColorInput.addEventListener('input', () => {
   if (parkingSelectionActive) {
-    const color = parkingSelectedCar.id === 'vertex-arcade'
+    const color = isTunableArcadeCarId(parkingSelectedCar.id)
       ? parkingSelectedCar.visual.defaultPaintColor
       : vehicleColorInput.value;
     vehicleColorInput.value = color;
@@ -8856,7 +8875,7 @@ try {
             );
             if (!definition || definition.id === activeCar.id) return;
             localStorage.setItem(selectedCarStorageKey, definition.id);
-            if (definition.id === 'vertex-arcade') {
+            if (isTunableArcadeCarId(definition.id)) {
               localStorage.setItem(
                 carColorStorageKey(definition),
                 definition.visual.defaultPaintColor,
@@ -8869,9 +8888,18 @@ try {
             window.location.href = nextUrl.toString();
           },
           vertexTuning: activeVertexTuning,
-          requestVertexTuning: activeVertexTuning
+          vertexTuningDefaults: activeVertexTuningDefaults,
+          vertexTuningVehicleName: activeArcadeTuningId
+            ? activeCar.name
+            : undefined,
+          vertexTuningTriggerInitial: activeArcadeTuningId === 'vertex-hyper'
+            ? 'H'
+            : activeArcadeTuningId === 'vertex-arcade'
+              ? 'V'
+              : undefined,
+          requestVertexTuning: activeArcadeTuningId
             ? tuning => {
-              writeApexVertexTuning(tuning);
+              writeApexArcadeTuning(activeArcadeTuningId, tuning);
               window.location.reload();
             }
             : undefined,

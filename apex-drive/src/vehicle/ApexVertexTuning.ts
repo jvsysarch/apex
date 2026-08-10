@@ -18,6 +18,8 @@ export interface ApexVertexTuning {
 }
 
 export const APEX_VERTEX_TUNING_STORAGE_KEY = 'apex-drive.vertex-arcade.tuning.v1';
+export const APEX_VERTEX_HYPER_TUNING_STORAGE_KEY = 'apex-drive.vertex-hyper.tuning.v1';
+export type ApexTunableArcadeVehicleId = 'vertex-arcade' | 'vertex-hyper';
 
 export const DEFAULT_APEX_VERTEX_TUNING: ApexVertexTuning = Object.freeze({
   torqueNm: 2100,
@@ -36,6 +38,23 @@ export const DEFAULT_APEX_VERTEX_TUNING: ApexVertexTuning = Object.freeze({
   rolloverStability: 0.8,
 });
 
+export const DEFAULT_APEX_VERTEX_HYPER_TUNING: ApexVertexTuning = Object.freeze({
+  torqueNm: 4200,
+  massKg: 1100,
+  brakeMultiplier: 3.5,
+  steeringAngleDegrees: 45,
+  frontAntiRollStiffness: 5200,
+  rearAntiRollStiffness: 4600,
+  frontDamping: 0.88,
+  rearDamping: 0.84,
+  gripMultiplier: 1.2,
+  continuousBoostForceN: 35_000,
+  pulseBoostRatio: 0.8,
+  pulseDurationSeconds: 1.3,
+  pulseRechargeSeconds: 2,
+  rolloverStability: 0.95,
+});
+
 const clamp = (value: unknown, minimum: number, maximum: number): number => {
   const numeric = typeof value === 'number' ? value : Number(value);
   return Math.min(maximum, Math.max(minimum, Number.isFinite(numeric) ? numeric : minimum));
@@ -43,39 +62,66 @@ const clamp = (value: unknown, minimum: number, maximum: number): number => {
 
 export const normalizeApexVertexTuning = (
   value: Partial<ApexVertexTuning> | undefined,
+  defaults: ApexVertexTuning = DEFAULT_APEX_VERTEX_TUNING,
 ): ApexVertexTuning => Object.freeze({
-  torqueNm: clamp(value?.torqueNm ?? DEFAULT_APEX_VERTEX_TUNING.torqueNm, 600, 8000),
-  massKg: clamp(value?.massKg ?? DEFAULT_APEX_VERTEX_TUNING.massKg, 700, 2000),
-  brakeMultiplier: clamp(value?.brakeMultiplier ?? DEFAULT_APEX_VERTEX_TUNING.brakeMultiplier, 0.8, 6),
-  steeringAngleDegrees: clamp(value?.steeringAngleDegrees ?? DEFAULT_APEX_VERTEX_TUNING.steeringAngleDegrees, 20, 55),
-  frontAntiRollStiffness: clamp(value?.frontAntiRollStiffness ?? DEFAULT_APEX_VERTEX_TUNING.frontAntiRollStiffness, 800, 12_000),
-  rearAntiRollStiffness: clamp(value?.rearAntiRollStiffness ?? DEFAULT_APEX_VERTEX_TUNING.rearAntiRollStiffness, 800, 12_000),
-  frontDamping: clamp(value?.frontDamping ?? DEFAULT_APEX_VERTEX_TUNING.frontDamping, 0.3, 1.5),
-  rearDamping: clamp(value?.rearDamping ?? DEFAULT_APEX_VERTEX_TUNING.rearDamping, 0.3, 1.5),
-  gripMultiplier: clamp(value?.gripMultiplier ?? DEFAULT_APEX_VERTEX_TUNING.gripMultiplier, 0.65, 1.6),
-  continuousBoostForceN: clamp(value?.continuousBoostForceN ?? DEFAULT_APEX_VERTEX_TUNING.continuousBoostForceN, 0, 50_000),
-  pulseBoostRatio: clamp(value?.pulseBoostRatio ?? DEFAULT_APEX_VERTEX_TUNING.pulseBoostRatio, 0, 2.5),
-  pulseDurationSeconds: clamp(value?.pulseDurationSeconds ?? DEFAULT_APEX_VERTEX_TUNING.pulseDurationSeconds, 0.25, 3),
-  pulseRechargeSeconds: clamp(value?.pulseRechargeSeconds ?? DEFAULT_APEX_VERTEX_TUNING.pulseRechargeSeconds, 0.5, 10),
-  rolloverStability: clamp(value?.rolloverStability ?? DEFAULT_APEX_VERTEX_TUNING.rolloverStability, 0, 1),
+  torqueNm: clamp(value?.torqueNm ?? defaults.torqueNm, 0, 50_000),
+  massKg: clamp(value?.massKg ?? defaults.massKg, 100, 10_000),
+  brakeMultiplier: clamp(value?.brakeMultiplier ?? defaults.brakeMultiplier, 0, 25),
+  steeringAngleDegrees: clamp(value?.steeringAngleDegrees ?? defaults.steeringAngleDegrees, 5, 80),
+  frontAntiRollStiffness: clamp(value?.frontAntiRollStiffness ?? defaults.frontAntiRollStiffness, 0, 100_000),
+  rearAntiRollStiffness: clamp(value?.rearAntiRollStiffness ?? defaults.rearAntiRollStiffness, 0, 100_000),
+  frontDamping: clamp(value?.frontDamping ?? defaults.frontDamping, 0, 5),
+  rearDamping: clamp(value?.rearDamping ?? defaults.rearDamping, 0, 5),
+  gripMultiplier: clamp(value?.gripMultiplier ?? defaults.gripMultiplier, 0.1, 4),
+  continuousBoostForceN: clamp(value?.continuousBoostForceN ?? defaults.continuousBoostForceN, 0, 500_000),
+  pulseBoostRatio: clamp(value?.pulseBoostRatio ?? defaults.pulseBoostRatio, 0, 10),
+  pulseDurationSeconds: clamp(value?.pulseDurationSeconds ?? defaults.pulseDurationSeconds, 0.05, 10),
+  pulseRechargeSeconds: clamp(value?.pulseRechargeSeconds ?? defaults.pulseRechargeSeconds, 0, 30),
+  rolloverStability: clamp(value?.rolloverStability ?? defaults.rolloverStability, 0, 1),
 });
 
-export const readApexVertexTuning = (): ApexVertexTuning => {
+const defaultsFor = (vehicleId: ApexTunableArcadeVehicleId): ApexVertexTuning => (
+  vehicleId === 'vertex-hyper'
+    ? DEFAULT_APEX_VERTEX_HYPER_TUNING
+    : DEFAULT_APEX_VERTEX_TUNING
+);
+
+const storageKeyFor = (vehicleId: ApexTunableArcadeVehicleId): string => (
+  vehicleId === 'vertex-hyper'
+    ? APEX_VERTEX_HYPER_TUNING_STORAGE_KEY
+    : APEX_VERTEX_TUNING_STORAGE_KEY
+);
+
+export const readApexArcadeTuning = (
+  vehicleId: ApexTunableArcadeVehicleId,
+): ApexVertexTuning => {
   try {
-    const stored = localStorage.getItem(APEX_VERTEX_TUNING_STORAGE_KEY);
+    const stored = localStorage.getItem(storageKeyFor(vehicleId));
     return normalizeApexVertexTuning(
       stored ? JSON.parse(stored) as Partial<ApexVertexTuning> : undefined,
+      defaultsFor(vehicleId),
     );
   } catch {
-    return DEFAULT_APEX_VERTEX_TUNING;
+    return defaultsFor(vehicleId);
   }
 };
 
-export const writeApexVertexTuning = (value: ApexVertexTuning): void => {
+export const writeApexArcadeTuning = (
+  vehicleId: ApexTunableArcadeVehicleId,
+  value: ApexVertexTuning,
+): void => {
   localStorage.setItem(
-    APEX_VERTEX_TUNING_STORAGE_KEY,
-    JSON.stringify(normalizeApexVertexTuning(value)),
+    storageKeyFor(vehicleId),
+    JSON.stringify(normalizeApexVertexTuning(value, defaultsFor(vehicleId))),
   );
+};
+
+export const readApexVertexTuning = (): ApexVertexTuning => {
+  return readApexArcadeTuning('vertex-arcade');
+};
+
+export const writeApexVertexTuning = (value: ApexVertexTuning): void => {
+  writeApexArcadeTuning('vertex-arcade', value);
 };
 
 export const resetApexVertexTuning = (): void => {

@@ -574,8 +574,8 @@ const Settings = memo(({
               </div>
               <header><span>{t('VEHÍCULO', 'VEHICLE')}</span><h3>{t('Seleccionar auto', 'Select car')}</h3></header>
               <p>{t(
-                'El Shelby conserva la experiencia original. VERTEX-ARCADE usa récords separados, asistencias reforzadas y pulso con Shift o RB.',
-                'The Shelby keeps the original experience. VERTEX-ARCADE uses separate records, stronger assists, and a Shift or RB pulse.',
+                'Shelby conserva la experiencia original; VERTEX-ARCADE es el laboratorio negro y VERTEX-HYPER el arcade naranja. Cada uno usa récords separados.',
+                'Shelby keeps the original experience; VERTEX-ARCADE is the black lab and VERTEX-HYPER the orange arcade car. Each uses separate records.',
               )}</p>
               <label className="apex-drive-ether-settings__vehicle">
                 <span>{t('Auto activo', 'Active car')}</span>
@@ -830,10 +830,17 @@ const DriveEtherHud = memo(({ initialPreferences, controls, voidUser, onPreferen
     <main className="apex-drive-ether" data-mode={mode} lang={locale}>
       <div className="apex-drive-ether-utility">
         <TrackLauncher locale={locale} controls={controls} />
-        {controls.vertexTuning && controls.requestVertexTuning
+        {controls.vertexTuning
+          && controls.vertexTuningDefaults
+          && controls.vertexTuningVehicleName
+          && controls.vertexTuningTriggerInitial
+          && controls.requestVertexTuning
           ? <ApexVertexTuningPanel
             locale={locale}
+            vehicleName={controls.vertexTuningVehicleName}
+            triggerInitial={controls.vertexTuningTriggerInitial}
             tuning={controls.vertexTuning}
+            defaultTuning={controls.vertexTuningDefaults}
             onApply={controls.requestVertexTuning}
           />
           : null}
@@ -870,6 +877,9 @@ export interface ApexEtherHudControls {
   }[];
   readonly requestVehicle: (vehicleId: string) => void;
   readonly vertexTuning?: ApexVertexTuning;
+  readonly vertexTuningDefaults?: ApexVertexTuning;
+  readonly vertexTuningVehicleName?: string;
+  readonly vertexTuningTriggerInitial?: string;
   readonly requestVertexTuning?: (tuning: ApexVertexTuning) => void;
   readonly openVoidTimeTrialProfile?: () => void;
   readonly signOutVoidTimeTrialProfile?: () => void;

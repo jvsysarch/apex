@@ -294,6 +294,42 @@ export const VERTEX_ARCADE: ApexCarPhysicsDefinition = Object.freeze({
   }),
 });
 
+export const VERTEX_HYPER: ApexCarPhysicsDefinition = Object.freeze({
+  ...VERTEX_ARCADE,
+  id: 'vertex-hyper',
+  massKg: 1100,
+  maximumPitchRollDegrees: 25,
+  wheels: Object.freeze({
+    ...VERTEX_ARCADE.wheels,
+    maximumSteerAngleDegrees: 45,
+    frontBrakeTorqueNm: 6500,
+    rearBrakeTorqueNm: 5200,
+  }),
+  engine: Object.freeze({
+    ...VERTEX_ARCADE.engine,
+    maximumTorqueNm: 4200,
+  }),
+  steering: Object.freeze({
+    ...VERTEX_ARCADE.steering,
+    baselineLowSpeedDegrees: 43,
+    baselineHighSpeedDegrees: 12,
+    lowSlipLowSpeedDegrees: 45,
+    lowSlipHighSpeedDegrees: 14,
+  }),
+  pulseBoost: Object.freeze({
+    durationSeconds: 1.3,
+    rechargeSeconds: 2,
+    maximumBoostRatio: 0.8,
+  }),
+  arcadeDriveForceN: 35_000,
+  rollStabilityDampingPerSecond: 2.5,
+  aerodynamics: Object.freeze({
+    ...VERTEX_ARCADE.aerodynamics,
+    dynamicsLateralGripCalibration: 1.5,
+    dynamicsDownforceCalibration: 2,
+  }),
+});
+
 export const APEX_JOLT_ROAD_CAR: ApexCarPhysicsDefinition = Object.freeze({
   ...APEX_ROAD_CAR,
   id: 'apex-jolt-road-car',
@@ -403,6 +439,7 @@ export const APEX_VEHICLE_DEFINITIONS: ReadonlyMap<
 > = new Map<string, ApexVehicleDefinition>([
   [APEX_ROAD_CAR.id, APEX_ROAD_CAR],
   [VERTEX_ARCADE.id, VERTEX_ARCADE],
+  [VERTEX_HYPER.id, VERTEX_HYPER],
   [APEX_JOLT_ROAD_CAR.id, APEX_JOLT_ROAD_CAR],
   [APEX_MOTORCYCLE.id, APEX_MOTORCYCLE],
   [APEX_TMEASY_MOTORCYCLE.id, APEX_TMEASY_MOTORCYCLE],

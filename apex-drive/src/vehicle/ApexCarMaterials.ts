@@ -196,9 +196,10 @@ const configureNissanMaterial = (
 const configureVertexArcadeMaterial = (
   material: ApexPbrMaterial,
   name: string,
+  bodyColor: number,
 ) => {
   if (name === 'carpaint') {
-    setPaint(material, 0x020304);
+    setPaint(material, bodyColor);
   } else if (name === 'tinted_glass') {
     setGlass(material, 0x010203, 0.5, 0.42);
   } else if (name === 'rearlight') {
@@ -229,8 +230,12 @@ export const configureApexCarMaterial = (
   paintColor: string,
 ): void => {
   const name = material.name.toLowerCase();
-  if (carId === 'vertex-arcade') {
-    configureVertexArcadeMaterial(material, name);
+  if (carId === 'vertex-arcade' || carId === 'vertex-hyper') {
+    configureVertexArcadeMaterial(
+      material,
+      name,
+      carId === 'vertex-hyper' ? 0xff8a00 : 0x020304,
+    );
   } else if (carId === 'corvette-stingray') {
     configureCorvetteMaterial(material, name, paintColor);
   } else if (carId === 'nissan-gtr-r35-apex-test') {

@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { VERTEX_ARCADE } from '../../packages/apex-car/src/ApexVehicleDefinitions.ts';
+import {
+  VERTEX_ARCADE,
+  VERTEX_HYPER,
+} from '../../packages/apex-car/src/ApexVehicleDefinitions.ts';
 import {
   applyApexVertexTuning,
+  DEFAULT_APEX_VERTEX_HYPER_TUNING,
   DEFAULT_APEX_VERTEX_TUNING,
   normalizeApexVertexTuning,
 } from '../src/vehicle/ApexVertexTuning.ts';
@@ -34,6 +38,24 @@ test('VERTEX tuning applies every player-facing physics control', () => {
   assert.equal(definition.aerodynamics.dynamicsLateralGripCalibration, 1.35);
 });
 
+test('VERTEX-HYPER has its own aggressive arcade defaults', () => {
+  const definition = applyApexVertexTuning(
+    VERTEX_HYPER,
+    DEFAULT_APEX_VERTEX_HYPER_TUNING,
+  );
+
+  assert.equal(definition.engine.maximumTorqueNm, 4200);
+  assert.equal(definition.massKg, 1100);
+  assert.equal(definition.wheels.frontBrakeTorqueNm, 22_750);
+  assert.equal(definition.wheels.rearBrakeTorqueNm, 18_200);
+  assert.equal(definition.arcadeDriveForceN, 35_000);
+  assert.equal(definition.pulseBoost?.maximumBoostRatio, 0.8);
+  approximately(
+    definition.aerodynamics.dynamicsLateralGripCalibration,
+    1.8,
+  );
+});
+
 test('rollover stability lowers the center of mass and pitch-roll limit', () => {
   const unstable = applyApexVertexTuning(VERTEX_ARCADE, normalizeApexVertexTuning({
     rolloverStability: 0,
@@ -56,16 +78,16 @@ test('VERTEX tuning rejects values outside safe slider limits', () => {
   const tuning = normalizeApexVertexTuning({
     torqueNm: 100_000,
     massKg: 1,
-    brakeMultiplier: 10,
+    brakeMultiplier: 100,
     gripMultiplier: 5,
     continuousBoostForceN: 1_000_000,
     rolloverStability: -4,
   });
 
-  assert.equal(tuning.torqueNm, 8000);
-  assert.equal(tuning.massKg, 700);
-  assert.equal(tuning.brakeMultiplier, 6);
-  assert.equal(tuning.gripMultiplier, 1.6);
-  assert.equal(tuning.continuousBoostForceN, 50_000);
+  assert.equal(tuning.torqueNm, 50_000);
+  assert.equal(tuning.massKg, 100);
+  assert.equal(tuning.brakeMultiplier, 25);
+  assert.equal(tuning.gripMultiplier, 4);
+  assert.equal(tuning.continuousBoostForceN, 500_000);
   assert.equal(tuning.rolloverStability, 0);
 });

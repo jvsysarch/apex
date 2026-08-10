@@ -1,6 +1,5 @@
 import { memo, useEffect, useMemo, useState } from 'react';
 import {
-  DEFAULT_APEX_VERTEX_TUNING,
   normalizeApexVertexTuning,
   type ApexVertexTuning,
 } from '../../vehicle/ApexVertexTuning';
@@ -38,11 +37,11 @@ const groups: readonly {
     descriptionEs: 'Empuje continuo al acelerar y pulso manual con Shift o RB.',
     descriptionEn: 'Continuous acceleration force and the Shift or RB manual pulse.',
     sliders: [
-      { key: 'torqueNm', labelEs: 'Torque máximo', labelEn: 'Maximum torque', minimum: 600, maximum: 8000, step: 100, format: integer(' Nm') },
-      { key: 'continuousBoostForceN', labelEs: 'Empuje continuo', labelEn: 'Continuous thrust', minimum: 0, maximum: 50_000, step: 1000, format: value => `${(value / 1000).toFixed(0)} kN` },
-      { key: 'pulseBoostRatio', labelEs: 'Pulso Shift / RB', labelEn: 'Shift / RB pulse', minimum: 0, maximum: 2.5, step: 0.05, format: percent },
-      { key: 'pulseDurationSeconds', labelEs: 'Duración del pulso', labelEn: 'Pulse duration', minimum: 0.25, maximum: 3, step: 0.05, format: decimal(' s', 2) },
-      { key: 'pulseRechargeSeconds', labelEs: 'Recarga del pulso', labelEn: 'Pulse recharge', minimum: 0.5, maximum: 10, step: 0.25, format: decimal(' s', 2) },
+      { key: 'torqueNm', labelEs: 'Torque máximo', labelEn: 'Maximum torque', minimum: 0, maximum: 50_000, step: 250, format: integer(' Nm') },
+      { key: 'continuousBoostForceN', labelEs: 'Empuje continuo', labelEn: 'Continuous thrust', minimum: 0, maximum: 500_000, step: 5000, format: value => `${(value / 1000).toFixed(0)} kN` },
+      { key: 'pulseBoostRatio', labelEs: 'Pulso Shift / RB', labelEn: 'Shift / RB pulse', minimum: 0, maximum: 10, step: 0.1, format: percent },
+      { key: 'pulseDurationSeconds', labelEs: 'Duración del pulso', labelEn: 'Pulse duration', minimum: 0.05, maximum: 10, step: 0.05, format: decimal(' s', 2) },
+      { key: 'pulseRechargeSeconds', labelEs: 'Recarga del pulso', labelEn: 'Pulse recharge', minimum: 0, maximum: 30, step: 0.25, format: decimal(' s', 2) },
     ],
   },
   {
@@ -51,9 +50,9 @@ const groups: readonly {
     descriptionEs: 'Frenada, dirección y asistencia física contra vuelcos.',
     descriptionEn: 'Braking, steering and physical rollover assistance.',
     sliders: [
-      { key: 'massKg', labelEs: 'Peso', labelEn: 'Weight', minimum: 700, maximum: 2000, step: 25, format: integer(' kg') },
-      { key: 'brakeMultiplier', labelEs: 'Potencia de freno', labelEn: 'Brake power', minimum: 0.8, maximum: 6, step: 0.05, format: decimal('×') },
-      { key: 'steeringAngleDegrees', labelEs: 'Ángulo de dirección', labelEn: 'Steering angle', minimum: 20, maximum: 55, step: 1, format: integer('°') },
+      { key: 'massKg', labelEs: 'Peso', labelEn: 'Weight', minimum: 100, maximum: 10_000, step: 50, format: integer(' kg') },
+      { key: 'brakeMultiplier', labelEs: 'Potencia de freno', labelEn: 'Brake power', minimum: 0, maximum: 25, step: 0.1, format: decimal('×') },
+      { key: 'steeringAngleDegrees', labelEs: 'Ángulo de dirección', labelEn: 'Steering angle', minimum: 5, maximum: 80, step: 1, format: integer('°') },
       { key: 'rolloverStability', labelEs: 'Estabilidad antivuelco', labelEn: 'Rollover stability', minimum: 0, maximum: 1, step: 0.05, format: percent },
     ],
   },
@@ -63,24 +62,30 @@ const groups: readonly {
     descriptionEs: 'Balance delantero/trasero sin ocupar controles permanentes en pantalla.',
     descriptionEn: 'Front/rear balance without permanent on-screen controls.',
     sliders: [
-      { key: 'gripMultiplier', labelEs: 'Grip', labelEn: 'Grip', minimum: 0.65, maximum: 1.6, step: 0.01, format: decimal('×') },
-      { key: 'frontAntiRollStiffness', labelEs: 'Barra delantera', labelEn: 'Front anti-roll bar', minimum: 800, maximum: 12_000, step: 100, format: integer('') },
-      { key: 'rearAntiRollStiffness', labelEs: 'Barra trasera', labelEn: 'Rear anti-roll bar', minimum: 800, maximum: 12_000, step: 100, format: integer('') },
-      { key: 'frontDamping', labelEs: 'Amortiguación delantera', labelEn: 'Front damping', minimum: 0.3, maximum: 1.5, step: 0.01, format: decimal('') },
-      { key: 'rearDamping', labelEs: 'Amortiguación trasera', labelEn: 'Rear damping', minimum: 0.3, maximum: 1.5, step: 0.01, format: decimal('') },
+      { key: 'gripMultiplier', labelEs: 'Grip', labelEn: 'Grip', minimum: 0.1, maximum: 4, step: 0.02, format: decimal('×') },
+      { key: 'frontAntiRollStiffness', labelEs: 'Barra delantera', labelEn: 'Front anti-roll bar', minimum: 0, maximum: 100_000, step: 500, format: integer('') },
+      { key: 'rearAntiRollStiffness', labelEs: 'Barra trasera', labelEn: 'Rear anti-roll bar', minimum: 0, maximum: 100_000, step: 500, format: integer('') },
+      { key: 'frontDamping', labelEs: 'Amortiguación delantera', labelEn: 'Front damping', minimum: 0, maximum: 5, step: 0.02, format: decimal('') },
+      { key: 'rearDamping', labelEs: 'Amortiguación trasera', labelEn: 'Rear damping', minimum: 0, maximum: 5, step: 0.02, format: decimal('') },
     ],
   },
 ]);
 
 export interface ApexVertexTuningPanelProps {
   readonly locale: 'es' | 'en';
+  readonly vehicleName: string;
+  readonly triggerInitial: string;
   readonly tuning: ApexVertexTuning;
+  readonly defaultTuning: ApexVertexTuning;
   readonly onApply: (tuning: ApexVertexTuning) => void;
 }
 
 export const ApexVertexTuningPanel = memo(({
   locale,
+  vehicleName,
+  triggerInitial,
   tuning,
+  defaultTuning,
   onApply,
 }: ApexVertexTuningPanelProps) => {
   const [open, setOpen] = useState(false);
@@ -97,8 +102,8 @@ export const ApexVertexTuningPanel = memo(({
     return () => window.removeEventListener('keydown', close);
   }, [open]);
   const normalizedDraft = useMemo(
-    () => normalizeApexVertexTuning(draft),
-    [draft],
+    () => normalizeApexVertexTuning(draft, defaultTuning),
+    [defaultTuning, draft],
   );
   const changed = JSON.stringify(normalizedDraft) !== JSON.stringify(tuning);
   const update = (key: VertexTuningKey, value: number) => {
@@ -115,10 +120,10 @@ export const ApexVertexTuningPanel = memo(({
       className="apex-drive-vertex-tuning__trigger"
       type="button"
       aria-expanded={open}
-      aria-label={t('Abrir tuning de VERTEX-ARCADE', 'Open VERTEX-ARCADE tuning')}
+      aria-label={t(`Abrir tuning de ${vehicleName}`, `Open ${vehicleName} tuning`)}
       onClick={() => setOpen(true)}
     >
-      <span aria-hidden="true">V</span><small>TUNE</small>
+      <span aria-hidden="true">{triggerInitial}</span><small>TUNE</small>
     </button>
     {open ? <div
       className="apex-drive-vertex-tuning__layer"
@@ -133,7 +138,7 @@ export const ApexVertexTuningPanel = memo(({
         aria-labelledby="apex-vertex-tuning-title"
       >
         <header className="apex-drive-vertex-tuning__header">
-          <div><span>VERTEX-ARCADE</span><h2 id="apex-vertex-tuning-title">{t('Tuning', 'Tuning')}</h2></div>
+          <div><span>{vehicleName}</span><h2 id="apex-vertex-tuning-title">{t('Tuning', 'Tuning')}</h2></div>
           <button type="button" onClick={() => setOpen(false)} aria-label={t('Cerrar tuning', 'Close tuning')}>×</button>
         </header>
         <p className="apex-drive-vertex-tuning__lead">{t(
@@ -162,7 +167,7 @@ export const ApexVertexTuningPanel = memo(({
           </section>)}
         </div>
         <footer>
-          <button type="button" onClick={() => setDraft(DEFAULT_APEX_VERTEX_TUNING)}>{t('Restaurar VERTEX', 'Restore VERTEX')}</button>
+          <button type="button" onClick={() => setDraft(defaultTuning)}>{t('Restaurar valores', 'Restore defaults')}</button>
           <button type="button" disabled={!changed} onClick={() => onApply(normalizedDraft)}>{t('Aplicar y reiniciar vuelta', 'Apply and restart lap')}</button>
         </footer>
       </section>

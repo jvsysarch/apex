@@ -81,6 +81,7 @@ const publicDemoFiles = Object.freeze([
   'assets/vehicles/ford-mustang-shelby-gt500/scene.gltf',
   'assets/vehicles/ford-mustang-shelby-gt500/vehicle.json',
   'assets/vehicles/vertex-arcade/vehicle.json',
+  'assets/vehicles/vertex-hyper/vehicle.json',
   'assets/vehicles/rambo/license.txt',
   'assets/vehicles/rambo/scene.bin',
   'assets/vehicles/rambo/scene.gltf',
@@ -242,6 +243,7 @@ export default defineConfig(environment => mergeConfig(resolveDriveConfig(enviro
           'assets/vehicles/apex-demo-car-001/vehicle.json',
           'assets/vehicles/ford-mustang-shelby-gt500/vehicle.json',
           'assets/vehicles/vertex-arcade/vehicle.json',
+          'assets/vehicles/vertex-hyper/vehicle.json',
         ]
         : [
           'assets/vehicles/apex-demo-car-001/vehicle.json',
