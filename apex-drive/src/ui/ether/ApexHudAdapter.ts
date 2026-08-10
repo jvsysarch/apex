@@ -10,6 +10,10 @@ import type {
   ApexHudVehicleSnapshot,
   ApexHudWheelId,
 } from './ApexHudContract';
+import {
+  resolveApexHudRaceTiming,
+  type ApexHudRaceAuthority,
+} from './ApexHudRaceAuthority';
 import { ApexHudStore } from './ApexHudStore';
 
 const wheelIds: readonly ApexHudWheelId[] = ['FL', 'FR', 'RL', 'RR'];
@@ -211,8 +215,13 @@ export class ApexHudAdapter {
     );
   }
 
-  publishRace(timestampMs: number, state: LapTimingState): void {
+  publishRace(
+    timestampMs: number,
+    state: LapTimingState,
+    authority?: ApexHudRaceAuthority,
+  ): void {
     if (!this.demand.race) return;
+    const { bestLapMs, lapDeltaMs } = resolveApexHudRaceTiming(state, authority);
     const eventSignature = [
       state.phase,
       state.hudVisibility,
@@ -222,6 +231,8 @@ export class ApexHudAdapter {
       state.countdownSeconds ?? '',
       state.startLights,
       state.startReady ? 1 : 0,
+      authority === undefined ? 'local' : 'void',
+      bestLapMs ?? '',
     ].join('|');
     const eventChanged = eventSignature !== this.raceEventSignature;
     if (!eventChanged && timestampMs < this.nextRaceAtMs) return;
@@ -235,9 +246,9 @@ export class ApexHudAdapter {
       elapsedMs: Math.max(0, state.elapsedMs),
       lapNumber: state.lapNumber,
       completedLapCount: state.completedLapCount,
-      bestLapMs: state.bestLapMs,
+      bestLapMs,
       lastLapMs: state.lastLapMs,
-      lapDeltaMs: state.lapDeltaMs,
+      lapDeltaMs,
       checkpointIndex: state.checkpointIndex,
       checkpointCount: state.checkpointCount,
       checkpointStatuses: Object.freeze([...state.checkpointStatuses]),

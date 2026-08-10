@@ -37,6 +37,7 @@ import type {
   ApexHudState,
   ApexHudTrackPoint,
 } from './ApexHudContract';
+import type { ApexHudRaceAuthority } from './ApexHudRaceAuthority';
 import {
   demandForApexHudPreferences,
   type ApexHudPreferences,
@@ -906,7 +907,7 @@ export interface ApexEtherHudRuntime {
   needsPhysicsSnapshot(timestampMs: number): boolean;
   needsRaceSnapshot(): boolean;
   publishPhysics(timestampMs: number, state: ApexVehicleState): void;
-  publishRace(timestampMs: number, state: LapTimingState): void;
+  publishRace(timestampMs: number, state: LapTimingState, authority?: ApexHudRaceAuthority): void;
   setVoidUser(user?: ApexEtherVoidUser): void;
   dispose(): void;
 }
@@ -942,7 +943,7 @@ class ApexEtherHudRuntimeImplementation implements ApexEtherHudRuntime {
   needsPhysicsSnapshot(timestampMs: number): boolean { return this.adapter.needsPhysicsSnapshot(timestampMs); }
   needsRaceSnapshot(): boolean { return this.adapter.needsRaceSnapshot(); }
   publishPhysics(timestampMs: number, state: ApexVehicleState): void { this.adapter.publishPhysics(timestampMs, state); }
-  publishRace(timestampMs: number, state: LapTimingState): void { this.adapter.publishRace(timestampMs, state); }
+  publishRace(timestampMs: number, state: LapTimingState, authority?: ApexHudRaceAuthority): void { this.adapter.publishRace(timestampMs, state, authority); }
   setVoidUser(user?: ApexEtherVoidUser): void { this.voidUser = user; this.render(); }
   dispose(): void { this.root.unmount(); this.element.remove(); }
 }

@@ -743,10 +743,16 @@ if (!voidTimeTrialEnabled) {
 }
 let voidTimeTrialRunId: string | undefined;
 let voidTimeTrialIdentityMount: Promise<void> | undefined;
+let voidTimeTrialProfileAuthenticated = false;
+let voidTimeTrialStats: ApexVoidTimeTrialStats | undefined;
 const voidTimeTrialPendingLaps: Array<{ durationMs: number; checkpointCount: number }> = [];
 const handleVoidTimeTrialFailure = (error: unknown) => {
   const detail = error instanceof Error ? error.message : 'Error desconocido';
   if (apexVoidTimeTrialClient?.isIdentityRequired(error)) {
+    voidTimeTrialProfileAuthenticated = false;
+    voidTimeTrialStats = undefined;
+    voidTimeTrialPendingLaps.splice(0);
+    lapTimingHud?.setPersistentStats(undefined);
     console.info('[Apex Drive / Void] sign-in required before this Time Trial request');
     canvas.dataset.voidTimeTrial = 'sign-in-required';
     voidProfileGate?.setStatus('Iniciá sesión con Google para guardar tus tiempos.');
@@ -780,11 +786,13 @@ const beginVoidTimeTrialRun = () => {
   }).catch(handleVoidTimeTrialFailure);
 };
 const recordVoidTimeTrialLap = (durationMs: number, checkpointCount: number) => {
-  if (!voidTimeTrialEnabled) return;
+  if (!voidTimeTrialEnabled || !voidTimeTrialProfileAuthenticated) return;
   voidTimeTrialPendingLaps.push({ durationMs: Math.round(durationMs), checkpointCount });
   flushVoidTimeTrialLaps();
 };
 const applyVoidTimeTrialStats = (stats: ApexVoidTimeTrialStats) => {
+  voidTimeTrialProfileAuthenticated = true;
+  voidTimeTrialStats = stats;
   lapTimingHud?.setPersistentStats(stats);
   canvas.dataset.voidTimeTrial = 'connected';
   canvas.dataset.voidTimeTrialAttempts = String(stats.attempts);
@@ -803,6 +811,9 @@ const mountVoidTimeTrialIdentity = () => {
   voidTimeTrialIdentityMount = client.mountIdentity(host, state => {
     console.info('[Apex Drive / Void] identity state', state);
     if (state.status === 'authenticated') {
+      if (!voidTimeTrialProfileAuthenticated) voidTimeTrialPendingLaps.splice(0);
+      voidTimeTrialProfileAuthenticated = true;
+      voidTimeTrialStats = undefined;
       const displayName = state.identity?.displayName || 'Cuenta';
       voidProfileGate?.setStatus(`Sesión iniciada como ${displayName}.`, 'authenticated');
       voidProfileGate?.markAuthenticated();
@@ -812,6 +823,9 @@ const mountVoidTimeTrialIdentity = () => {
       return;
     }
     if (state.status === 'required') {
+      voidTimeTrialProfileAuthenticated = false;
+      voidTimeTrialStats = undefined;
+      voidTimeTrialPendingLaps.splice(0);
       voidProfileGate?.setStatus(
         state.message ?? 'Iniciá sesión con Google para guardar tu historial personal.',
       );
@@ -836,6 +850,8 @@ const signOutVoidTimeTrialProfile = () => {
   client.signOut().then(() => {
     voidTimeTrialIdentityMount = undefined;
     voidTimeTrialRunId = undefined;
+    voidTimeTrialProfileAuthenticated = false;
+    voidTimeTrialStats = undefined;
     voidTimeTrialPendingLaps.splice(0);
     lapTimingHud?.setPersistentStats(undefined);
     canvas.dataset.voidTimeTrial = 'sign-in-required';
@@ -9631,7 +9647,13 @@ try {
       simulationNow,
     );
     if (apexEtherHudRuntime?.needsRaceSnapshot()) {
-      apexEtherHudRuntime.publishRace(performance.now(), lapTimingState);
+      apexEtherHudRuntime.publishRace(
+        performance.now(),
+        lapTimingState,
+        voidTimeTrialProfileAuthenticated
+          ? { bestLapMs: voidTimeTrialStats?.best?.durationMs }
+          : undefined,
+      );
     }
     const previousAutonomousTimingPhase = autonomousTimingPhase;
     autonomousTimingPhase = lapTimingState.phase;
