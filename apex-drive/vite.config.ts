@@ -12,6 +12,8 @@ const physicsDistUrl = new URL(
 );
 
 export default defineConfig(({ command }) => ({
+  // The public site is deployed as the repository Pages site at /apex/.
+  base: command === 'build' ? '/apex/' : '/',
   publicDir: assetsPublicDir,
   plugins: [{
     name: 'serve-local-apex-physics-runtime',
