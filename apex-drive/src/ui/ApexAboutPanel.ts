@@ -4,6 +4,7 @@ export interface ApexAboutPanelOptions {
   readonly linkedinUrl: string;
   readonly documentationUrl: string;
   readonly showcaseUrl: string;
+  readonly etherDemoUrl: string;
 }
 
 type ApexAboutLanguage = 'es' | 'en';
@@ -101,6 +102,11 @@ export class ApexAboutPanel {
                 target="_blank"
                 rel="noreferrer"
               >Showcase ↗</a>
+              <a
+                href="${options.etherDemoUrl}"
+                target="_blank"
+                rel="noreferrer"
+              >Demo de Apex Ether ↗</a>
             </nav>
           </div>
 
@@ -179,6 +185,11 @@ export class ApexAboutPanel {
                 target="_blank"
                 rel="noreferrer"
               >Showcase ↗</a>
+              <a
+                href="${options.etherDemoUrl}"
+                target="_blank"
+                rel="noreferrer"
+              >Apex Ether demo ↗</a>
             </nav>
           </div>
 

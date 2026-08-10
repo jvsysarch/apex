@@ -1,10 +1,9 @@
-name: Deploy APEX Drive demo
+name: Deploy APEX Drive Time Trial
 
 on:
   push:
     branches: [main]
     paths:
-      - 'apps/apex-demo/**'
       - 'apex-drive/**'
       - 'packages/apex-assets/**'
       - 'packages/apex-audio/**'
@@ -41,14 +40,17 @@ jobs:
         run: corepack enable
       - name: Install dependencies
         run: corepack pnpm install --frozen-lockfile
-      - name: Build public demo
-        run: corepack pnpm --filter @jvsysarch/apex-demo build
+      - name: Build APEX Drive Time Trial
+        run: corepack pnpm --filter @jvsysarch/apex-drive build
+        env:
+          VITE_APEX_VOID_PUBLIC_URL: https://apex-void-production-e06c.up.railway.app
+          VITE_APEX_VOID_WORLD_ID: bf58f8d7-ac0f-42bb-84d7-2b3fe25e0a30
       - name: Configure Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
-          path: apps/apex-demo/dist
+          path: apex-drive/dist
 
   deploy:
     needs: build

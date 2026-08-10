@@ -28,6 +28,11 @@ import {
   APEX_DRIVE_PUBLIC_DEMO,
   APEX_DRIVE_RUNTIME_PROFILE,
 } from './runtime/ApexDriveRuntimeProfile';
+import {
+  apexVoidTimeTrialClient,
+  type ApexDriveCircuitIdentity,
+  type ApexVoidTimeTrialStats,
+} from './runtime/ApexVoidTimeTrialRuntime';
 import { apexDrivePublicUrl } from './runtime/ApexDrivePublicUrl';
 import {
   readApexDriveStartupContext,
@@ -198,6 +203,7 @@ import {
 import type { ApexUiRuntime } from './ui/ApexUiRuntime';
 import { ApexAboutPanel } from './ui/ApexAboutPanel';
 import { LapTimingHud } from './ui/LapTimingHud';
+import { ApexVoidProfileGate } from './ui/ApexVoidProfileDock';
 import { ApexAutonomousPanel } from './ui/ApexAutonomousPanel';
 import { RacingHudSvg } from './ui/RacingHudSvg';
 import {
@@ -509,6 +515,7 @@ if (APEX_DRIVE_PUBLIC_DEMO && !APEX_DRIVE_BARE_RUNTIME && requestedEtherHud !== 
     linkedinUrl: 'https://ar.linkedin.com/in/jonathanvillaverde',
     documentationUrl: 'https://jvsysarch.github.io/apex-showroom/docs.html',
     showcaseUrl: 'https://jvsysarch.github.io/apex-showroom/',
+    etherDemoUrl: 'https://jvsysarch.github.io/apex-ether/',
   });
 }
 const technicalTelemetryHud = APEX_DRIVE_PUBLIC_DEMO && !APEX_DRIVE_BARE_RUNTIME
@@ -641,7 +648,12 @@ const sportHud = APEX_DRIVE_BARE_RUNTIME
   ? undefined
   : new RacingHudSvg(sportHudRoot);
 const lapTimerRoot = document.querySelector<HTMLElement>('#lap-timer')!;
-const lapTimingHudVisible = !APEX_DRIVE_BARE_RUNTIME;
+// The public demo deliberately keeps the general HUD bare, but time trial is
+// its gameplay surface and must remain observable.
+const timeTrialPresentationEnabled = (
+  !APEX_DRIVE_BARE_RUNTIME || APEX_DRIVE_PUBLIC_DEMO
+);
+const lapTimingHudVisible = timeTrialPresentationEnabled;
 const autonomousPanelRoot = document.querySelector<HTMLElement>(
   '#autonomous-panel',
 )!;
@@ -679,9 +691,9 @@ autonomousSimulationSpeedSelect.addEventListener('change', () => {
   );
 });
 canvas.dataset.autonomousSimulationSpeed = `${autonomousSimulationSpeed}x`;
-const lapTimingHud = APEX_DRIVE_BARE_RUNTIME
-  ? undefined
-  : new LapTimingHud(lapTimerRoot);
+const lapTimingHud = timeTrialPresentationEnabled
+  ? new LapTimingHud(lapTimerRoot)
+  : undefined;
 lapTimerRoot.hidden = !lapTimingHudVisible;
 const trackTiming = ACTIVE_TRACK.configuration.timing;
 const timingTrackPoints = TEST_TRACK_IS_CLOSED
@@ -714,6 +726,127 @@ const lapTimer = new ApexLapTimer(
   trackTiming.sectorCount,
   trackTiming.storageKey,
 );
+const activeTimeTrialCircuit: ApexDriveCircuitIdentity = Object.freeze({
+  id: ACTIVE_TRACK.track.id,
+  version: ACTIVE_TRACK.track.version,
+  name: ACTIVE_TRACK.track.name,
+});
+const voidTimeTrialEnabled = (
+  APEX_DRIVE_PUBLIC_DEMO
+  && apexVoidTimeTrialClient !== undefined
+);
+const voidProfileGate = APEX_DRIVE_PUBLIC_DEMO
+  ? new ApexVoidProfileGate()
+  : undefined;
+if (!voidTimeTrialEnabled) {
+  voidProfileGate?.setStatus('La conexión de Time Trial no está disponible.', 'error');
+}
+let voidTimeTrialRunId: string | undefined;
+let voidTimeTrialIdentityMount: Promise<void> | undefined;
+const voidTimeTrialPendingLaps: Array<{ durationMs: number; checkpointCount: number }> = [];
+const handleVoidTimeTrialFailure = (error: unknown) => {
+  const detail = error instanceof Error ? error.message : 'Error desconocido';
+  if (apexVoidTimeTrialClient?.isIdentityRequired(error)) {
+    console.info('[Apex Drive / Void] sign-in required before this Time Trial request');
+    canvas.dataset.voidTimeTrial = 'sign-in-required';
+    voidProfileGate?.setStatus('Iniciá sesión con Google para guardar tus tiempos.');
+    voidProfileGate?.open(mountVoidTimeTrialIdentity);
+    return;
+  }
+  console.error('[Apex Drive / Void] time-trial request failed', error);
+  canvas.dataset.voidTimeTrial = 'unavailable';
+  voidProfileGate?.setStatus(`Los tiempos no están disponibles: ${detail}`, 'error');
+};
+const flushVoidTimeTrialLaps = () => {
+  const client = apexVoidTimeTrialClient;
+  if (!voidTimeTrialEnabled || !client || !voidTimeTrialRunId) return;
+  const runId = voidTimeTrialRunId;
+  const pending = voidTimeTrialPendingLaps.splice(0);
+  pending.forEach(lap => {
+    client.recordLap({ runId, ...lap }).then(result => {
+      applyVoidTimeTrialStats(result.stats);
+    }).catch(handleVoidTimeTrialFailure);
+  });
+};
+const beginVoidTimeTrialRun = () => {
+  const client = apexVoidTimeTrialClient;
+  if (!voidTimeTrialEnabled || !client) return;
+  voidTimeTrialRunId = undefined;
+  canvas.dataset.voidTimeTrial = 'opening-run';
+  client.beginRun(activeTimeTrialCircuit).then(run => {
+    voidTimeTrialRunId = run.id;
+    canvas.dataset.voidTimeTrial = 'running';
+    flushVoidTimeTrialLaps();
+  }).catch(handleVoidTimeTrialFailure);
+};
+const recordVoidTimeTrialLap = (durationMs: number, checkpointCount: number) => {
+  if (!voidTimeTrialEnabled) return;
+  voidTimeTrialPendingLaps.push({ durationMs: Math.round(durationMs), checkpointCount });
+  flushVoidTimeTrialLaps();
+};
+const applyVoidTimeTrialStats = (stats: ApexVoidTimeTrialStats) => {
+  lapTimingHud?.setPersistentStats(stats);
+  canvas.dataset.voidTimeTrial = 'connected';
+  canvas.dataset.voidTimeTrialAttempts = String(stats.attempts);
+};
+const refreshVoidTimeTrialStats = () => {
+  if (!voidTimeTrialEnabled || !apexVoidTimeTrialClient) return;
+  canvas.dataset.voidTimeTrial = 'connecting';
+  apexVoidTimeTrialClient.me(activeTimeTrialCircuit).then(applyVoidTimeTrialStats).catch(handleVoidTimeTrialFailure);
+};
+const mountVoidTimeTrialIdentity = () => {
+  const client = apexVoidTimeTrialClient;
+  const host = voidProfileGate?.identityHost();
+  if (!voidTimeTrialEnabled || !client || !host || voidTimeTrialIdentityMount) return;
+  voidProfileGate?.setStatus('Preparando inicio de sesión…');
+  console.info('[Apex Drive / Void] identity mount requested');
+  voidTimeTrialIdentityMount = client.mountIdentity(host, state => {
+    console.info('[Apex Drive / Void] identity state', state);
+    if (state.status === 'authenticated') {
+      const displayName = state.identity?.displayName || 'Cuenta';
+      voidProfileGate?.setStatus(`Sesión iniciada como ${displayName}.`, 'authenticated');
+      voidProfileGate?.markAuthenticated();
+      apexEtherHudRuntime?.setVoidUser({ displayName });
+      window.setTimeout(() => voidProfileGate?.closePanel(), 450);
+      refreshVoidTimeTrialStats();
+      return;
+    }
+    if (state.status === 'required') {
+      voidProfileGate?.setStatus(
+        state.message ?? 'Iniciá sesión con Google para guardar tu historial personal.',
+      );
+      return;
+    }
+    if (state.status === 'error') {
+      voidProfileGate?.setStatus(state.message ?? 'No se pudo conectar tu perfil.', 'error');
+    }
+  }).catch(error => {
+    voidTimeTrialIdentityMount = undefined;
+    const detail = error instanceof TypeError && error.message === 'Failed to fetch'
+      ? 'No se puede alcanzar el servidor de APEX Void. Verificá que esté en ejecución.'
+      : error instanceof Error ? error.message : 'Error desconocido';
+    console.error('[Apex Drive / Void] identity mount failed', error);
+    canvas.dataset.voidTimeTrial = 'identity-error';
+    voidProfileGate?.setStatus(`No se pudo preparar el inicio de sesión: ${detail}`, 'error');
+  });
+};
+const signOutVoidTimeTrialProfile = () => {
+  const client = apexVoidTimeTrialClient;
+  if (!client) return;
+  client.signOut().then(() => {
+    voidTimeTrialIdentityMount = undefined;
+    voidTimeTrialRunId = undefined;
+    voidTimeTrialPendingLaps.splice(0);
+    lapTimingHud?.setPersistentStats(undefined);
+    canvas.dataset.voidTimeTrial = 'sign-in-required';
+    apexEtherHudRuntime?.setVoidUser(undefined);
+    voidProfileGate?.setStatus('Iniciá sesión para guardar tus tiempos.');
+  }).catch(error => {
+    const detail = error instanceof Error ? error.message : 'Error desconocido';
+    console.error('[Apex Drive / Void] sign out failed', error);
+    voidProfileGate?.setStatus(`No se pudo cerrar la sesión: ${detail}`, 'error');
+  });
+};
 if (!TEST_TRACK_IS_CLOSED) {
   const finishPoint = TEST_TRACK_POINTS[TEST_TRACK_POINTS.length - 1];
   lapTimer.configureTrack(
@@ -4521,6 +4654,22 @@ for (let row = 0; row < startLineRows; row += 1) {
 }
 const startLineTexture = new THREE.CanvasTexture(startLineCanvas);
 startLineTexture.colorSpace = THREE.SRGBColorSpace;
+const startGateCanvas = document.createElement('canvas');
+startGateCanvas.width = 1024;
+startGateCanvas.height = 192;
+const startGateContext = startGateCanvas.getContext('2d')!;
+startGateContext.fillStyle = '#0c1114';
+startGateContext.fillRect(0, 0, startGateCanvas.width, startGateCanvas.height);
+startGateContext.strokeStyle = '#f4efe4';
+startGateContext.lineWidth = 5;
+startGateContext.strokeRect(8, 8, startGateCanvas.width - 16, startGateCanvas.height - 16);
+startGateContext.fillStyle = '#f8f5ec';
+startGateContext.font = '700 116px Inter, Arial, sans-serif';
+startGateContext.textAlign = 'center';
+startGateContext.textBaseline = 'middle';
+startGateContext.fillText('START', startGateCanvas.width * 0.5, startGateCanvas.height * 0.54);
+const startGateTexture = new THREE.CanvasTexture(startGateCanvas);
+startGateTexture.colorSpace = THREE.SRGBColorSpace;
 const startFinishPoint = TEST_TRACK_POINTS[0];
 const startFinishNextPoint = TEST_TRACK_POINTS[1];
 const startFinishYawRadians = Math.atan2(
@@ -4583,7 +4732,16 @@ const timingPanel = new THREE.Mesh(
 );
 timingPanel.position.set(0, 3.82, 0.08);
 timingPanel.castShadow = true;
-timingGantry.add(gantryCrossbar, timingPanel);
+const startGateLabel = new THREE.Mesh(
+  new THREE.PlaneGeometry(4.04, 0.63),
+  new THREE.MeshBasicMaterial({
+    map: startGateTexture,
+    side: THREE.DoubleSide,
+  }),
+);
+startGateLabel.name = 'start-gate-label';
+startGateLabel.position.set(0, 3.82, 0.211);
+timingGantry.add(gantryCrossbar, timingPanel, startGateLabel);
 const physicalStartLightMaterials = Array.from({ length: 5 }, () => (
   new THREE.MeshStandardMaterial({
     color: 0x151b1d,
@@ -4606,13 +4764,13 @@ startFinishAnchor.visible = embeddedTrackStartLineEnabled;
 scene.add(startFinishAnchor);
 canvas.dataset.trackEmbeddedGarage = String(embeddedTrackGarageEnabled);
 canvas.dataset.trackEmbeddedStartLine = String(embeddedTrackStartLineEnabled);
-const raceTrackMarkers = APEX_DRIVE_BARE_RUNTIME
-  ? undefined
-  : createApexRaceTrackMarkers({
+const raceTrackMarkers = timeTrialPresentationEnabled
+  ? createApexRaceTrackMarkers({
     scene,
     start: lapTimingStartGate,
     checkpoints: lapTimingCheckpoints,
-  });
+  })
+  : undefined;
 if (raceTrackMarkers) {
   raceTrackMarkers.group.visible = embeddedTrackStartLineEnabled
     && !isParkingSelection
@@ -6937,7 +7095,9 @@ try {
     activeVehiclePhysicsDefinition,
     isParkingDrive || isParkingSelection
       ? createApexParkingSpawn(parkingSelectedIndex)
-      : importedTrackCollisionOnly ? autonomousGridSpawn : undefined,
+      : (APEX_DRIVE_PUBLIC_DEMO || importedTrackCollisionOnly)
+        ? autonomousGridSpawn
+        : undefined,
   );
   const physicsSurfaces = new SurfaceRegistry();
   const grassSurface = physicsSurfaces.get('grass');
@@ -8610,6 +8770,13 @@ try {
         document.body,
         apexEtherHudSession,
         {
+          timeTrial: APEX_DRIVE_PUBLIC_DEMO,
+          openVoidTimeTrialProfile: voidTimeTrialEnabled
+            ? () => voidProfileGate?.open(mountVoidTimeTrialIdentity)
+            : undefined,
+          signOutVoidTimeTrialProfile: voidTimeTrialEnabled
+            ? signOutVoidTimeTrialProfile
+            : undefined,
           environmentName: APEX_ENVIRONMENT_ASSETS.find(
             asset => asset.id === canvas.dataset.environmentProfile,
           )?.name ?? 'APEX Environment',
@@ -8677,6 +8844,7 @@ try {
           linkedinUrl: 'https://ar.linkedin.com/in/jonathanvillaverde',
           documentationUrl: 'https://jvsysarch.github.io/apex-showroom/docs.html',
           showcaseUrl: 'https://jvsysarch.github.io/apex-showroom/',
+          etherDemoUrl: 'https://jvsysarch.github.io/apex-ether/',
           activeTrackId: ACTIVE_TRACK.track.id,
           trackToolsLocked: APEX_DRIVE_PUBLIC_DEMO,
           proceduralTrackId: PROCEDURAL_LANDSCAPE_TRACK_ID,
@@ -8760,6 +8928,7 @@ try {
           },
         },
       );
+      if (voidTimeTrialEnabled) mountVoidTimeTrialIdentity();
       const etherHudStartedAt = performance.now();
       if (apexEtherHudRuntime.needsPhysicsSnapshot(etherHudStartedAt)) {
         apexEtherHudRuntime.publishPhysics(
@@ -9484,6 +9653,21 @@ try {
     const officialLapCompleted = (
       lapTimingState.completedLapCount > observedCompletedLapCount
     );
+    // Completion is an edge in simulation state, never a render/UI event.
+    // Consume it immediately so a completed lap cannot be published again on
+    // each following frame in the bare public demo.
+    if (officialLapCompleted) {
+      observedCompletedLapCount = lapTimingState.completedLapCount;
+    }
+    if (enteredOfficialLap) {
+      beginVoidTimeTrialRun();
+    }
+    if (officialLapCompleted && lapTimingState.lastLapMs !== undefined) {
+      recordVoidTimeTrialLap(
+        lapTimingState.lastLapMs,
+        lapTimingState.checkpointCount,
+      );
+    }
     let freeLapCompleted = false;
     if (officialLapAbandoned && autonomousLapActive) {
       autonomousDriver.cancelLap();
@@ -9633,7 +9817,6 @@ try {
       && !isAuditRuntime
       && officialLapCompleted
     ) {
-      observedCompletedLapCount = lapTimingState.completedLapCount;
       if (racingLineLapActive) {
         const learned = racingLineLearner.completeLap();
         racingLineLapActive = false;

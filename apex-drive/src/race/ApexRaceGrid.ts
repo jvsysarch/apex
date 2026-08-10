@@ -55,10 +55,12 @@ export const createApexRaceGrid = (
   return Object.freeze(ordered.map((entry, index) => {
     const row = Math.floor(index / 2);
     const sideSign = index % 2 === 0 ? -1 : 1;
+    // Keep the solo car outside the start gate so it can roll in, stop and
+    // explicitly arm its own time trial without triggering the gate at spawn.
     const distanceBehindM = TEST_TRACK_IS_CLOSED
-      ? 5.8 + row * 7.2
+      ? 18 + row * 7.2
       : -2 + row * 7.2;
-    const lateralOffsetM = !TEST_TRACK_IS_CLOSED && ordered.length === 1
+    const lateralOffsetM = ordered.length === 1
       ? 0
       : sideSign * 3.1;
     return Object.freeze({

@@ -19,7 +19,7 @@ html, body, #render-canvas {
   outline: none;
 }
 
-html[data-apex-drive-presentation="bare"] body > :not(#render-canvas):not(#apex-drive-preloader):not(#apex-ether-ui-root):not(script) {
+html[data-apex-drive-presentation="bare"] body > :not(#render-canvas):not(#apex-drive-preloader):not(#apex-ether-ui-root):not(.apex-void-profile-gate):not(script) {
   display: none !important;
 }
 
@@ -966,6 +966,114 @@ html[data-apex-drive-profile="public-demo"] .lap-timing-details footer span {
 
 html[data-apex-drive-profile="public-demo"] #lap-timer {
   top: 14px;
+}
+
+.apex-void-profile-gate {
+  position: fixed;
+  z-index: 100;
+  top: 78px;
+  right: max(14px, env(safe-area-inset-right));
+  color: #f4f4f5;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.apex-void-profile-gate__panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: min(368px, calc(100vw - 28px));
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 14px;
+  background: rgba(24, 24, 27, .96);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .5);
+}
+
+.apex-void-profile-gate__panel[hidden] {
+  display: none;
+}
+
+.apex-void-profile-gate__identity {
+  display: grid;
+  gap: 3px;
+}
+
+.apex-void-profile-gate__identity span {
+  color: rgba(244, 244, 245, .52);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+}
+
+.apex-void-profile-gate__identity h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.apex-void-profile-gate__status {
+  margin: 12px 0 16px;
+  color: rgba(244, 244, 245, .7);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.apex-void-profile-gate[data-state="authenticated"] .apex-void-profile-gate__status {
+  color: rgba(244, 244, 245, .88);
+}
+
+.apex-void-profile-gate[data-state="error"] .apex-void-profile-gate__status {
+  color: #f4b4ae;
+}
+
+.apex-void-profile-gate__provider {
+  min-height: 40px;
+}
+
+.apex-void-browser-identity__button {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 8px;
+  color: #f4f4f5;
+  background: rgba(255, 255, 255, .08);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.apex-void-browser-identity__button:hover:not(:disabled),
+.apex-void-browser-identity__button:focus-visible:not(:disabled) {
+  border-color: rgba(255, 255, 255, .34);
+  background: rgba(255, 255, 255, .13);
+  outline: none;
+}
+
+.apex-void-browser-identity__button:disabled {
+  cursor: wait;
+  opacity: .62;
+}
+
+.apex-void-profile-gate__skip {
+  display: block;
+  margin: 16px 0 0;
+  padding: 0;
+  border: 0;
+  color: rgba(244, 244, 245, .62);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.apex-void-profile-gate__skip:hover,
+.apex-void-profile-gate__skip:focus-visible {
+  color: #fff;
+  outline: none;
 }
 
 .apex-about__panel {
@@ -2315,6 +2423,64 @@ html[data-apex-drive-profile="public-demo"] #lap-timer {
   font-size: 6px;
   letter-spacing: .13em;
   text-align: left;
+}
+
+.lap-timing-identity {
+  display: grid;
+  gap: 5px;
+  padding: 2px 13px 8px;
+}
+
+.lap-timing-identity[hidden] {
+  display: none;
+}
+
+#lap-timing-identity-status {
+  margin: 0;
+  color: rgba(190, 224, 229, .58);
+  font-size: 6px;
+  letter-spacing: .11em;
+}
+
+#lap-timing-identity-provider {
+  min-height: 0;
+}
+
+.lap-timing-history {
+  display: grid;
+  gap: 3px;
+  max-height: 88px;
+  margin: 0;
+  padding: 2px 13px 8px;
+  overflow: auto;
+  list-style: none;
+}
+
+.lap-timing-history[hidden] {
+  display: none;
+}
+
+.lap-timing-history li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(128, 174, 180, .58);
+  font-size: 6px;
+  letter-spacing: .08em;
+}
+
+.lap-timing-history span {
+  color: rgba(165, 213, 219, .72);
+}
+
+.lap-timing-history time {
+  color: rgba(215, 243, 246, .78);
+  font-size: 7px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .015em;
+  white-space: nowrap;
 }
 
 .lap-timing-details footer {

@@ -1,4 +1,18 @@
 import type { LapTimerPhase, LapTimingState } from '../race/ApexLapTimer';
+import {
+  APEX_HUD_PREFERENCES_EVENT,
+  readApexHudPreferences,
+} from './ether/ApexHudPreferences';
+
+export interface LapTimingPersistentStats {
+  readonly attempts: number;
+  readonly best?: { readonly durationMs: number; readonly completedAt: string };
+  readonly last?: { readonly durationMs: number; readonly completedAt: string };
+  readonly history?: readonly {
+    readonly durationMs: number;
+    readonly completedAt: string;
+  }[];
+}
 
 const formatTime = (milliseconds?: number) => {
   if (milliseconds === undefined || !Number.isFinite(milliseconds)) return '—:——.———';
@@ -47,10 +61,16 @@ export class LapTimingHud {
   private readonly last: HTMLElement;
   private readonly sector: HTMLElement;
   private readonly progress: HTMLElement;
+  private readonly history: HTMLOListElement;
+  private readonly identity: HTMLElement;
+  private readonly identityStatus: HTMLElement;
+  private readonly identityProvider: HTMLElement;
   private expanded = false;
-  private manuallyOpened = false;
   private raceActive = false;
   private phase: LapTimerPhase = 'arming';
+  private completedLapCount = 0;
+  private timingEnabled = readApexHudPreferences().raceTiming;
+  private persistentStats?: LapTimingPersistentStats;
 
   constructor(private readonly root: HTMLElement) {
     root.innerHTML = `
@@ -84,10 +104,15 @@ export class LapTimingHud {
         <div class="lap-timing-details" hidden>
           <header>
             <span>APEX TIMING</span>
-            <strong>SESIÓN LOCAL</strong>
+            <strong>REGISTRO</strong>
           </header>
           <div class="lap-progress"><i id="lap-timing-progress"></i></div>
           <p id="lap-timing-status">HISTORIAL LOCAL</p>
+          <section class="lap-timing-identity" hidden>
+            <p id="lap-timing-identity-status">CONECTÁ TU PERFIL PARA GUARDAR TIEMPOS</p>
+            <div id="lap-timing-identity-provider"></div>
+          </section>
+          <ol class="lap-timing-history" id="lap-timing-history" aria-label="Vueltas registradas"></ol>
           <footer>
             <span>MEJOR
               <strong id="lap-timing-best">—:——.———</strong>
@@ -112,19 +137,22 @@ export class LapTimingHud {
     this.last = this.required('#lap-timing-last');
     this.sector = this.required('#lap-timing-sector');
     this.progress = this.required('#lap-timing-progress');
+    this.history = this.required<HTMLOListElement>('#lap-timing-history');
+    this.identity = this.required('.lap-timing-identity');
+    this.identityStatus = this.required('#lap-timing-identity-status');
+    this.identityProvider = this.required('#lap-timing-identity-provider');
+
+    window.addEventListener(APEX_HUD_PREFERENCES_EVENT, () => {
+      this.timingEnabled = readApexHudPreferences().raceTiming;
+      this.applyVisibility();
+    });
 
     this.launcher.addEventListener('click', () => {
-      this.manuallyOpened = true;
       this.expanded = true;
       this.applyVisibility();
     });
     this.toggle.addEventListener('click', () => {
-      if (!this.raceActive) {
-        this.manuallyOpened = false;
-        this.expanded = false;
-      } else {
-        this.expanded = !this.expanded;
-      }
+      this.expanded = !this.expanded;
       this.applyVisibility();
     });
     this.applyVisibility();
@@ -139,12 +167,14 @@ export class LapTimingHud {
         && state.hudVisibility !== 'hidden'
       );
     if (enteredRace) {
-      this.manuallyOpened = false;
       this.expanded = false;
     } else if (state.phase === 'countdown') {
-      this.manuallyOpened = false;
       this.expanded = false;
     }
+    if (state.completedLapCount > this.completedLapCount) {
+      this.expanded = true;
+    }
+    this.completedLapCount = state.completedLapCount;
     this.root.dataset.phase = state.phase;
     this.card.dataset.visibility = state.hudVisibility;
     this.time.textContent = formatTime(state.elapsedMs);
@@ -156,16 +186,27 @@ export class LapTimingHud {
     this.checkpoint.textContent = (
       `${state.checkpointIndex} / ${state.checkpointCount}`
     );
+    const best = this.persistentStats?.best;
+    const last = this.persistentStats?.last;
     this.status.textContent = state.phase === 'running'
       ? 'VUELTA EN CURSO'
       : state.phase === 'abandoned'
         ? 'SESIÓN FINALIZADA'
-        : 'HISTORIAL LOCAL';
-    this.best.textContent = formatTime(state.bestLapMs);
-    this.bestDate.textContent = formatRecordDate(state.bestLapRecordedAtIso);
-    this.bestDate.dateTime = state.bestLapRecordedAtIso ?? '';
-    this.last.textContent = formatTime(state.lastLapMs);
+        : this.persistentStats
+          ? `PERFIL LOCAL · ${this.persistentStats.attempts} VUELTAS`
+          : 'HISTORIAL LOCAL';
+    this.best.textContent = formatTime(best?.durationMs ?? state.bestLapMs);
+    this.bestDate.textContent = formatRecordDate(best?.completedAt ?? state.bestLapRecordedAtIso);
+    this.bestDate.dateTime = best?.completedAt ?? state.bestLapRecordedAtIso ?? '';
+    this.last.textContent = formatTime(last?.durationMs ?? state.lastLapMs);
     this.sector.textContent = `${state.sectorIndex + 1} / ${state.sectorCount}`;
+    this.renderHistory(
+      this.persistentStats?.history
+      ?? state.lapRecords.map(record => ({
+        durationMs: record.lapMs,
+        completedAt: record.completedAtIso,
+      })),
+    );
     const progress = state.checkpointCount > 0
       ? state.checkpointIndex / state.checkpointCount
       : 0;
@@ -173,15 +214,46 @@ export class LapTimingHud {
     this.applyVisibility();
   }
 
+  setPersistentStats(stats?: LapTimingPersistentStats): void {
+    this.persistentStats = stats;
+  }
+
+  identityHost(): HTMLElement {
+    this.identity.hidden = false;
+    return this.identityProvider;
+  }
+
+  setIdentityStatus(message: string): void {
+    this.identity.hidden = false;
+    this.identityStatus.textContent = message;
+  }
+
+  private renderHistory(records: readonly {
+    readonly durationMs: number;
+    readonly completedAt: string;
+  }[]): void {
+    const recent = records.slice(0, 5);
+    this.history.hidden = recent.length === 0;
+    this.history.replaceChildren(...recent.map((record, index) => {
+      const row = document.createElement('li');
+      const label = document.createElement('span');
+      const time = document.createElement('time');
+      label.textContent = `V${String(index + 1).padStart(2, '0')}`;
+      time.dateTime = record.completedAt;
+      time.textContent = `${formatTime(record.durationMs)} · ${formatRecordDate(record.completedAt)}`;
+      row.append(label, time);
+      return row;
+    }));
+  }
+
   private applyVisibility(): void {
-    const showCard = this.raceActive || this.manuallyOpened;
-    this.card.hidden = !showCard;
-    this.launcher.hidden = (
-      showCard
-      || this.phase === 'countdown'
-    );
-    this.details.hidden = !this.expanded;
-    this.root.dataset.mode = this.expanded ? 'expanded' : 'compact';
+    // The timer is a permanent part of the time-trial experience while Drive
+    // is active. The parent runtime hides the whole surface in the garage.
+    this.card.hidden = !this.timingEnabled;
+    this.launcher.hidden = true;
+    this.toggle.hidden = true;
+    this.details.hidden = !this.timingEnabled;
+    this.root.dataset.mode = 'expanded';
     this.toggle.textContent = this.expanded
       ? this.raceActive ? '⌃' : '×'
       : '⌄';

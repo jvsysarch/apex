@@ -14,6 +14,7 @@ export interface ApexHudPreferences {
 
 const STORAGE_KEY = 'apex-drive.ether-hud.v3';
 const LEGACY_STORAGE_KEY = 'apex-drive.ether-hud.v2';
+export const APEX_HUD_PREFERENCES_EVENT = 'apex-drive:ether-hud-preferences';
 
 export const DEFAULT_APEX_HUD_PREFERENCES: ApexHudPreferences = Object.freeze({
   trackIdentity: true,
@@ -62,6 +63,7 @@ export const writeApexHudPreferences = (
 ): void => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
+    window.dispatchEvent(new Event(APEX_HUD_PREFERENCES_EVENT));
   } catch {
     // La preferencia sigue activa durante la sesión aunque el navegador
     // rechace almacenamiento local.

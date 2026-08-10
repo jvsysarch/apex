@@ -11,7 +11,7 @@ const physicsDistUrl = new URL(
   import.meta.url,
 );
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   publicDir: assetsPublicDir,
   plugins: [{
     name: 'serve-local-apex-physics-runtime',
@@ -62,4 +62,4 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
   },
-});
+}));

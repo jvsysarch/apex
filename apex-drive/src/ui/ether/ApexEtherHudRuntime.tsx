@@ -114,13 +114,30 @@ const MotionPanel = memo(({ mode }: { readonly mode: ApexEtherSurfaceMode }) => 
   return <ApexEtherSpeed mode={mode} motion={{ ...motion, maximumRpm: session.maximumRpm }} />;
 });
 
-const RacePanels = memo(({ mode, showTiming, showStatus }: { readonly mode: ApexEtherSurfaceMode; readonly showTiming: boolean; readonly showStatus: boolean }) => {
+const RacePanels = memo(({
+  mode,
+  showTiming,
+  showStatus,
+  keepTimingVisible,
+  hideStatus,
+}: {
+  readonly mode: ApexEtherSurfaceMode;
+  readonly showTiming: boolean;
+  readonly showStatus: boolean;
+  readonly keepTimingVisible: boolean;
+  readonly hideStatus: boolean;
+}) => {
   const race = useDriveSlice('race');
-  if (!race || race.hudVisibility === 'hidden') return null;
+  if (!race) return null;
+  const timingVisible = showTiming && (
+    keepTimingVisible || race.hudVisibility !== 'hidden'
+  );
+  const statusVisible = !hideStatus && showStatus && race.hudVisibility !== 'hidden';
+  if (!timingVisible && !statusVisible) return null;
   const view = mapRace(race);
   return <>
-    {showTiming ? <ApexEtherMovable storageKey="apex-drive.ether.race-timing.position" className="apex-drive-ether__timing-panel"><ApexEtherRaceClock mode={mode} race={view} /></ApexEtherMovable> : null}
-    {showStatus ? <ApexEtherMovable storageKey="apex-drive.ether.race-status.position" className="apex-drive-ether__status-panel"><ApexEtherPosition mode={mode} race={view} /></ApexEtherMovable> : null}
+    {timingVisible ? <ApexEtherMovable storageKey="apex-drive.ether.race-timing.position" className="apex-drive-ether__timing-panel"><ApexEtherRaceClock mode={mode} race={view} /></ApexEtherMovable> : null}
+    {statusVisible ? <ApexEtherMovable storageKey="apex-drive.ether.race-status.position" className="apex-drive-ether__status-panel"><ApexEtherPosition mode={mode} race={view} /></ApexEtherMovable> : null}
   </>;
 });
 
@@ -193,6 +210,8 @@ const Authorship = memo(({ controls, locale }: { readonly controls: ApexEtherHud
     <span>© <strong>Jonathan Villaverde</strong> 2026</span>
     <a href={controls.linkedinUrl} target="_blank" rel="author noopener noreferrer">LinkedIn ↗</a>
     <a href={apexPhysicsUrl(controls.repositoryUrl)} target="_blank" rel="noopener noreferrer">Apex Physics ↗</a>
+    <a href={controls.etherDemoUrl} target="_blank" rel="noopener noreferrer">Apex Ether ↗</a>
+    <a href={controls.showcaseUrl} target="_blank" rel="noopener noreferrer">Showroom ↗</a>
   </footer>
 ));
 
@@ -232,6 +251,12 @@ const About = memo(({ controls, locale }: { readonly controls: ApexEtherHudContr
         <p>{t('Selecciona el vehículo y la pista, crea el mundo, coordina sesión y carrera, aplica comandos, alimenta audio y render, y adapta estados físicos hacia consumidores como Ether. Drive integra; no absorbe la autoridad interna de cada módulo.', 'Selects vehicle and track, creates the world, coordinates session and race, applies commands, feeds audio and rendering, and adapts physical state for consumers such as Ether. Drive integrates; it does not absorb each module’s internal authority.')}</p>
         <a href={controls.repositoryUrl} target="_blank" rel="noopener noreferrer">GitHub · Apex ↗</a>
       </article>
+      <article>
+        <small>{t('INTERFAZ OBSERVABLE · TELEMETRÍA', 'OBSERVABLE INTERFACE · TELEMETRY')}</small>
+        <h4>Apex Ether</h4>
+        <p>{t('Sistema de HUD y telemetría que traduce el estado físico de Drive en información legible sin adquirir autoridad sobre la simulación. El catálogo público permite explorar sus paneles y composiciones por separado.', 'HUD and telemetry system that translates Drive physical state into readable information without acquiring authority over simulation. The public catalog exposes its panels and compositions independently.')}</p>
+        <a href={controls.etherDemoUrl} target="_blank" rel="noopener noreferrer">{t('Abrir demo de Apex Ether ↗', 'Open Apex Ether demo ↗')}</a>
+      </article>
     </section>
 
     <section className="apex-drive-ether-about__technology" aria-labelledby="apex-ether-about-technology">
@@ -262,6 +287,8 @@ const About = memo(({ controls, locale }: { readonly controls: ApexEtherHudContr
       <span>© <strong>Jonathan Villaverde</strong> 2026</span>
       <a href={controls.linkedinUrl} target="_blank" rel="author noopener noreferrer">LinkedIn ↗</a>
       <a href={apexPhysicsUrl(controls.repositoryUrl)} target="_blank" rel="noopener noreferrer">Apex Physics ↗</a>
+      <a href={controls.etherDemoUrl} target="_blank" rel="noopener noreferrer">Apex Ether ↗</a>
+      <a href={controls.showcaseUrl} target="_blank" rel="noopener noreferrer">Showroom ↗</a>
     </footer>
   </div>;
 });
@@ -478,6 +505,8 @@ const Settings = memo(({
   onLocaleChange,
   surfacePanelOpen,
   onToggleSurfacePanel,
+  externalOpenRequest,
+  hideTrigger,
 }: {
   readonly preferences: ApexHudPreferences;
   readonly locale: ApexEtherLocale;
@@ -486,6 +515,8 @@ const Settings = memo(({
   readonly onLocaleChange: (value: ApexEtherLocale) => void;
   readonly surfacePanelOpen: boolean;
   readonly onToggleSurfacePanel: () => void;
+  readonly externalOpenRequest: number;
+  readonly hideTrigger: boolean;
 }) => {
   const [open, setOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<
@@ -498,13 +529,16 @@ const Settings = memo(({
     window.addEventListener('keydown', close);
     return () => window.removeEventListener('keydown', close);
   }, [open]);
+  useEffect(() => {
+    if (externalOpenRequest > 0) setOpen(true);
+  }, [externalOpenRequest]);
   const toggle = (key: Exclude<keyof ApexHudPreferences, 'speedometerMode'>) => onChange(Object.freeze({ ...preferences, [key]: !preferences[key] }));
   return <aside className="apex-drive-ether-settings" data-open={open || undefined}>
-    <button className="apex-drive-ether-settings__trigger" type="button" aria-label={t('Abrir administración de Apex Ether', 'Open Apex Ether administration')} aria-expanded={open} onClick={() => setOpen(true)}>
+    {hideTrigger ? null : <button className="apex-drive-ether-settings__trigger" type="button" aria-label={t('Abrir administración de Apex Ether', 'Open Apex Ether administration')} aria-expanded={open} onClick={() => setOpen(true)}>
       <svg viewBox="0 0 256 256" aria-hidden="true">
         <path d="M237.94,107.21a8,8,0,0,0-3.89-5.4l-29.83-17-.12-33.62a8,8,0,0,0-2.83-6.08,111.91,111.91,0,0,0-36.72-20.67,8,8,0,0,0-6.46.59L128,41.85,97.88,25a8,8,0,0,0-6.47-.6A111.92,111.92,0,0,0,54.73,45.15a8,8,0,0,0-2.83,6.07l-.15,33.65-29.83,17a8,8,0,0,0-3.89,5.4,106.47,106.47,0,0,0,0,41.56,8,8,0,0,0,3.89,5.4l29.83,17,.12,33.63a8,8,0,0,0,2.83,6.08,111.91,111.91,0,0,0,36.72,20.67,8,8,0,0,0,6.46-.59L128,214.15,158.12,231a7.91,7.91,0,0,0,3.9,1,8.09,8.09,0,0,0,2.57-.42,112.1,112.1,0,0,0,36.68-20.73,8,8,0,0,0,2.83-6.07l.15-33.65,29.83-17a8,8,0,0,0,3.89-5.4A106.47,106.47,0,0,0,237.94,107.21ZM128,168a40,40,0,1,1,40-40A40,40,0,0,1,128,168Z" />
       </svg>
-    </button>
+    </button>}
     {open ? <div
       className="apex-drive-ether-admin-layer"
       onPointerDown={event => { if (event.target === event.currentTarget) setOpen(false); }}
@@ -514,7 +548,7 @@ const Settings = memo(({
           <div>
             <div className="apex-drive-ether-admin__brand">
               <span>APEX ETHER</span>
-              <a href="https://jvsysarch.github.io/apex-ether/" target="_blank" rel="noopener noreferrer">About ↗</a>
+              <a href={controls.etherDemoUrl} target="_blank" rel="noopener noreferrer">{t('Demo de Ether ↗', 'Ether demo ↗')}</a>
             </div>
             <h2>{t('Administración', 'Administration')}</h2>
           </div>
@@ -706,10 +740,61 @@ const TrackLauncher = memo(({
   </aside>;
 });
 
-const DriveEtherHud = memo(({ initialPreferences, controls, onPreferencesChange }: { readonly initialPreferences: ApexHudPreferences; readonly controls: ApexEtherHudControls; readonly onPreferencesChange: (value: ApexHudPreferences) => void }) => {
+export type ApexEtherVoidUser = Readonly<{
+  displayName: string;
+}>;
+
+const VoidUserMenu = memo(({
+  user,
+  locale,
+  onOpenSettings,
+  onSignIn,
+  onSignOut,
+}: {
+  readonly user?: ApexEtherVoidUser;
+  readonly locale: ApexEtherLocale;
+  readonly onOpenSettings: () => void;
+  readonly onSignIn?: () => void;
+  readonly onSignOut?: () => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const t = (es: string, en: string) => etherText(locale, es, en);
+  const anonymous = !user;
+  const displayName = user?.displayName || t('Anónimo', 'Anonymous');
+  const initial = displayName.trim().slice(0, 1).toUpperCase() || 'A';
+  return <aside className="apex-drive-ether-user">
+    <button
+      className="apex-drive-ether-user__trigger"
+      type="button"
+      aria-expanded={open}
+      aria-label={t('Abrir menú de cuenta', 'Open account menu')}
+      onClick={() => setOpen(current => !current)}
+    >
+      <span aria-hidden="true">{initial}</span>
+      <strong title={displayName}>{displayName}</strong>
+      <i aria-hidden="true">⌄</i>
+    </button>
+    {open ? <div className="apex-drive-ether-user__menu" role="menu">
+      <header>
+        <span>{anonymous ? t('SIN CUENTA', 'NO ACCOUNT') : t('CUENTA', 'ACCOUNT')}</span>
+        <strong>{displayName}</strong>
+        <p>{anonymous
+          ? t('Cada vuelta puede ser tuya.', 'Make every lap yours.')
+          : t('Tu historial de tiempos está activo.', 'Your timing history is active.')}
+        </p>
+      </header>
+      {anonymous ? <button className="apex-drive-ether-user__sign-in" type="button" role="menuitem" onClick={() => { onSignIn?.(); setOpen(false); }}>{t('Iniciá sesión para guardar tus tiempos', 'Sign in to track your time')}</button> : null}
+      <button type="button" role="menuitem" onClick={() => { onOpenSettings(); setOpen(false); }}>{t('Controles experimentales', 'Experimental controls')}</button>
+      {anonymous ? null : <button type="button" role="menuitem" onClick={() => { onSignOut?.(); setOpen(false); }}>{t('Cerrar sesión', 'Sign out')}</button>}
+    </div> : null}
+  </aside>;
+});
+
+const DriveEtherHud = memo(({ initialPreferences, controls, voidUser, onPreferencesChange }: { readonly initialPreferences: ApexHudPreferences; readonly controls: ApexEtherHudControls; readonly voidUser?: ApexEtherVoidUser; readonly onPreferencesChange: (value: ApexHudPreferences) => void }) => {
   const [preferences, setPreferences] = useState(initialPreferences);
   const [locale, setLocale] = useState<ApexEtherLocale>(readEtherLocale);
   const [surfacePanelOpen, setSurfacePanelOpen] = useState(false);
+  const [settingsOpenRequest, setSettingsOpenRequest] = useState(0);
   const update = useCallback((next: ApexHudPreferences) => { writeApexHudPreferences(next); setPreferences(next); onPreferencesChange(next); }, [onPreferencesChange]);
   const updateLocale = useCallback((next: ApexEtherLocale) => {
     setLocale(next);
@@ -721,12 +806,21 @@ const DriveEtherHud = memo(({ initialPreferences, controls, onPreferencesChange 
   const mode: ApexEtherSurfaceMode = 'glass';
   return <ApexEtherLocaleProvider locale={locale}>
     <main className="apex-drive-ether" data-mode={mode} lang={locale}>
-      <TrackLauncher locale={locale} controls={controls} />
-      <Settings preferences={preferences} locale={locale} controls={controls} onChange={update} onLocaleChange={updateLocale} surfacePanelOpen={surfacePanelOpen} onToggleSurfacePanel={() => setSurfacePanelOpen(current => !current)} />
+      <div className="apex-drive-ether-utility">
+        <TrackLauncher locale={locale} controls={controls} />
+        <VoidUserMenu user={voidUser} locale={locale} onOpenSettings={() => setSettingsOpenRequest(current => current + 1)} onSignIn={controls.openVoidTimeTrialProfile} onSignOut={controls.signOutVoidTimeTrialProfile} />
+      </div>
+      <Settings preferences={preferences} locale={locale} controls={controls} onChange={update} onLocaleChange={updateLocale} surfacePanelOpen={surfacePanelOpen} onToggleSurfacePanel={() => setSurfacePanelOpen(current => !current)} externalOpenRequest={settingsOpenRequest} hideTrigger />
       {surfacePanelOpen ? <SurfaceMaterialPanel controls={controls} locale={locale} onClose={() => setSurfacePanelOpen(false)} /> : null}
       <Authorship controls={controls} locale={locale} />
       {preferences.trackIdentity ? <ApexEtherMovable storageKey="apex-drive.ether.track-identity.position" className="apex-drive-ether-identity"><Identity /></ApexEtherMovable> : null}
-      <div className="apex-drive-ether__top"><RacePanels mode={mode} showTiming={preferences.raceTiming} showStatus={preferences.raceStatus} /></div>
+      <div className="apex-drive-ether__top"><RacePanels
+        mode={mode}
+        showTiming={preferences.raceTiming}
+        showStatus={preferences.raceStatus}
+        keepTimingVisible={controls.timeTrial}
+        hideStatus={controls.timeTrial}
+      /></div>
       {preferences.trackMap ? <ApexEtherMovable storageKey="apex-drive.ether.route.position" className="apex-drive-ether__route"><DriveRoute mode={mode} /></ApexEtherMovable> : null}
       {preferences.vehicleDiagram || preferences.wheelStatus ? <VehiclePanel
         mode={mode}
@@ -739,6 +833,9 @@ const DriveEtherHud = memo(({ initialPreferences, controls, onPreferencesChange 
 });
 
 export interface ApexEtherHudControls {
+  readonly timeTrial: boolean;
+  readonly openVoidTimeTrialProfile?: () => void;
+  readonly signOutVoidTimeTrialProfile?: () => void;
   readonly environmentName: string;
   readonly tireDeformationEnabled: boolean;
   readonly requestTireDeformation: (enabled: boolean) => void;
@@ -764,6 +861,7 @@ export interface ApexEtherHudControls {
   readonly linkedinUrl: string;
   readonly documentationUrl: string;
   readonly showcaseUrl: string;
+  readonly etherDemoUrl: string;
   readonly activeTrackId: string;
   readonly trackToolsLocked: boolean;
   readonly proceduralTrackId: string;
@@ -801,6 +899,7 @@ export interface ApexEtherHudRuntime {
   needsRaceSnapshot(): boolean;
   publishPhysics(timestampMs: number, state: ApexVehicleState): void;
   publishRace(timestampMs: number, state: LapTimingState): void;
+  setVoidUser(user?: ApexEtherVoidUser): void;
   dispose(): void;
 }
 
@@ -813,21 +912,30 @@ class ApexEtherHudRuntimeImplementation implements ApexEtherHudRuntime {
     statusHz: 10,
   });
   private readonly updatePreferences = (preferences: ApexHudPreferences) => this.adapter.configure(demandForApexHudPreferences(preferences));
+  private readonly initialPreferences: ApexHudPreferences;
+  private readonly controls: ApexEtherHudControls;
+  private voidUser: ApexEtherVoidUser | undefined;
 
   constructor(container: HTMLElement, session: ApexHudSessionInput, controls: ApexEtherHudControls) {
     const preferences = readApexHudPreferences();
+    this.initialPreferences = preferences;
+    this.controls = controls;
     this.updatePreferences(preferences);
     this.element = document.createElement('div');
     this.element.id = 'apex-ether-ui-root';
     container.append(this.element);
     this.adapter.publishSession(session);
     this.root = createRoot(this.element);
-    this.root.render(<StoreContext.Provider value={this.store}><DriveEtherHud initialPreferences={preferences} controls={controls} onPreferencesChange={this.updatePreferences} /></StoreContext.Provider>);
+    this.render();
+  }
+  private render(): void {
+    this.root.render(<StoreContext.Provider value={this.store}><DriveEtherHud initialPreferences={this.initialPreferences} controls={this.controls} voidUser={this.voidUser} onPreferencesChange={this.updatePreferences} /></StoreContext.Provider>);
   }
   needsPhysicsSnapshot(timestampMs: number): boolean { return this.adapter.needsPhysicsSnapshot(timestampMs); }
   needsRaceSnapshot(): boolean { return this.adapter.needsRaceSnapshot(); }
   publishPhysics(timestampMs: number, state: ApexVehicleState): void { this.adapter.publishPhysics(timestampMs, state); }
   publishRace(timestampMs: number, state: LapTimingState): void { this.adapter.publishRace(timestampMs, state); }
+  setVoidUser(user?: ApexEtherVoidUser): void { this.voidUser = user; this.render(); }
   dispose(): void { this.root.unmount(); this.element.remove(); }
 }
 

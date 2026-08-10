@@ -52,7 +52,7 @@ const createStartPromptTexture = (): THREE.CanvasTexture => {
   context.font = '600 36px ui-monospace, SFMono-Regular, Menlo, monospace';
   context.textAlign = 'center';
   context.textBaseline = 'middle';
-  context.fillText('ENTER  ·  INICIAR VUELTA', canvas.width * 0.5, canvas.height * 0.5);
+  context.fillText('START  ·  DETENETE  ·  ENTER', canvas.width * 0.5, canvas.height * 0.5);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.needsUpdate = true;

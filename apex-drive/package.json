@@ -24,6 +24,7 @@
     "@jvsysarch/apex-ether": "workspace:*",
     "@jvsysarch/apex-physics": "workspace:*",
     "@jvsysarch/apex-void": "workspace:*",
+    "firebase": "^12.17.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "three": "^0.183.0"

@@ -46,10 +46,12 @@ export interface LapTimingState {
   readonly message: string;
 }
 
-const countdownDurationMs = 3_000;
+// A slightly deliberate start sequence: three clear beats before green.
+const countdownBeatMs = 1_200;
+const countdownDurationMs = countdownBeatMs * 3;
 const greenLightDurationMs = 900;
-const stationarySpeedKmh = 1;
-const stationaryAbandonMs = 15_000;
+const stationarySpeedKmh = 0.5;
+const stationaryAbandonMs = 1_200;
 const abandonedFadeDelayMs = 1_200;
 const abandonedFadeDurationMs = 1_000;
 
@@ -403,10 +405,12 @@ export class ApexLapTimer {
       ? now - (this.countdownStartedAt ?? now)
       : 0;
     const countdownLights = this.phase === 'countdown'
-      ? countdownElapsed < 1_000 ? 1 : countdownElapsed < 2_000 ? 3 : 5
+      ? countdownElapsed < countdownBeatMs
+        ? 1
+        : countdownElapsed < countdownBeatMs * 2 ? 3 : 5
       : 0;
     const countdownSeconds = this.phase === 'countdown'
-      ? Math.max(1, Math.ceil((this.countdownEndsAt() - now) / 1000))
+      ? Math.max(1, Math.ceil((this.countdownEndsAt() - now) / countdownBeatMs))
       : undefined;
     const abandonedElapsedMs = this.phase === 'abandoned'
       ? now - (this.abandonedAt ?? now)
@@ -487,7 +491,7 @@ export class ApexLapTimer {
       this.abandonedAt = now;
       this.abandonedRestartArmed = false;
       this.stationaryStartedAt = undefined;
-      this.message = 'Sesión finalizada';
+      this.message = 'Carrera abandonada';
       this.messageExpiresAt = 0;
     }
   }
