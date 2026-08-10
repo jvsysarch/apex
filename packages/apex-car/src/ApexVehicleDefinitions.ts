@@ -17,6 +17,15 @@ const torqueCurve = Object.freeze([
   Object.freeze([1.00, 0.96]),
 ]) as readonly (readonly [number, number])[];
 
+const vertexTorqueCurve = Object.freeze([
+  Object.freeze([0.00, 0.82]),
+  Object.freeze([0.22, 0.92]),
+  Object.freeze([0.45, 1.00]),
+  Object.freeze([0.72, 1.00]),
+  Object.freeze([0.90, 0.96]),
+  Object.freeze([1.00, 0.88]),
+]) as readonly (readonly [number, number])[];
+
 export const APEX_ROAD_CAR: ApexCarPhysicsDefinition = Object.freeze({
   id: 'apex-road-car',
   kind: 'car',
@@ -167,6 +176,124 @@ export const APEX_ROAD_CAR: ApexCarPhysicsDefinition = Object.freeze({
   defaultTirePressurePsi: DEFAULT_TIRE_OPERATING_PARAMETERS.pressurePsi,
 });
 
+export const VERTEX_ARCADE: ApexCarPhysicsDefinition = Object.freeze({
+  ...APEX_ROAD_CAR,
+  id: 'vertex-arcade',
+  massKg: 1325,
+  maximumPitchRollDegrees: 48,
+  suspension: Object.freeze({
+    ...APEX_ROAD_CAR.suspension,
+    baseline: Object.freeze({
+      front: Object.freeze({
+        springFrequencyHz: 2.35,
+        damping: 0.68,
+        antiRollStiffness: 2600,
+      }),
+      rear: Object.freeze({
+        springFrequencyHz: 2.15,
+        damping: 0.66,
+        antiRollStiffness: 2200,
+      }),
+    }),
+    tuned: Object.freeze({
+      front: Object.freeze({
+        springFrequencyHz: 2.55,
+        damping: 0.72,
+        antiRollStiffness: 3100,
+      }),
+      rear: Object.freeze({
+        springFrequencyHz: 2.35,
+        damping: 0.7,
+        antiRollStiffness: 2650,
+      }),
+    }),
+  }),
+  wheels: Object.freeze({
+    ...APEX_ROAD_CAR.wheels,
+    maximumSteerAngleDegrees: 40,
+    frontBrakeTorqueNm: 5400,
+    rearBrakeTorqueNm: 4200,
+    handBrakeTorqueNm: 6200,
+  }),
+  engine: Object.freeze({
+    maximumTorqueNm: 2100,
+    minimumRpm: 900,
+    maximumRpm: 9500,
+    normalizedTorqueCurve: vertexTorqueCurve,
+  }),
+  transmission: Object.freeze({
+    shiftDownRpm: 4300,
+    shiftUpRpm: 9200,
+    clutchStrength: 18,
+  }),
+  drivetrain: Object.freeze({
+    ...APEX_ROAD_CAR.drivetrain,
+    frontTorqueRatio: 0.48,
+    rearTorqueRatio: 0.52,
+    tunedFrontLimitedSlipRatio: 1.08,
+    tunedRearLimitedSlipRatio: 1.1,
+    tunedCenterLimitedSlipRatio: 1.08,
+    torqueControl: Object.freeze({
+      ...APEX_ROAD_CAR.drivetrain.torqueControl,
+      baseWheelTorqueFractions: Object.freeze([
+        0.24,
+        0.24,
+        0.26,
+        0.26,
+      ]) as readonly [number, number, number, number],
+      defaultFrontTorqueRatio: 0.48,
+      enterSlip: 0.035,
+      exitSlip: 0.02,
+      fullInterventionSlip: 0.085,
+      interventionAttack: 72,
+      interventionRelease: 11,
+      axleRatioRatePerSecond: 1.7,
+      leftRightSplitRatePerSecond: 5.2,
+      minimumFrontTorqueRatio: 0.3,
+      maximumFrontTorqueRatio: 0.72,
+    }),
+  }),
+  steering: Object.freeze({
+    blendStartKmh: 28,
+    blendEndKmh: 185,
+    baselineLowSpeedDegrees: 38,
+    baselineHighSpeedDegrees: 11,
+    lowSlipLowSpeedDegrees: 40,
+    lowSlipHighSpeedDegrees: 12,
+  }),
+  launch: Object.freeze({
+    boostDurationSeconds: 1.35,
+    maximumBoostRatio: 0.48,
+  }),
+  pulseBoost: Object.freeze({
+    durationSeconds: 1.1,
+    rechargeSeconds: 4.5,
+    maximumBoostRatio: 0.42,
+  }),
+  aerodynamics: Object.freeze({
+    baseline: Object.freeze({
+      ...APEX_ROAD_CAR.aerodynamics.baseline,
+      dragArea: 0.58,
+      downforceArea: 5.2,
+      frontBalance: 0.5,
+      maximumDownforce: 18_000,
+      liftOffFrontArea: 0.58,
+      maximumLiftOffFrontDownforce: 1500,
+    }),
+    fast: Object.freeze({
+      ...APEX_ROAD_CAR.aerodynamics.fast,
+      dragArea: 0.54,
+      downforceArea: 5.45,
+      frontBalance: 0.5,
+      maximumDownforce: 19_500,
+      liftOffFrontArea: 0.62,
+      maximumLiftOffFrontDownforce: 1650,
+    }),
+    dynamicsLateralGripCalibration: 1.35,
+    dynamicsDownforceCalibration: 1.75,
+  }),
+});
+
 export const APEX_JOLT_ROAD_CAR: ApexCarPhysicsDefinition = Object.freeze({
   ...APEX_ROAD_CAR,
   id: 'apex-jolt-road-car',
@@ -275,6 +402,7 @@ export const APEX_VEHICLE_DEFINITIONS: ReadonlyMap<
   ApexVehicleDefinition
 > = new Map<string, ApexVehicleDefinition>([
   [APEX_ROAD_CAR.id, APEX_ROAD_CAR],
+  [VERTEX_ARCADE.id, VERTEX_ARCADE],
   [APEX_JOLT_ROAD_CAR.id, APEX_JOLT_ROAD_CAR],
   [APEX_MOTORCYCLE.id, APEX_MOTORCYCLE],
   [APEX_TMEASY_MOTORCYCLE.id, APEX_TMEASY_MOTORCYCLE],

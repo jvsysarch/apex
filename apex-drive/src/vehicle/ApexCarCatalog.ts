@@ -88,6 +88,9 @@ export const carFromVehicleSpecification = (
       ...cloneDefaultVisualConfiguration(),
       targetWidthM: specification.dimensions.widthM,
       targetHeightM: specification.dimensions.heightM,
+      defaultPaintColor:
+        specification.visual.defaultPaintColor
+        ?? DEFAULT_VISUAL_CONFIGURATION.defaultPaintColor,
       detectEmbeddedWheelGeometry: true,
     }),
     materials: Object.freeze({

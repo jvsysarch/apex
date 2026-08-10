@@ -434,6 +434,32 @@
   box-shadow: 0 4px 12px rgb(0 0 0 / 14%);
 }
 
+.apex-drive-ether-settings__vehicle {
+  display: grid;
+  width: min(420px, 100%);
+  gap: 7px;
+  color: #52615b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.apex-drive-ether-settings__vehicle select {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgb(23 34 31 / 18%);
+  border-radius: 11px;
+  color: #17221f;
+  background: #fff;
+  font: 800 15px var(--ether-font-subtitle);
+  cursor: pointer;
+}
+
+.apex-drive-ether-settings__vehicle select:focus-visible {
+  border-color: var(--ether-highlight);
+  outline: 3px solid color-mix(in srgb, var(--ether-highlight) 22%, transparent);
+}
+
 .apex-drive-ether-settings__surface-toggle {
   width: min(360px, 100%);
   min-height: 48px;

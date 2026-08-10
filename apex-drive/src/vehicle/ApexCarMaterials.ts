@@ -193,13 +193,45 @@ const configureNissanMaterial = (
   }
 };
 
+const configureVertexArcadeMaterial = (
+  material: ApexPbrMaterial,
+  name: string,
+) => {
+  if (name === 'carpaint') {
+    setPaint(material, 0x020304);
+  } else if (name === 'tinted_glass') {
+    setGlass(material, 0x010203, 0.5, 0.42);
+  } else if (name === 'rearlight') {
+    setOpaque(material, 0x180002, 0.08, 0.2);
+    material.emissive.set(0x8a0008);
+    material.emissiveIntensity = 0.42;
+  } else if (name === 'light') {
+    setOpaque(material, 0xd8efff, 0, 0.12);
+    material.emissive.set(0xbde7ff);
+    material.emissiveIntensity = 2.2;
+  } else if (name === 'brake') {
+    setOpaque(material, 0x17191b, 0.86, 0.3);
+  } else if (name === 'tire') {
+    setOpaque(material, 0x020303, 0, 0.92);
+  } else {
+    setOpaque(
+      material,
+      name === 'mirror' ? 0x111416 : 0x050607,
+      name === 'mirror' || name === 'roll' ? 0.72 : 0.16,
+      name === 'leather' || name === 'seat' ? 0.72 : 0.3,
+    );
+  }
+};
+
 export const configureApexCarMaterial = (
   material: ApexPbrMaterial,
   carId: string,
   paintColor: string,
 ): void => {
   const name = material.name.toLowerCase();
-  if (carId === 'corvette-stingray') {
+  if (carId === 'vertex-arcade') {
+    configureVertexArcadeMaterial(material, name);
+  } else if (carId === 'corvette-stingray') {
     configureCorvetteMaterial(material, name, paintColor);
   } else if (carId === 'nissan-gtr-r35-apex-test') {
     configureNissanMaterial(material, name, paintColor, true);

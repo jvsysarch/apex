@@ -42,6 +42,7 @@ export interface ApexDriveCarSpecification {
     readonly bodyRootNodeId?: string;
     readonly paintMaterialPattern: string;
     readonly brakeLightMaterialPattern?: string;
+    readonly defaultPaintColor?: string;
   };
   readonly dimensions: {
     readonly lengthM: number;
@@ -222,6 +223,19 @@ export function validateApexDriveCarSpecification(
         'visual.brakeLightMaterialPattern',
         'invalid-pattern',
         'El patrón debe ser texto',
+      );
+    }
+    if (
+      value.visual.defaultPaintColor !== undefined
+      && (
+        typeof value.visual.defaultPaintColor !== 'string'
+        || !/^#[0-9a-f]{6}$/i.test(value.visual.defaultPaintColor)
+      )
+    ) {
+      issue(
+        'visual.defaultPaintColor',
+        'invalid-color',
+        'El color debe usar el formato hexadecimal #RRGGBB',
       );
     }
   }

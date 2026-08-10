@@ -7,6 +7,7 @@ import { apexDrivePublicUrl } from '../runtime/ApexDrivePublicUrl';
 const BUILT_IN_VEHICLE_MANIFESTS = Object.freeze([
   'assets/vehicles/apex-demo-car-001/vehicle.json',
   'assets/vehicles/ford-mustang-shelby-gt500/vehicle.json',
+  'assets/vehicles/vertex-arcade/vehicle.json',
 ]);
 
 export interface ApexVehicleManifestLoadOptions {

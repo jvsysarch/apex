@@ -11,6 +11,7 @@ export interface DriverInput {
   readonly left: boolean;
   readonly right: boolean;
   readonly handbrake: boolean;
+  readonly boost?: boolean;
   readonly throttle?: number;
   readonly brake?: number;
   readonly steering?: number;

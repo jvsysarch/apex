@@ -80,6 +80,7 @@ const publicDemoFiles = Object.freeze([
   'assets/vehicles/ford-mustang-shelby-gt500/scene.bin',
   'assets/vehicles/ford-mustang-shelby-gt500/scene.gltf',
   'assets/vehicles/ford-mustang-shelby-gt500/vehicle.json',
+  'assets/vehicles/vertex-arcade/vehicle.json',
   'assets/vehicles/rambo/license.txt',
   'assets/vehicles/rambo/scene.bin',
   'assets/vehicles/rambo/scene.gltf',

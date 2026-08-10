@@ -720,13 +720,20 @@ const lapTimingStartGate = Object.freeze({
   radiusM: trackTiming.startRadiusM,
   label: 'Salida / meta',
 });
+const selectedCarStorageKey = 'apex-v3-selected-car.v2';
+const timeTrialCarStorageIdentity = (
+  searchParams.get('car')
+  ?? localStorage.getItem(selectedCarStorageKey)
+);
 const lapTimer = new ApexLapTimer(
   lapTimingStartGate,
   Object.freeze(lapTimingCheckpoints),
   trackTiming.sectorCount,
-  trackTiming.storageKey,
+  timeTrialCarStorageIdentity === 'vertex-arcade'
+    ? `${trackTiming.storageKey}.vertex-arcade`
+    : trackTiming.storageKey,
 );
-const activeTimeTrialCircuit: ApexDriveCircuitIdentity = Object.freeze({
+let activeTimeTrialCircuit: ApexDriveCircuitIdentity = Object.freeze({
   id: ACTIVE_TRACK.track.id,
   version: ACTIVE_TRACK.track.version,
   name: ACTIVE_TRACK.track.name,
@@ -891,7 +898,6 @@ const auditKind = APEX_DRIVE_PUBLIC_DEMO
 const isAuditRuntime = auditKind !== null;
 const guardrailAuditEnabled = auditKind === 'guardrail';
 const vehicleKindStorageKey = 'apex-v3-vehicle-kind';
-const selectedCarStorageKey = 'apex-v3-selected-car.v2';
 const requestedVehicleKind = APEX_DRIVE_PUBLIC_DEMO
   ? 'car'
   : searchParams.get('vehicle');
@@ -923,6 +929,10 @@ const publicDemoPrimaryCar = (
   findApexCar('ford-mustang-shelby-gt500')
   ?? canonicalFallbackCar
 );
+const publicTimeTrialCarIds = Object.freeze([
+  'ford-mustang-shelby-gt500',
+  'vertex-arcade',
+]);
 const publicGarageCarIds = Object.freeze([
   'ford-mustang-shelby-gt500',
   'rambo',
@@ -930,7 +940,9 @@ const publicGarageCarIds = Object.freeze([
 ]);
 const parkingCarCatalog: readonly ApexCarDefinition[] = APEX_DRIVE_PUBLIC_DEMO
   ? APEX_DRIVE_BARE_RUNTIME
-    ? [publicDemoPrimaryCar]
+    ? publicTimeTrialCarIds.map(findApexCar).filter(
+      (definition): definition is ApexCarDefinition => definition !== undefined,
+    )
     : publicGarageCarIds.map(findApexCar).filter(
       (definition): definition is ApexCarDefinition => definition !== undefined,
     )
@@ -969,6 +981,13 @@ const activeVehicleKind: ApexVehicleKind = isAuditRuntime
       ? 'car'
       : 'car';
 const activeCar = requestedCar ?? savedCar ?? defaultCar;
+if (activeCar.id === 'vertex-arcade') {
+  activeTimeTrialCircuit = Object.freeze({
+    id: `${ACTIVE_TRACK.track.id}--vertex-arcade`,
+    version: ACTIVE_TRACK.track.version,
+    name: `${ACTIVE_TRACK.track.name} · VERTEX-ARCADE`,
+  });
+}
 const activeVehicleSpecification = activeCar.vehicleSpecification;
 const activeMotorcycle = requestedMotorcycle ?? DEFAULT_APEX_MOTORCYCLE;
 const baseActiveCarPhysicsDefinition = createApexCarPhysicsDefinition(activeCar);
@@ -1277,7 +1296,9 @@ const carColorStorageKey = (definition: ApexCarDefinition): string => (
   `apex-v3-car-paint.${definition.id}`
 );
 const storedCarColor = (definition: ApexCarDefinition): string => (
-  localStorage.getItem(carColorStorageKey(definition))
+  definition.id === 'vertex-arcade'
+    ? definition.visual.defaultPaintColor
+    : localStorage.getItem(carColorStorageKey(definition))
     ?? definition.visual.defaultPaintColor
 );
 const experienceMode = searchParams.get('drive');
@@ -1349,7 +1370,8 @@ vehicleKindSelect.addEventListener('change', () => {
   nextUrl.searchParams.delete('car');
   window.location.href = nextUrl.toString();
 });
-vehicleColorLabel.hidden = activeVehicleKind === 'motorcycle';
+vehicleColorLabel.hidden =
+  activeVehicleKind === 'motorcycle' || activeCar.id === 'vertex-arcade';
 if (APEX_DRIVE_PUBLIC_DEMO && activeVehicleKind === 'car') {
   vehicleWorkshopCarSelect.replaceChildren(
     ...runtimeCarCatalog.map(definition => {
@@ -4482,6 +4504,7 @@ const manualOverrideChannels = (manual: DriverInput): readonly string[] => {
   ) channels.push(manual.backward ? 'REV' : 'THR');
   if ((manual.brake ?? 0) > 0.03) channels.push('BRK');
   if (manual.handbrake) channels.push('HBR');
+  if (manual.boost) channels.push('BST');
   return channels;
 };
 const blendAutonomousAssistance = (
@@ -4540,6 +4563,7 @@ const blendAutonomousAssistance = (
     brake,
     steering,
     directSteering: steeringOverride && manual.directSteering === true,
+    boost: manual.boost === true,
   };
 };
 let autonomousDriveEnabled = false;
@@ -5894,20 +5918,27 @@ const chassisMaterial = new THREE.LineBasicMaterial({
   color: activeVehicleKind === 'motorcycle' ? 0x4de7ff : savedVehicleColor,
 });
 const applyVehicleColor = (color: string, persist = false) => {
-  chassisMaterial.color.set(color);
+  const effectiveColor = runtimeCar.id === 'vertex-arcade'
+    ? runtimeCar.visual.defaultPaintColor
+    : color;
+  chassisMaterial.color.set(effectiveColor);
   vehiclePaintMaterials.forEach(material => {
-    material.color.set(color);
+    material.color.set(effectiveColor);
     if (material.userData.apexPaintEmissiveSync === true) {
-      material.emissive.set(color);
+      material.emissive.set(effectiveColor);
     }
     material.needsUpdate = true;
   });
-  if (persist) localStorage.setItem(vehicleColorStorageKey, color);
-  canvas.dataset.vehiclePaintColor = color;
+  if (persist) localStorage.setItem(vehicleColorStorageKey, effectiveColor);
+  vehicleColorInput.value = effectiveColor;
+  canvas.dataset.vehiclePaintColor = effectiveColor;
 };
 vehicleColorInput.addEventListener('input', () => {
   if (parkingSelectionActive) {
-    const color = vehicleColorInput.value;
+    const color = parkingSelectedCar.id === 'vertex-arcade'
+      ? parkingSelectedCar.visual.defaultPaintColor
+      : vehicleColorInput.value;
+    vehicleColorInput.value = color;
     parkingCarColorInput.value = color;
     localStorage.setItem(carColorStorageKey(parkingSelectedCar), color);
     applyParkingPreviewColor(parkingSelectedCar, color);
@@ -6692,12 +6723,14 @@ const input: {
   left: boolean;
   right: boolean;
   handbrake: boolean;
+  boost: boolean;
 } = {
   forward: false,
   backward: false,
   left: false,
   right: false,
   handbrake: false,
+  boost: false,
 };
 const neutralDriverInput: DriverInput = Object.freeze({
   forward: false,
@@ -6705,6 +6738,7 @@ const neutralDriverInput: DriverInput = Object.freeze({
   left: false,
   right: false,
   handbrake: false,
+  boost: false,
 });
 const explorationKeys = new Set<string>();
 const explorationControlCodes = new Set([
@@ -6723,7 +6757,13 @@ const isEditableKeyboardTarget = (target: EventTarget | null): boolean => (
   || target instanceof HTMLTextAreaElement
 );
 
-type DigitalDriverInputKey = 'forward' | 'backward' | 'left' | 'right' | 'handbrake';
+type DigitalDriverInputKey =
+  | 'forward'
+  | 'backward'
+  | 'left'
+  | 'right'
+  | 'handbrake'
+  | 'boost';
 const keyMap: Record<string, DigitalDriverInputKey> = {
   KeyW: 'forward',
   ArrowUp: 'forward',
@@ -6734,6 +6774,8 @@ const keyMap: Record<string, DigitalDriverInputKey> = {
   KeyD: 'right',
   ArrowRight: 'right',
   Space: 'handbrake',
+  ShiftLeft: 'boost',
+  ShiftRight: 'boost',
 };
 const digitalDriverInputKeys: readonly DigitalDriverInputKey[] = [
   'forward',
@@ -6741,6 +6783,7 @@ const digitalDriverInputKeys: readonly DigitalDriverInputKey[] = [
   'left',
   'right',
   'handbrake',
+  'boost',
 ];
 
 window.addEventListener('keydown', event => {
@@ -7078,6 +7121,7 @@ const readRuntimeDriverInput = (): DriverInput => {
       : motionSnapshot.active ? motionSnapshot.steering : steering,
     directSteering: motionSnapshot.active && !hasKeyboardSteering,
     handbrake: input.handbrake || Boolean(gamepad.buttons[4]?.pressed),
+    boost: input.boost || Boolean(gamepad.buttons[5]?.pressed),
   };
 };
 window.addEventListener('gamepadconnected', event => {
@@ -8787,6 +8831,29 @@ try {
         apexEtherHudSession,
         {
           timeTrial: APEX_DRIVE_PUBLIC_DEMO,
+          activeVehicleId: activeCar.id,
+          vehicleOptions: runtimeCarCatalog.map(definition => Object.freeze({
+            id: definition.id,
+            name: definition.name,
+          })),
+          requestVehicle: vehicleId => {
+            const definition = runtimeCarCatalog.find(
+              candidate => candidate.id === vehicleId,
+            );
+            if (!definition || definition.id === activeCar.id) return;
+            localStorage.setItem(selectedCarStorageKey, definition.id);
+            if (definition.id === 'vertex-arcade') {
+              localStorage.setItem(
+                carColorStorageKey(definition),
+                definition.visual.defaultPaintColor,
+              );
+            }
+            const nextUrl = new URL(window.location.href);
+            nextUrl.searchParams.set('vehicle', 'car');
+            nextUrl.searchParams.set('car', definition.id);
+            nextUrl.searchParams.set('drive', 'circuit');
+            window.location.href = nextUrl.toString();
+          },
           openVoidTimeTrialProfile: voidTimeTrialEnabled
             ? () => voidProfileGate?.open(mountVoidTimeTrialIdentity)
             : undefined,

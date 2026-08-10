@@ -265,6 +265,9 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
   private aerodynamicDownforceMultiplier = 1;
   private launchBoostElapsedS = 0;
   private launchBoostArmed = true;
+  private pulseBoostElapsedS = 0;
+  private pulseBoostRechargeRemainingS = 0;
+  private pulseBoostPressed = false;
   private currentSteeringInput = 0;
   private tireModel: TireModelId = 'apex-tmeasy-v1';
   private tireExecutionPreference: ApexTireExecutionPreference = 'auto';
@@ -554,6 +557,9 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
     this.previousAeroThrottle = 0;
     this.launchBoostElapsedS = 0;
     this.launchBoostArmed = true;
+    this.pulseBoostElapsedS = 0;
+    this.pulseBoostRechargeRemainingS = 0;
+    this.pulseBoostPressed = false;
     this.resetTireEnergyDissipation();
     this.tireForceModel?.reset();
     for (let index = 0; index < this.wheelCount; index += 1) {
@@ -620,6 +626,11 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
     this.controller.SetDriverInput(0, 0, 0, 0);
     this.currentSteeringInput = 0;
     this.previousAeroThrottle = 0;
+    this.launchBoostElapsedS = 0;
+    this.launchBoostArmed = true;
+    this.pulseBoostElapsedS = 0;
+    this.pulseBoostRechargeRemainingS = 0;
+    this.pulseBoostPressed = false;
     this.tireForceModel?.reset();
     for (let index = 0; index < this.wheelCount; index += 1) {
       this.previousSuspensionLengths[index] = (
@@ -1508,6 +1519,7 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
     throttle: number,
     speedMps: number,
     fixedStep: number,
+    pulseRequested: boolean,
   ): void {
     const definition = this.carPhysicsDefinition!;
     if (throttle < 0.05) {
@@ -1539,10 +1551,49 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
       0,
       1,
     );
+    const pulseDefinition = definition.pulseBoost;
+    this.pulseBoostRechargeRemainingS = Math.max(
+      0,
+      this.pulseBoostRechargeRemainingS - fixedStep,
+    );
+    if (
+      pulseDefinition
+      && pulseRequested
+      && !this.pulseBoostPressed
+      && this.pulseBoostRechargeRemainingS <= 0
+      && throttle > 0.2
+    ) {
+      this.pulseBoostElapsedS = fixedStep;
+      this.pulseBoostRechargeRemainingS = (
+        pulseDefinition.durationSeconds
+        + pulseDefinition.rechargeSeconds
+      );
+    } else if (this.pulseBoostElapsedS > 0) {
+      this.pulseBoostElapsedS += fixedStep;
+    }
+    this.pulseBoostPressed = pulseRequested;
+    const pulseProgress = pulseDefinition
+      ? clamp(
+        this.pulseBoostElapsedS / pulseDefinition.durationSeconds,
+        0,
+        1,
+      )
+      : 0;
+    const pulseEnvelope = pulseProgress > 0 && pulseProgress < 1
+      ? Math.sin(Math.PI * pulseProgress)
+      : 0;
+    const pulseRatio = pulseDefinition
+      ? pulseDefinition.maximumBoostRatio * pulseEnvelope
+      : 0;
     this.controller.GetEngine().mMaxTorque = definition.engine.maximumTorqueNm
-      * (1 + definition.launch.maximumBoostRatio * smoothPulse * speedFade);
+      * (
+        1
+        + definition.launch.maximumBoostRatio * smoothPulse * speedFade
+        + pulseRatio
+      );
 
     if (progress >= 1) this.launchBoostElapsedS = 0;
+    if (pulseProgress >= 1) this.pulseBoostElapsedS = 0;
   }
 
   private applyAerodynamics(liftOffFrontBlend: number): void {
@@ -1841,6 +1892,7 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
       Math.abs(assisted.throttle),
       sample.speedMps,
       fixedStep,
+      input.boost === true,
     );
     const requestedEngineTorqueNm = this.controller.GetEngine().GetTorque(
       Math.abs(assisted.throttle),

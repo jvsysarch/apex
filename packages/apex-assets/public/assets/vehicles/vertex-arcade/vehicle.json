@@ -1,0 +1,72 @@
+{
+  "format": "apex-drive-car@1",
+  "id": "vertex-arcade",
+  "version": "0.1.0",
+  "name": "VERTEX-ARCADE",
+  "asset": {
+    "domain": "assets",
+    "objectId": "ford-mustang-shelby-gt500",
+    "revision": "0eaa7a16796540f29461ddae05ecdeb3",
+    "modelUrl": "assets/vehicles/ford-mustang-shelby-gt500/scene.gltf"
+  },
+  "coordinateSystem": {
+    "units": "meters",
+    "upAxis": "Y",
+    "forwardAxis": "Z"
+  },
+  "visual": {
+    "bodyRootNode": "GT500Body",
+    "paintMaterialPattern": "carpaint",
+    "brakeLightMaterialPattern": "rearlight|taillight",
+    "defaultPaintColor": "#020304"
+  },
+  "dimensions": {
+    "lengthM": 4.828927400394404,
+    "widthM": 2.0826000701799963,
+    "heightM": 1.3847686781661712
+  },
+  "wheels": {
+    "front-left": {
+      "positionM": [0.8433438501053457, 0.3483974222484137, 1.4511478119575737],
+      "radiusM": 0.3483974222484137,
+      "widthM": 0.29032544844198394,
+      "visualNode": "GT500WheelFtL"
+    },
+    "front-right": {
+      "positionM": [-0.8343264646606188, 0.35476272469361935, 1.4509642409915426],
+      "radiusM": 0.35476272469361935,
+      "widthM": 0.2962299072095026,
+      "visualNode": "GT500WheelFtR"
+    },
+    "rear-left": {
+      "positionM": [0.8076508982259576, 0.34872749570010075, -1.296666907556067],
+      "radiusM": 0.34872749570010075,
+      "widthM": 0.31900341095767726,
+      "visualNode": "GT500WheelBkL"
+    },
+    "rear-right": {
+      "positionM": [-0.812091250447379, 0.34873661005582625, -1.29419506880888],
+      "radiusM": 0.34873661005582625,
+      "widthM": 0.3191289383367685,
+      "visualNode": "GT500WheelBkR"
+    }
+  },
+  "collision": {
+    "chassisBox": {
+      "lengthM": 4.35,
+      "widthM": 1.86,
+      "frontWidthM": 1.82,
+      "rearWidthM": 1.84,
+      "heightM": 0.55,
+      "centerM": [0, 0.36, 0]
+    }
+  },
+  "dynamics": {
+    "physicsDefinitionId": "vertex-arcade",
+    "massKg": 1325,
+    "centerOfMassM": [0, 0.3, 0]
+  },
+  "cameras": {
+    "chaseTarget": [0, 0.62, 0]
+  }
+}

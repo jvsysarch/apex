@@ -170,6 +170,12 @@ export interface ApexLaunchDefinition {
   readonly maximumBoostRatio: number;
 }
 
+export interface ApexPulseBoostDefinition {
+  readonly durationSeconds: number;
+  readonly rechargeSeconds: number;
+  readonly maximumBoostRatio: number;
+}
+
 export interface ApexVehicleAerodynamicsDefinition {
   readonly baseline: AerodynamicSettings;
   readonly fast: AerodynamicSettings;
@@ -195,6 +201,7 @@ export interface ApexCarPhysicsDefinition {
   readonly drivetrain: ApexCarDrivetrainDefinition;
   readonly steering: ApexSteeringDefinition;
   readonly launch: ApexLaunchDefinition;
+  readonly pulseBoost?: ApexPulseBoostDefinition;
   readonly aerodynamics: ApexVehicleAerodynamicsDefinition;
   readonly defaultTirePressurePsi: number;
 }

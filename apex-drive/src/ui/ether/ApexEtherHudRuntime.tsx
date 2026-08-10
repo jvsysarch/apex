@@ -570,6 +570,17 @@ const Settings = memo(({
                 <button type="button" aria-pressed={locale === 'es'} onClick={() => onLocaleChange('es')}>Español</button>
                 <button type="button" aria-pressed={locale === 'en'} onClick={() => onLocaleChange('en')}>English</button>
               </div>
+              <header><span>{t('VEHÍCULO', 'VEHICLE')}</span><h3>{t('Seleccionar auto', 'Select car')}</h3></header>
+              <p>{t(
+                'El Shelby conserva la experiencia original. VERTEX-ARCADE usa récords separados, asistencias reforzadas y pulso con Shift o RB.',
+                'The Shelby keeps the original experience. VERTEX-ARCADE uses separate records, stronger assists, and a Shift or RB pulse.',
+              )}</p>
+              <label className="apex-drive-ether-settings__vehicle">
+                <span>{t('Auto activo', 'Active car')}</span>
+                <select value={controls.activeVehicleId} onChange={event => controls.requestVehicle(event.target.value)}>
+                  {controls.vehicleOptions.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
+                </select>
+              </label>
             </> : null}
             {activeCategory === 'visual' ? <>
               <header><span>{t('TERRENO', 'TERRAIN')}</span><h3>{t('Inspector de superficies', 'Surface inspector')}</h3></header>
@@ -843,6 +854,12 @@ const DriveEtherHud = memo(({ initialPreferences, controls, voidUser, onPreferen
 
 export interface ApexEtherHudControls {
   readonly timeTrial: boolean;
+  readonly activeVehicleId: string;
+  readonly vehicleOptions: readonly {
+    readonly id: string;
+    readonly name: string;
+  }[];
+  readonly requestVehicle: (vehicleId: string) => void;
   readonly openVoidTimeTrialProfile?: () => void;
   readonly signOutVoidTimeTrialProfile?: () => void;
   readonly environmentName: string;
