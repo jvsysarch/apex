@@ -10,6 +10,9 @@ export interface ApexVertexTuning {
   readonly frontDamping: number;
   readonly rearDamping: number;
   readonly gripMultiplier: number;
+  readonly wheelSizeMultiplier: number;
+  readonly wheelHorizontalSeparationM: number;
+  readonly wheelVerticalOffsetM: number;
   readonly continuousBoostForceN: number;
   readonly pulseBoostRatio: number;
   readonly pulseDurationSeconds: number;
@@ -31,6 +34,9 @@ export const DEFAULT_APEX_VERTEX_TUNING: ApexVertexTuning = Object.freeze({
   frontDamping: 0.78,
   rearDamping: 0.76,
   gripMultiplier: 1,
+  wheelSizeMultiplier: 1,
+  wheelHorizontalSeparationM: 1.68,
+  wheelVerticalOffsetM: 0,
   continuousBoostForceN: 14_000,
   pulseBoostRatio: 0.42,
   pulseDurationSeconds: 1.1,
@@ -48,6 +54,9 @@ export const DEFAULT_APEX_VERTEX_HYPER_TUNING: ApexVertexTuning = Object.freeze(
   frontDamping: 0.88,
   rearDamping: 0.84,
   gripMultiplier: 1.2,
+  wheelSizeMultiplier: 1,
+  wheelHorizontalSeparationM: 1.68,
+  wheelVerticalOffsetM: 0,
   continuousBoostForceN: 35_000,
   pulseBoostRatio: 0.8,
   pulseDurationSeconds: 1.3,
@@ -73,6 +82,9 @@ export const normalizeApexVertexTuning = (
   frontDamping: clamp(value?.frontDamping ?? defaults.frontDamping, 0, 5),
   rearDamping: clamp(value?.rearDamping ?? defaults.rearDamping, 0, 5),
   gripMultiplier: clamp(value?.gripMultiplier ?? defaults.gripMultiplier, 0.1, 4),
+  wheelSizeMultiplier: clamp(value?.wheelSizeMultiplier ?? defaults.wheelSizeMultiplier, 0.1, 10),
+  wheelHorizontalSeparationM: clamp(value?.wheelHorizontalSeparationM ?? defaults.wheelHorizontalSeparationM, 0.1, 20),
+  wheelVerticalOffsetM: clamp(value?.wheelVerticalOffsetM ?? defaults.wheelVerticalOffsetM, -5, 5),
   continuousBoostForceN: clamp(value?.continuousBoostForceN ?? defaults.continuousBoostForceN, 0, 500_000),
   pulseBoostRatio: clamp(value?.pulseBoostRatio ?? defaults.pulseBoostRatio, 0, 10),
   pulseDurationSeconds: clamp(value?.pulseDurationSeconds ?? defaults.pulseDurationSeconds, 0.05, 10),
@@ -159,6 +171,12 @@ export const applyApexVertexTuning = (
     dimensions: Object.freeze({
       ...definition.dimensions,
       centerOfMassOffsetM,
+      frontTrackM: tuning.wheelHorizontalSeparationM,
+      rearTrackM: tuning.wheelHorizontalSeparationM,
+      wheelRadiusM:
+        definition.dimensions.wheelRadiusM * tuning.wheelSizeMultiplier,
+      wheelWidthM:
+        definition.dimensions.wheelWidthM * tuning.wheelSizeMultiplier,
     }),
     chassisBox: Object.freeze({
       ...definition.chassisBox,
@@ -166,6 +184,9 @@ export const applyApexVertexTuning = (
     }),
     suspension: Object.freeze({
       ...definition.suspension,
+      wheelMountHeightM:
+        definition.suspension.wheelMountHeightM
+        + tuning.wheelVerticalOffsetM,
       baseline: Object.freeze({
         front: tuneAxle(
           definition.suspension.baseline.front,

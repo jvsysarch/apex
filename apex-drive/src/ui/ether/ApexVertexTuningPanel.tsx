@@ -69,6 +69,17 @@ const groups: readonly {
       { key: 'rearDamping', labelEs: 'Amortiguación trasera', labelEn: 'Rear damping', minimum: 0, maximum: 5, step: 0.02, format: decimal('') },
     ],
   },
+  {
+    titleEs: 'Ruedas y geometría',
+    titleEn: 'Wheels and geometry',
+    descriptionEs: 'Tamaño real y posición física de las cuatro ruedas.',
+    descriptionEn: 'Real size and physical placement of all four wheels.',
+    sliders: [
+      { key: 'wheelSizeMultiplier', labelEs: 'Tamaño de ruedas', labelEn: 'Wheel size', minimum: 0.1, maximum: 10, step: 0.05, format: decimal('×') },
+      { key: 'wheelHorizontalSeparationM', labelEs: 'Separación horizontal', labelEn: 'Horizontal separation', minimum: 0.1, maximum: 20, step: 0.1, format: decimal(' m') },
+      { key: 'wheelVerticalOffsetM', labelEs: 'Desplazamiento vertical', labelEn: 'Vertical offset', minimum: -5, maximum: 5, step: 0.05, format: decimal(' m') },
+    ],
+  },
 ]);
 
 export interface ApexVertexTuningPanelProps {

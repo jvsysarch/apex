@@ -30,6 +30,14 @@ test('VERTEX tuning applies every player-facing physics control', () => {
   assert.equal(definition.suspension.tuned.rear.antiRollStiffness, 3300);
   assert.equal(definition.suspension.tuned.front.damping, 0.78);
   assert.equal(definition.suspension.tuned.rear.damping, 0.76);
+  assert.equal(definition.dimensions.frontTrackM, 1.68);
+  assert.equal(definition.dimensions.rearTrackM, 1.68);
+  assert.equal(definition.dimensions.wheelRadiusM, VERTEX_ARCADE.dimensions.wheelRadiusM);
+  assert.equal(definition.dimensions.wheelWidthM, VERTEX_ARCADE.dimensions.wheelWidthM);
+  assert.equal(
+    definition.suspension.wheelMountHeightM,
+    VERTEX_ARCADE.suspension.wheelMountHeightM,
+  );
   assert.equal(definition.pulseBoost?.maximumBoostRatio, 0.42);
   assert.equal(definition.pulseBoost?.durationSeconds, 1.1);
   assert.equal(definition.pulseBoost?.rechargeSeconds, 4.5);
@@ -74,12 +82,39 @@ test('rollover stability lowers the center of mass and pitch-roll limit', () => 
   assert.equal(stable.rollStabilityDampingPerSecond, 2.2);
 });
 
+test('wheel geometry tuning changes physical size and placement', () => {
+  const tuning = normalizeApexVertexTuning({
+    wheelSizeMultiplier: 3,
+    wheelHorizontalSeparationM: 8,
+    wheelVerticalOffsetM: 2.5,
+  });
+  const definition = applyApexVertexTuning(VERTEX_ARCADE, tuning);
+
+  approximately(
+    definition.dimensions.wheelRadiusM,
+    VERTEX_ARCADE.dimensions.wheelRadiusM * 3,
+  );
+  approximately(
+    definition.dimensions.wheelWidthM,
+    VERTEX_ARCADE.dimensions.wheelWidthM * 3,
+  );
+  assert.equal(definition.dimensions.frontTrackM, 8);
+  assert.equal(definition.dimensions.rearTrackM, 8);
+  approximately(
+    definition.suspension.wheelMountHeightM,
+    VERTEX_ARCADE.suspension.wheelMountHeightM + 2.5,
+  );
+});
+
 test('VERTEX tuning rejects values outside safe slider limits', () => {
   const tuning = normalizeApexVertexTuning({
     torqueNm: 100_000,
     massKg: 1,
     brakeMultiplier: 100,
     gripMultiplier: 5,
+    wheelSizeMultiplier: 100,
+    wheelHorizontalSeparationM: 100,
+    wheelVerticalOffsetM: -100,
     continuousBoostForceN: 1_000_000,
     rolloverStability: -4,
   });
@@ -88,6 +123,9 @@ test('VERTEX tuning rejects values outside safe slider limits', () => {
   assert.equal(tuning.massKg, 100);
   assert.equal(tuning.brakeMultiplier, 25);
   assert.equal(tuning.gripMultiplier, 4);
+  assert.equal(tuning.wheelSizeMultiplier, 10);
+  assert.equal(tuning.wheelHorizontalSeparationM, 20);
+  assert.equal(tuning.wheelVerticalOffsetM, -5);
   assert.equal(tuning.continuousBoostForceN, 500_000);
   assert.equal(tuning.rolloverStability, 0);
 });
