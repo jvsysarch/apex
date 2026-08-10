@@ -454,7 +454,7 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
       profile.lateralGripMultiplier
         * (aerodynamics?.dynamicsLateralGripCalibration ?? 1),
       0.85,
-      1.35,
+      1.65,
     );
     this.aerodynamicDownforceMultiplier = clamp(
       profile.aerodynamicDownforceMultiplier
@@ -1662,6 +1662,30 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
     this.carBody.AddForce(this.aeroForce, this.rearAeroPoint);
   }
 
+  private applyGroundedRollStability(
+    groundedWheelCount: number,
+    fixedStep: number,
+  ): void {
+    const damping = clamp(
+      this.carPhysicsDefinition?.rollStabilityDampingPerSecond ?? 0,
+      0,
+      3,
+    );
+    if (damping <= 0 || groundedWheelCount < 2) return;
+    const angularVelocity = this.carBody.GetAngularVelocity();
+    const attenuation = Math.exp(-damping * fixedStep);
+    const stabilizedAngularVelocity = new this.J.Vec3(
+      angularVelocity.GetX() * attenuation,
+      angularVelocity.GetY(),
+      angularVelocity.GetZ() * attenuation,
+    );
+    this.bodyInterface.SetAngularVelocity(
+      this.carBody.GetID(),
+      stabilizedAngularVelocity,
+    );
+    this.J.destroy(stabilizedAngularVelocity);
+  }
+
   private applySteeringGeometry(
     steering: number,
     speedKmh: number,
@@ -1944,6 +1968,10 @@ export class ApexVehicleSimulation implements ApexStaticWorldPort {
     }
     this.currentStepTireContactCount = 0;
     this.currentStepTireContactWheelMask = 0;
+    this.applyGroundedRollStability(
+      sample.wheels.filter(wheel => wheel.grounded).length,
+      fixedStep,
+    );
     this.applyNinePointTMeasyForces(fixedStep);
     this.beginCompiledTireStep();
     this.jolt.Step(fixedStep, 1);

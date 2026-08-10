@@ -29,6 +29,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import type { LapTimingState } from '../../race/ApexLapTimer';
+import type { ApexVertexTuning } from '../../vehicle/ApexVertexTuning';
 import { ApexHudAdapter } from './ApexHudAdapter';
 import type {
   ApexHudRaceSnapshot,
@@ -45,6 +46,7 @@ import {
   writeApexHudPreferences,
 } from './ApexHudPreferences';
 import { ApexHudStore } from './ApexHudStore';
+import { ApexVertexTuningPanel } from './ApexVertexTuningPanel';
 import '@jvsysarch/apex-ether/styles.css';
 import './apex-ether-drive.css';
 
@@ -828,6 +830,13 @@ const DriveEtherHud = memo(({ initialPreferences, controls, voidUser, onPreferen
     <main className="apex-drive-ether" data-mode={mode} lang={locale}>
       <div className="apex-drive-ether-utility">
         <TrackLauncher locale={locale} controls={controls} />
+        {controls.vertexTuning && controls.requestVertexTuning
+          ? <ApexVertexTuningPanel
+            locale={locale}
+            tuning={controls.vertexTuning}
+            onApply={controls.requestVertexTuning}
+          />
+          : null}
         <VoidUserMenu user={voidUser} locale={locale} onOpenSettings={() => setSettingsOpenRequest(current => current + 1)} onSignIn={controls.openVoidTimeTrialProfile} onSignOut={controls.signOutVoidTimeTrialProfile} />
       </div>
       <Settings preferences={preferences} locale={locale} controls={controls} onChange={update} onLocaleChange={updateLocale} surfacePanelOpen={surfacePanelOpen} onToggleSurfacePanel={() => setSurfacePanelOpen(current => !current)} externalOpenRequest={settingsOpenRequest} hideTrigger />
@@ -860,6 +869,8 @@ export interface ApexEtherHudControls {
     readonly name: string;
   }[];
   readonly requestVehicle: (vehicleId: string) => void;
+  readonly vertexTuning?: ApexVertexTuning;
+  readonly requestVertexTuning?: (tuning: ApexVertexTuning) => void;
   readonly openVoidTimeTrialProfile?: () => void;
   readonly signOutVoidTimeTrialProfile?: () => void;
   readonly environmentName: string;

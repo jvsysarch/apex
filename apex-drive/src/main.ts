@@ -224,6 +224,11 @@ import {
   loadApexDriveVehicleSpecifications,
 } from './vehicle/ApexVehicleManifestLoader';
 import {
+  applyApexVertexTuning,
+  readApexVertexTuning,
+  writeApexVertexTuning,
+} from './vehicle/ApexVertexTuning';
+import {
   ApexAutonomousDriver,
   type ApexAutonomousObstacle,
 } from './vehicle/ApexAutonomousDriver';
@@ -991,6 +996,9 @@ if (activeCar.id === 'vertex-arcade') {
 const activeVehicleSpecification = activeCar.vehicleSpecification;
 const activeMotorcycle = requestedMotorcycle ?? DEFAULT_APEX_MOTORCYCLE;
 const baseActiveCarPhysicsDefinition = createApexCarPhysicsDefinition(activeCar);
+const activeVertexTuning = activeCar.id === 'vertex-arcade'
+  ? readApexVertexTuning()
+  : undefined;
 const chassisBoxCenterYStorageKey = 'apex-drive.car-chassis-box-center-y.v2';
 const minimumChassisBoxCenterYM = -0.2;
 const maximumChassisBoxCenterYM = 0.45;
@@ -1010,13 +1018,19 @@ const configuredChassisBoxCenterYM = (
     Math.max(minimumChassisBoxCenterYM, storedChassisBoxCenterYM),
   )
   : baseActiveCarPhysicsDefinition.chassisBox.centerOffsetYM;
-const activeCarPhysicsDefinition: ApexCarPhysicsDefinition = Object.freeze({
+const configuredActiveCarPhysicsDefinition: ApexCarPhysicsDefinition = Object.freeze({
   ...baseActiveCarPhysicsDefinition,
   chassisBox: Object.freeze({
     ...baseActiveCarPhysicsDefinition.chassisBox,
     centerOffsetYM: configuredChassisBoxCenterYM,
   }),
 });
+const activeCarPhysicsDefinition: ApexCarPhysicsDefinition = activeVertexTuning
+  ? applyApexVertexTuning(
+    configuredActiveCarPhysicsDefinition,
+    activeVertexTuning,
+  )
+  : configuredActiveCarPhysicsDefinition;
 const activeMotorcyclePhysicsDefinition: ApexMotorcyclePhysicsDefinition = (
   activeMotorcycle.definition
 );
@@ -8854,6 +8868,13 @@ try {
             nextUrl.searchParams.set('drive', 'circuit');
             window.location.href = nextUrl.toString();
           },
+          vertexTuning: activeVertexTuning,
+          requestVertexTuning: activeVertexTuning
+            ? tuning => {
+              writeApexVertexTuning(tuning);
+              window.location.reload();
+            }
+            : undefined,
           openVoidTimeTrialProfile: voidTimeTrialEnabled
             ? () => voidProfileGate?.open(mountVoidTimeTrialIdentity)
             : undefined,
