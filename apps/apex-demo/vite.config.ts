@@ -1,13 +1,20 @@
 import { createReadStream, readFileSync } from 'node:fs';
 import { extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { defineConfig, mergeConfig, type Plugin } from 'vite';
+import { defineConfig, mergeConfig, type ConfigEnv, type Plugin } from 'vite';
 import apexDriveConfig from '../../apex-drive/vite.config';
 
 const appRoot = fileURLToPath(new URL('.', import.meta.url));
 const driveRoot = fileURLToPath(new URL('../../apex-drive/', import.meta.url));
+const voidControlRoot = fileURLToPath(new URL('../../apex-void/', import.meta.url));
 const assetsPublicRoot = new URL('../../packages/apex-assets/public/', import.meta.url);
 const PUBLIC_DEMO_BARE_RUNTIME = true;
+
+const resolveDriveConfig = (environment: ConfigEnv) => (
+  typeof apexDriveConfig === 'function'
+    ? apexDriveConfig(environment)
+    : apexDriveConfig
+);
 
 const publicDemoFiles = Object.freeze([
   'assets/audio/Car_Acceleration.ogg',
@@ -212,9 +219,9 @@ const publicDemoAssets = (): Plugin => ({
   },
 });
 
-export default defineConfig(({ command }) => mergeConfig(apexDriveConfig, {
+export default defineConfig(environment => mergeConfig(resolveDriveConfig(environment), {
   root: driveRoot,
-  base: command === 'build' ? '/apex/' : '/',
+  base: environment.command === 'build' ? '/apex/' : '/',
   publicDir: false,
   plugins: [publicDemoAssets()],
   define: {
@@ -247,7 +254,10 @@ export default defineConfig(({ command }) => mergeConfig(apexDriveConfig, {
   },
   server: {
     fs: {
-      allow: [fileURLToPath(new URL('../../', import.meta.url))],
+      allow: [
+        fileURLToPath(new URL('../../', import.meta.url)),
+        voidControlRoot,
+      ],
     },
   },
 }));

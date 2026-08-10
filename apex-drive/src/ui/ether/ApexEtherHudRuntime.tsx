@@ -584,6 +584,14 @@ const Settings = memo(({
                 controls.openScenePanel();
                 setOpen(false);
               }}>{t('Abrir iluminación y escena', 'Open lighting and scene')}</button>
+              <header><span>{t('VEHÍCULO', 'VEHICLE')}</span><h3>{t('Deformación de ruedas', 'Wheel deformation')}</h3></header>
+              <p>{t(
+                'Activá la deformación visual GPU de los neumáticos. La física de contacto no cambia.',
+                'Enable GPU tire deformation. Contact physics remains unchanged.',
+              )}</p>
+              <div className="apex-drive-ether-admin__options">
+                <label><input type="checkbox" checked={controls.tireDeformationEnabled} onChange={event => controls.requestTireDeformation(event.target.checked)} /> {t('Deformación visual de neumáticos', 'Visual tire deformation')}</label>
+              </div>
             </> : null}
             {activeCategory === 'hud' ? <>
               <header><span>HUD</span><h3>{t('Composición en pantalla', 'On-screen composition')}</h3></header>

@@ -1623,7 +1623,7 @@ const activeTireDeformationMode: ApexTireDeformationMode = (
       ? 'cpu'
       : storedTireDeformationMode === 'gpu'
         ? 'gpu'
-        : APEX_DRIVE_BARE_RUNTIME ? 'off' : 'gpu'
+        : APEX_DRIVE_BARE_RUNTIME && !APEX_DRIVE_PUBLIC_DEMO ? 'off' : 'gpu'
 );
 const tireVisualDeformationEnabled = activeTireDeformationMode !== 'off';
 renderProfileSelect.value = activeRenderProfile.id;
@@ -4366,7 +4366,7 @@ const createGuidanceChevrons = (
   widthM: TEST_TRACK_LANE_COUNT === 3 ? 3.08 : 2.58,
   strokeWidthM: TEST_TRACK_LANE_COUNT === 3 ? 0.42 : 0.36,
 });
-let trackGuidanceChevrons = APEX_DRIVE_BARE_RUNTIME
+let trackGuidanceChevrons = APEX_DRIVE_BARE_RUNTIME && !APEX_DRIVE_PUBLIC_DEMO
   ? undefined
   : createGuidanceChevrons(generatedRacingLinePlan);
 if (trackGuidanceChevrons) {
